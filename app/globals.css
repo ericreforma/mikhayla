@@ -1,0 +1,252 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * The page is an app-style deck now, not a scrolling document: the viewport
+ * is locked and a single vertical track does the moving. Locking html/body
+ * here is what stops iOS from rubber-banding the whole page behind the deck.
+ */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* Stop iOS Safari from inflating text when the phone is rotated. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: #fff8f0;
+  color: #3d2b4f;
+  /* Kill the 300ms tap delay and the blue tap flash on touch devices. */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  /* Height of the bottom bar, minus the safe area it pads itself with.
+     Slides reserve this much room so nothing hides behind the nav. */
+  --nav-h: 4.25rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --nav-h: 4.75rem;
+  }
+}
+
+/* Respect users who've asked for less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The deck: one vertical track, one screen per section
+   --------------------------------------------------------------- */
+
+.deck-track {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* `mandatory` means a swipe always lands on a section, never between two. */
+  scroll-snap-type: y mandatory;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  /* The scrollbar is noise here — the bottom nav is the position indicator. */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.deck-track::-webkit-scrollbar {
+  display: none;
+}
+
+.deck-slide {
+  /* `0 0 100%` rather than `h-screen`: 100% of the track, so a mobile address
+     bar or a zoomed viewport can never leave a sliver of the next one showing. */
+  flex: 0 0 100%;
+  height: 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  /* One section per flick, however hard the flick. */
+  scroll-snap-stop: always;
+  /* A section taller than a short phone (or a landscape one) scrolls inside
+     itself; the track still owns the section-to-section movement. */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ---------------------------------------------------------------
+   The timeline rail: the one thing that moves sideways
+   ---------------------------------------------------------------
+   Nested inside a single deck slide. The axes are deliberately split —
+   the rail only ever claims horizontal gestures, so a vertical swipe
+   started anywhere on it still chains up to the deck and changes section.
+   --------------------------------------------------------------- */
+
+.rail-track {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  /*
+   * x only, never the shorthand: `overscroll-behavior: contain` would also
+   * block the vertical chain to the deck, and swiping up off month 7 would
+   * silently do nothing.
+   */
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rail-track::-webkit-scrollbar {
+  display: none;
+}
+
+.rail-panel {
+  flex: 0 0 100%;
+  height: 100%;
+  width: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  /* Nothing scrolls in here — the panel is sized to fit so the only vertical
+     gesture available is the deck's. */
+  overflow: hidden;
+}
+
+@layer utilities {
+  /* Keep content clear of notches, rounded corners and home indicators. */
+  .px-gutter {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
+  }
+
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Room for the bottom bar, on top of whatever padding the slide asks for. */
+  .pb-nav {
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 0.5rem);
+  }
+
+  /* Same, plus a hand's breadth more: the timeline's pages sit a little
+     higher than the other sections so the corner figure has room to stand. */
+  .pb-rail {
+    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 2.5rem);
+  }
+
+  /*
+     Stands an absolutely-positioned element on the top edge of the bottom bar.
+
+     This is the bar's *real* height, not the roomier --nav-h the slides
+     reserve: one tab's box (0.5rem padding twice, a 1.5rem icon and a 0.25rem
+     gap = 2.75rem) plus its label, plus the hairline across the top. The label
+     is the only part that changes with width, so it is the only term that
+     moves. Keep these in step with the tab in BottomNav.
+  */
+  .bottom-menu {
+    bottom: calc(2.75rem + 9px + 1px + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 400px) {
+    .bottom-menu {
+      bottom: calc(2.75rem + 10.5px + 1px + env(safe-area-inset-bottom));
+    }
+  }
+
+  @media (min-width: 640px) {
+    .bottom-menu {
+      bottom: calc(3.5rem + 1px + env(safe-area-inset-bottom));
+    }
+  }
+
+  /*
+     Sets text down beside the corner figure instead of underneath it.
+
+     The figure stands at the screen edge, not at the gutter, so this inset is
+     measured from that same edge less the gutter the text already carries —
+     which is what keeps the two side by side as the page resizes. The value is
+     set against the visible artwork rather than the image box, since several
+     cut-outs carry a wide transparent margin; it grows with the type ladder
+     because the figure is sized in title lines.
+
+     Past `md` the caption is centred far clear of the figure and the inset
+     comes off again.
+  */
+  .beside-figure {
+    padding-left: 6.5rem; /* tuned by eye against the widest cut-out */
+  }
+
+  @media (min-width: 400px) {
+    .beside-figure {
+      padding-left: 8.375rem; /* the same, stepped up with the type ladder */
+    }
+  }
+
+  @media (min-width: 640px) {
+    .beside-figure {
+      padding-left: 10rem; /* likewise */
+    }
+  }
+
+  @media (min-width: 768px) {
+    .beside-figure {
+      padding-left: 0;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .px-gutter {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+      padding-right: max(1.5rem, env(safe-area-inset-right));
+    }
+  }
+}
+
+/* ---------------------------------------------------------------
+   Storybook / royal decoration
+   --------------------------------------------------------------- */
+
+/* Aged-paper speckle, so slides read as a fairytale page. */
+.parchment-texture {
+  background-image: radial-gradient(#7e6212 0.5px, transparent 0.5px);
+  background-size: 14px 14px;
+  opacity: 0.06;
+}
+
+/* Soft dawn wash behind the hero — parchment melting into blush. */
+.royal-dawn {
+  background-image: linear-gradient(180deg, #fff8f0 0%, #fdf1f4 55%, #fbeaf0 100%);
+}
+
+/* A gilt hairline used to frame headings and the date panel. */
+.gilt-rule {
+  background-image: linear-gradient(90deg, transparent, #d4af37 35%, #d4af37 65%, transparent);
+}
+
+/* Faint scattered stars for the ballroom slide. */
+.starfield {
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 22%, #f0dfa8 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 78% 14%, #f0dfa8 50%, transparent 50%),
+    radial-gradient(1px 1px at 34% 68%, #e8b4c8 50%, transparent 50%),
+    radial-gradient(1.5px 1.5px at 88% 74%, #f0dfa8 50%, transparent 50%),
+    radial-gradient(1px 1px at 58% 38%, #f0dfa8 50%, transparent 50%),
+    radial-gradient(1px 1px at 22% 86%, #e8b4c8 50%, transparent 50%);
+  opacity: 0.7;
+}

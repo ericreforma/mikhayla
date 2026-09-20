@@ -4,6 +4,19 @@
  * touch to make the page yours.
  */
 
+/**
+ * The site is served from a subfolder (`/mikhayla`), not a domain root, so
+ * everything in `public/` answers one level in. `asset()` puts that prefix on
+ * the paths below, reading it from `next.config.mjs` so there is one place to
+ * change it — and leaving empty strings empty, so an unset video stays unset
+ * rather than becoming a path to nothing.
+ *
+ * Write the paths below exactly as you see them, from the site root. The
+ * prefix is added for you.
+ */
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+const asset = (path: string) => (path ? `${BASE_PATH}${path}` : path);
+
 export const BABY_NAME = "Mikhayla";
 export const PARTY_DATE = "Saturday, October 17, 2026";
 export const PARTY_TIME = "10:00 AM – 2:00 PM";
@@ -42,13 +55,13 @@ export const RSVP_MAX_GUESTS = 12;
  * rather than a thing a guest has to start. Keep it short (20–40s) and
  * compressed — most people open this on mobile data.
  */
-export const VENUE_VIDEO = "";
+export const VENUE_VIDEO = asset("");
 
 /**
  * A still pulled from the video, shown while it loads and in place of the
  * first black frame. Same idea: `"/venue/casa-maria-poster.jpg"`.
  */
-export const VENUE_VIDEO_POSTER = "";
+export const VENUE_VIDEO_POSTER = asset("");
 
 /**
  * A picture of the map — the venue's own directions sheet, with the
@@ -63,7 +76,7 @@ export const VENUE_VIDEO_POSTER = "";
  * "FROM MUZON" and "FROM GUMAOK" on it beats a generic pin, and the
  * "Get directions" button already covers turn-by-turn.
  */
-export const VENUE_MAP_IMAGE = "/venue/casa-maria-poster.jpg";
+export const VENUE_MAP_IMAGE = asset("/venue/casa-maria-poster.jpg");
 
 /**
  * A live embedded map, used only when `VENUE_MAP_IMAGE` above is empty.
@@ -165,7 +178,7 @@ export type Milestone = {
  * notes are the real milestone she hit in that gown, so those are the ones
  * worth rewriting in your own words.
  */
-export const MILESTONES: Milestone[] = [
+const MILESTONE_PAGES: Milestone[] = [
   { month: 0,  princess: "",           title: "A princess is born",            note: "Before the gowns and the crowns — the day your kingdom met you.",         tint: "#EAE2E1", accent: "newborn",                                            photo: "/milestones/00-newborn.png" },
   { month: 1,  princess: "Snow White", title: "Fairest of them all",           note: "One month old, and already able to hush a room full of admirers.",        tint: "#F1E9DA", accent: "snow",       character: "/princesses/snowwhite.png", photo: "/milestones/01-snowwhite.png" },
   { month: 2,  princess: "Aurora",     title: "Once upon a dream",             note: "Your first real smile arrived mid-nap, like something you'd dreamt up.",  tint: "#F1DADD", accent: "aurora",     character: "/princesses/aurora.png",    photo: "/milestones/02-aurora.png" },
@@ -180,6 +193,17 @@ export const MILESTONES: Milestone[] = [
   { month: 11, princess: "Cinderella", title: "If the shoe fits",              note: "First steps — wobbly, brave, and gone in a blink. No midnight needed.",   tint: "#E1E1EA", accent: "cinderella", character: "/princesses/cinderella.png", photo: "/milestones/11-cinderella.png" },
   { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png" },
 ];
+
+/**
+ * The same twelve pages, with the site prefix put on every file path. This is
+ * what the page reads — write the rows above from the site root and let this
+ * do the prefixing, so the table stays a table.
+ */
+export const MILESTONES: Milestone[] = MILESTONE_PAGES.map((page) => ({
+  ...page,
+  character: page.character && asset(page.character),
+  photo: page.photo && asset(page.photo),
+}));
 
 /**
  * Tailwind can't build class names at runtime, so every class is spelled out

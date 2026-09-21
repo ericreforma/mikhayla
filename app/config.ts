@@ -18,6 +18,46 @@ const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const asset = (path: string) => (path ? `${BASE_PATH}${path}` : path);
 
 export const BABY_NAME = "Mikhayla";
+
+/**
+ * Her name in full, for the one place it is the headline. "Princess" is a
+ * fond title here, not part of it — the hero keeps the two apart on purpose,
+ * so no one reads her name off the invitation as "Princess Mikhayla".
+ */
+export const BABY_FULL_NAME = "Mikhayla Maeve";
+
+/**
+ * The hero's portrait — the first picture of her anyone sees. It stands at
+ * the bottom of the first screen, edge to edge, dissolving into the page at
+ * the top so the headline can sit over it.
+ *
+ * That framing wants a tall shot with her high in it: the top of the picture
+ * is faded out and written over, and the bottom runs off the screen, so
+ * anything in either is lost. Put the file in `public/images/`.
+ */
+export const HERO_PORTRAIT = asset("/images/mikhayla-front.png");
+
+/**
+ * The picture beside the date. It stands in the right-hand half of the date
+ * card, dissolving into it along its left edge, so what matters is that she
+ * is high in the frame and to the middle — the left of the shot is faded
+ * away and the bottom runs out of the card.
+ */
+export const DATE_PORTRAIT = asset("/images/mikhayla-fairy.png");
+
+/**
+ * The icon on the swimwear pass. A picture rather than one of the drawn
+ * ornaments, so it keeps its own colours instead of taking the page's.
+ */
+/**
+ * The picture that closes the invitation, standing at the foot of the last
+ * screen the way the hero's does at the foot of the first. Same framing
+ * wanted: her high in a tall shot, since the top is faded out and written
+ * over and the bottom runs off the screen.
+ */
+export const FINALE_PORTRAIT = asset("/images/mikhayla-cake.png");
+
+export const SWIMWEAR_ICON = asset("/icons/swimwear.png");
 export const PARTY_DATE = "Saturday, October 17, 2026";
 export const PARTY_TIME = "10:00 AM – 2:00 PM";
 export const PARTY_LOCATION = "Casa Maria Resort and Events Place";

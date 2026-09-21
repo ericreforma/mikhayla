@@ -121,29 +121,6 @@ export function CastleIcon({ className = "" }: IconProps) {
   );
 }
 
-/**
- * Swimwear — the ball is a pool party.
- *
- * What makes a shape read as a swimsuit rather than a vest is the pair of
- * high-cut leg openings and the pinched waist, so those are drawn in full even
- * at this size. The straps converge at the neck instead of arcing over it: a
- * closed loop up there looks like the handle of a bag.
- */
-export function SwimsuitIcon({ className = "" }: IconProps) {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
-      {/* Halter straps, meeting at the neck. */}
-      <path d="M9.6 8.4 C9.8 5.9 10.6 4.7 12 4.4" {...stroke} />
-      <path d="M14.4 8.4 C14.2 5.9 13.4 4.7 12 4.4" {...stroke} />
-      {/* Scooped neckline, pinched waist, and the two leg openings. */}
-      <path
-        d="M9.2 8.2 C10.3 9 10.9 9.3 12 9.3 C13.1 9.3 13.7 9 14.8 8.2 C15.6 10.4 15.2 12 14.9 13.6 C14.6 15.4 14.4 17.6 14 18.9 C13.2 19.3 12.6 18 12 16.6 C11.4 18 10.8 19.3 10 18.9 C9.6 17.6 9.4 15.4 9.1 13.6 C8.8 12 8.4 10.4 9.2 8.2 Z"
-        {...stroke}
-      />
-    </svg>
-  );
-}
-
 /** The venue's address — a map pin. */
 export function MapPinIcon({ className = "" }: IconProps) {
   return (

@@ -1,8 +1,8 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { PARTY_DATE, PARTY_TIME } from "@/app/config";
-import { Crown, Sparkle, ClockIcon, SwimsuitIcon } from "./Ornaments";
+import { DATE_PORTRAIT, PARTY_DATE, PARTY_TIME, SWIMWEAR_ICON } from "@/app/config";
+import { Crown, Sparkle, ClockIcon } from "./Ornaments";
 import { useSlideIsActive } from "./SlideActive";
 
 /** The deck's easing — a quick start settling into place. */
@@ -102,7 +102,7 @@ export function DateTimeSection() {
   const closes = closeRaw ?? "";
 
   return (
-    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-mist px-gutter pb-nav pt-8 text-center">
+    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-mist pb-nav pt-8 text-center">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       {/* Tucked into the corners, where the card never reaches — even on a
@@ -140,7 +140,7 @@ export function DateTimeSection() {
       />
 
       <motion.div
-        className="relative my-auto flex w-full flex-col items-center"
+        className="relative my-auto flex w-full flex-col items-center px-gutter"
         initial={false}
         animate={state}
         variants={GROUP}
@@ -173,81 +173,147 @@ export function DateTimeSection() {
           className="gilt-rule mt-4 h-px w-28 xs:w-36 sm:w-48"
         />
 
-        {/* A gilt-framed card, like the date panel on a real invitation. */}
+        {/*
+          The date card: a band straight across the page, gold rules top and
+          bottom and nothing down its sides, the same as the one on the
+          timeline's title page. It breaks out of the gutter the rest of this
+          section keeps — hence the negative margin — so the photograph can
+          run right off the edge of the screen.
+
+          The two halves are a plain flex row at every width. Stacked on a
+          phone the picture would be a band of its own and the card would be
+          half the page tall; side by side it stays a card with a picture in
+          it, which is the point.
+        */}
         <motion.div
           variants={still ? STILL : CARD}
-          className="relative mt-5 w-full max-w-md overflow-hidden rounded-2xl border border-gold/40 bg-parchment/70 px-5 py-6 shadow-sm sm:mt-7 sm:max-w-lg sm:px-10 sm:py-9"
+          className="relative -mx-gutter mt-5 flex items-stretch self-stretch border-y-2 border-gold bg-white/[0.44] sm:mt-7"
         >
-          {/* A sheen crossing the gilt every few seconds, the way light moves
-              over foil when the card is tilted. */}
-          {!still && (
-            <motion.div
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 -left-1/4 w-1/4 skew-x-12 bg-gradient-to-r from-transparent via-goldSoft/50 to-transparent"
-              animate={{ x: ["0%", "500%"] }}
-              transition={{ duration: 3.4, repeat: Infinity, repeatDelay: 3.6, ease: "easeInOut" }}
-            />
-          )}
+          {/* The date keeps the narrower half and centres itself in it, so it
+              reads as its own panel rather than as a caption pushed against
+              the left edge. */}
+          <div className="flex flex-1 flex-col justify-center py-6 pl-gutter pr-3 text-center sm:py-8 sm:pr-5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-goldDeep sm:text-xs">
+              {weekday}
+            </p>
 
-          <p className="text-[11px] font-medium uppercase tracking-[0.35em] text-goldDeep sm:text-xs">
-            {weekday}
-          </p>
-
-          {/* Flanking rules are real hairlines rather than runs of underscores,
-              so they shrink with the viewport instead of forcing the row wider
-              than a phone screen. */}
-          <div className="mt-3 flex items-center justify-center gap-3 sm:gap-4 sm:mt-4">
-            <span aria-hidden className="gilt-rule h-px w-8 xs:w-12 sm:w-16" />
-            <span className="font-display text-xl font-medium tracking-[0.2em] text-ink xs:text-2xl sm:text-3xl">
+            {/* The month sits over the numeral rather than beside it: this
+                column is the narrower of the two now, and a row of month,
+                rule, numeral would wrap the moment the month is a long one. */}
+            <p className="mt-2 font-display text-xl font-medium tracking-[0.2em] text-ink xs:text-2xl sm:mt-3 sm:text-3xl">
               {month}
-            </span>
-            <span aria-hidden className="gilt-rule h-px w-8 xs:w-12 sm:w-16" />
-          </div>
+            </p>
 
-          <div className="relative mt-1 flex items-center justify-center">
-            {/* Candlelight behind the numeral, slowly guttering. */}
-            {!still && (
+            <div className="relative mt-0.5 flex items-center justify-center">
+              {/* Candlelight behind the numeral, slowly guttering. */}
+              {!still && (
+                <motion.span
+                  aria-hidden
+                  className="absolute h-20 w-20 rounded-full bg-gold/20 blur-2xl sm:h-28 sm:w-28"
+                  animate={{ scale: [1, 1.15, 1], opacity: [0.45, 0.8, 0.45] }}
+                  transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+                />
+              )}
               <motion.span
-                aria-hidden
-                className="absolute h-24 w-24 rounded-full bg-gold/20 blur-2xl sm:h-32 sm:w-32"
-                animate={{ scale: [1, 1.15, 1], opacity: [0.45, 0.8, 0.45] }}
-                transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-              />
-            )}
-            <motion.span
-              variants={still ? STILL : NUMERAL}
-              className="relative font-display text-[3rem] font-light leading-none text-berry xs:text-6xl sm:text-7xl"
-            >
-              {day}
-            </motion.span>
+                variants={still ? STILL : NUMERAL}
+                className="relative font-display text-[3rem] font-light leading-none text-berry xs:text-6xl sm:text-7xl"
+              >
+                {day}
+              </motion.span>
+            </div>
+
+            <p className="mt-1 font-display text-base font-medium tracking-[0.3em] text-ink xs:text-lg sm:text-xl">
+              {year}
+            </p>
+
+            <div aria-hidden className="mx-auto mt-3 w-14 border-t border-dashed border-gold/60 sm:mt-4 sm:w-20" />
+
+            {/*
+              The smallest type on the card, and it has to be: this is the
+              longest unbreakable-looking line in the narrower half, and at
+              body size it runs past the edge of a small phone. It is left
+              free to wrap rather than held on one line, so a wider font on
+              some other device breaks it in two instead of clipping it.
+            */}
+            <p className="mt-3 flex items-center justify-center gap-1.5 font-display text-xs text-ink sm:mt-4 sm:gap-2 sm:text-base">
+              <ClockIcon className="h-3.5 w-3.5 flex-none text-goldDeep sm:h-5 sm:w-5" />
+              <span>
+                {opens} – {closes}
+              </span>
+            </p>
           </div>
 
-          <p className="mt-2 font-display text-lg font-medium tracking-[0.3em] text-ink xs:text-xl sm:text-2xl">
-            {year}
-          </p>
+          {/*
+            Her half, and the larger one — the card is a photograph with the
+            date beside it rather than the other way round.
 
-          <div aria-hidden className="mx-auto mt-4 w-16 border-t border-dashed border-gold/60 sm:mt-5 sm:w-24" />
+            The picture is scaled up inside this frame because it is
+            a tall portrait in a box very nearly as tall as it is — left at
+            its own size the whole shot fits, and she ends up a thumbnail.
+            Past `sm` the frame is wide enough that the crop does that work on
+            its own and the zoom comes back off.
 
-          <p className="mt-4 flex items-center justify-center gap-2 font-display text-base text-ink xs:text-lg sm:text-xl">
-            <ClockIcon className="h-4 w-4 flex-none text-goldDeep sm:h-5 sm:w-5" />
-            <span className="whitespace-nowrap">
-              {opens} – {closes}
-            </span>
-          </p>
+            The frame carries a blush of its own because the photograph is
+            loaded lazily — this section is four swipes in, and it is a big
+            file. Without it the card shows a white hole until the picture
+            lands.
+          */}
+          <div className="date-portrait-fade relative w-[52%] max-w-[20rem] shrink-0 overflow-hidden bg-rose/25 xs:w-[55%] sm:w-[57%] sm:max-w-[24rem] lg:max-w-[30rem]">
+            {/*
+              Absolutely placed, and that is load-bearing: `h-full` inside a
+              box of automatic height resolves to `auto`, so in the ordinary
+              flow the photograph's own proportions set the height and the
+              card grew to half a laptop screen. Out of the flow, it fills
+              whatever height the words on the left ask for.
+
+              The crop rides higher past `sm`, where the frame is wide and
+              shallow and the window into a tall portrait is a narrow band:
+              left where a phone wants it, the band opens below the top of
+              her head and takes the tiara off.
+            */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={DATE_PORTRAIT}
+              alt=""
+              width={1414}
+              height={2000}
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 h-full w-full origin-[52%_24%] scale-[1.45] object-cover object-[center_22%] sm:scale-100 sm:object-[center_12%]"
+            />
+          </div>
         </motion.div>
 
         {/*
-          The one thing a guest has to be told before they arrive, so it is a
-          badge rather than another line of prose — and it carries the icon,
-          which is what the eye lands on first.
+          The one thing a guest has to act on before they arrive, so it is
+          built as a pass to the pool rather than as another line of prose: a
+          stub holding the icon, a perforation, and the notice itself. The
+          outline pill it replaced sat quietly enough to be swiped past, and
+          this is the piece nobody can afford to miss.
         */}
-        <motion.p
+        <motion.div
           variants={line}
-          className="mt-4 inline-flex items-center gap-2 rounded-full border border-gold/40 bg-parchment/70 px-4 py-2 font-display text-sm text-ink shadow-sm sm:mt-5 sm:gap-2.5 sm:px-5 sm:text-base"
+          className="mt-4 flex max-w-full items-stretch overflow-hidden rounded-xl border border-gold/50 bg-parchment/85 shadow-sm sm:mt-5"
         >
-          <SwimsuitIcon className="h-4 w-4 flex-none text-berry sm:h-5 sm:w-5" />
-          <span>Swimwear required — it&apos;s a pool party</span>
-        </motion.p>
+          <span className="flex flex-none items-center bg-goldSoft/40 px-3 sm:px-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={SWIMWEAR_ICON}
+              alt=""
+              width={20}
+              height={20}
+              decoding="async"
+              className="h-5 w-5"
+            />
+          </span>
+
+          {/* The tear line of a ticket stub. */}
+          <span aria-hidden className="w-0 flex-none border-l border-dashed border-gold/60" />
+
+          <span className="flex items-center px-3.5 py-2.5 text-left font-display text-xs leading-snug text-ink sm:px-5 sm:py-3 sm:text-base">
+            Swimwear required — it&apos;s a pool party
+          </span>
+        </motion.div>
 
         <motion.p
           variants={line}

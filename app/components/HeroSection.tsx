@@ -1,19 +1,63 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { BABY_NAME } from "@/app/config";
+import { BABY_FULL_NAME, HERO_PORTRAIT } from "@/app/config";
 import { Crown, Sparkle } from "./Ornaments";
 
 export function HeroSection() {
   return (
-    <div className="royal-dawn relative flex min-h-full flex-col items-center overflow-hidden px-gutter pb-nav pt-8 text-center">
+    <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
-      {/* Floating sparkles: small and tucked toward the edges on a phone so
-          they never land on top of the headline, then grown from sm up. */}
+      {/*
+        She stands at the bottom of the screen, edge to edge — no frame, no
+        gutter — with the top of the picture dissolved into the dawn wash so
+        the headline can sit over it. `object-top` keeps her face and tiara in
+        frame and lets the gown run off the bottom of the screen instead,
+        which is the part there is most of and least to lose.
+
+        Height is a share of the screen rather than a fixed figure, so the
+        same proportion holds from a short phone to a laptop. The taller this
+        box is, the higher up the screen her face lands — which is why the
+        fade in globals.css is measured against it.
+
+        Full bleed is a phone's shape, though: on a wide, short window a
+        portrait cropped to fill the width blows up until all that is left of
+        her is a forehead. So past `sm` the picture stops widening and stands
+        centred instead, at about the width of a phone held up to the screen —
+        and takes a shorter share of the height, which is what walks her head
+        back down the screen and out from under the words.
+      */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto h-[74%] sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem]"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={HERO_PORTRAIT}
+          alt=""
+          width={1414}
+          height={2000}
+          decoding="async"
+          fetchPriority="high"
+          className="hero-portrait-fade h-full w-full object-cover object-top"
+        />
+
+        {/*
+          Where the picture is narrower than the screen, its two sides are cut
+          edges against the wash, so they get the same treatment as the top.
+          `mist` is the colour the dawn wash lands on down here, which is why
+          a flat gradient disappears into it.
+        */}
+        <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-mist to-transparent sm:block md:w-20" />
+        <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-mist to-transparent sm:block md:w-20" />
+      </div>
+
+      {/* Floating sparkles, kept to the top half now that the bottom of the
+          screen is her photograph. */}
       <motion.div
         aria-hidden
-        className="absolute left-[5%] top-[14%] text-gold sm:left-[8%] sm:top-[18%]"
+        className="absolute left-[5%] top-[9%] text-gold sm:left-[8%] sm:top-[12%]"
         animate={{ y: [0, -18, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
       >
@@ -21,7 +65,7 @@ export function HeroSection() {
       </motion.div>
       <motion.div
         aria-hidden
-        className="absolute right-[6%] top-[24%] text-roseDeep sm:right-[12%] sm:top-[30%]"
+        className="absolute right-[7%] top-[16%] text-roseDeep sm:right-[12%] sm:top-[20%]"
         animate={{ y: [0, 20, 0] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
       >
@@ -29,37 +73,67 @@ export function HeroSection() {
       </motion.div>
       <motion.div
         aria-hidden
-        className="absolute bottom-[18%] left-[10%] text-gold sm:bottom-[22%] sm:left-[18%]"
+        className="absolute left-[11%] top-[30%] text-gold sm:left-[18%] sm:top-[34%]"
         animate={{ y: [0, -14, 0] }}
         transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
       >
         <Sparkle className="h-3.5 w-3.5 animate-twinkle xs:h-4 xs:w-4 sm:h-6 sm:w-6" />
       </motion.div>
 
-      <div className="relative my-auto flex flex-col items-center">
-        <Crown className="h-9 w-auto text-gold drop-shadow-sm xs:h-11 sm:h-16" />
+      {/* The words, over the picture. Each piece rises a beat after the one
+          above it — see `hero-rise` in globals.css for why the opening is CSS
+          rather than framer-motion. */}
+      <div className="relative flex flex-1 flex-col items-center pt-[6%] sm:pt-[4%]">
+        <Crown className="hero-rise h-8 w-auto text-gold drop-shadow-sm xs:h-10 sm:h-14" />
 
-        <p className="mt-4 font-hand text-xl text-berry xs:text-2xl sm:text-3xl">
+        <p className="hero-rise mt-3 font-hand text-xl leading-none text-berry [animation-delay:0.1s] xs:text-2xl sm:text-3xl">
           By royal invitation
         </p>
-        <h1 className="mt-2 max-w-[18ch] font-display text-[2rem] italic leading-[1.15] text-ink xs:text-4xl sm:max-w-none sm:text-6xl sm:leading-tight md:text-7xl">
-          Princess {BABY_NAME} Turns One
+
+        {/*
+          Her name stands alone on the headline. "Princess" is a title she is
+          called, not part of what she is named, so it sits underneath in
+          small caps with "turns one" — which keeps the big line to the two
+          words that are actually hers.
+        */}
+        <h1 className="hero-rise mt-2 font-display text-[2.125rem] italic leading-[1.1] text-ink [animation-delay:0.2s] xs:text-[2.75rem] sm:text-6xl md:text-7xl">
+          {BABY_FULL_NAME}
         </h1>
-        <div aria-hidden className="gilt-rule mt-5 h-px w-32 xs:w-40 sm:w-56" />
-        <p className="mx-auto mt-5 max-w-[32ch] text-base leading-relaxed text-ink/70 sm:max-w-md sm:text-lg">
-          Twelve months, twelve gowns, one very small royal. Swipe up through her story — then
-          come celebrate the big day at the ball.
+
+        <p className="hero-rise mt-2.5 text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep [animation-delay:0.3s] xs:text-xs sm:mt-3 sm:text-sm sm:tracking-[0.3em]">
+          Our little princess turns one
         </p>
 
-        {/* The deck moves up and down, so the cue points down. */}
-        <motion.div
-          className="mt-10 flex flex-col items-center gap-2 text-ink/50 sm:mt-14"
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <span className="text-xs uppercase tracking-widest sm:text-sm">Swipe up to begin</span>
-          <span aria-hidden>↓</span>
-        </motion.div>
+        <div
+          aria-hidden
+          className="gilt-rule hero-rise mt-4 h-px w-32 [animation-delay:0.4s] xs:w-40 sm:mt-5 sm:w-56"
+        />
+
+        {/* Full-strength ink from here down: these two sit on the photograph
+            rather than on parchment, and a dimmed ink over that pink falls
+            below AA. */}
+        <p className="hero-rise mx-auto mt-4 max-w-[30ch] text-balance text-[0.9375rem] leading-relaxed text-ink [animation-delay:0.5s] sm:mt-5 sm:max-w-md sm:text-lg">
+          A crown, a cake, and a ball of her very own.
+        </p>
+
+        <span className="sr-only">
+          {BABY_FULL_NAME}, one year old, in a pink gown and tiara.
+        </span>
+
+        {/* The deck moves up and down, so the cue points down. It sits at the
+            foot of the screen, over her gown, so it carries the white halo
+            from globals.css; the bob lives on the inner element because the
+            outer one is still easing into place. */}
+        <div className="hero-rise mt-auto pt-8 [animation-delay:0.7s]">
+          <motion.div
+            className="cue-halo flex flex-col items-center gap-1.5 text-ink sm:gap-2"
+            animate={{ y: [0, 8, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <span className="text-xs uppercase tracking-widest sm:text-sm">Swipe up to begin</span>
+            <span aria-hidden>↓</span>
+          </motion.div>
+        </div>
       </div>
     </div>
   );

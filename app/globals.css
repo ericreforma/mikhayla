@@ -135,6 +135,20 @@ body {
     padding-right: max(1.25rem, env(safe-area-inset-right));
   }
 
+  /* The left half of the gutter on its own, for a full-bleed card that still
+     keeps its words clear of the notch. */
+  .pl-gutter {
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+  }
+
+  /* And its negative: a child that breaks back out of the page's padding to
+     run edge to edge. Paired with `self-stretch` rather than `w-screen`,
+     which would be the viewport including a scrollbar. */
+  .-mx-gutter {
+    margin-left: calc(-1 * max(1.25rem, env(safe-area-inset-left)));
+    margin-right: calc(-1 * max(1.25rem, env(safe-area-inset-right)));
+  }
+
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -215,6 +229,15 @@ body {
       padding-left: max(1.5rem, env(safe-area-inset-left));
       padding-right: max(1.5rem, env(safe-area-inset-right));
     }
+
+    .pl-gutter {
+      padding-left: max(1.5rem, env(safe-area-inset-left));
+    }
+
+    .-mx-gutter {
+      margin-left: calc(-1 * max(1.5rem, env(safe-area-inset-left)));
+      margin-right: calc(-1 * max(1.5rem, env(safe-area-inset-right)));
+    }
   }
 }
 
@@ -237,6 +260,162 @@ body {
 /* A gilt hairline used to frame headings and the date panel. */
 .gilt-rule {
   background-image: linear-gradient(90deg, transparent, #d4af37 35%, #d4af37 65%, transparent);
+}
+
+/* ---------------------------------------------------------------
+   The hero's opening
+   ---------------------------------------------------------------
+   The first screen unfolds a piece at a time — crown, name, rule,
+   portrait. Deliberately CSS and not framer-motion: a JS entrance ships
+   the markup at opacity 0, so a slow bundle on party-day mobile data
+   would leave the invitation blank on arrival. This paints either way.
+   --------------------------------------------------------------- */
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The portrait settles instead of sliding — a frame being set down. */
+@keyframes hero-frame {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-frame {
+  animation: hero-frame 0.75s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/*
+ * The blanket reduced-motion rule above shortens durations but leaves
+ * delays alone, which would hold each line invisible for its own beat and
+ * then snap it in. Taking the animation off outright is the honest version.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise,
+  .hero-frame {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The hero's portrait
+   ---------------------------------------------------------------
+   She stands at the bottom of the first screen, edge to edge, and the top
+   of the picture is dissolved away so the headline can sit over it and the
+   dawn wash behind can show through. The fade stops above her face — the
+   distance is the one number worth tuning here if the photo is replaced.
+
+   Both spellings on purpose: `-webkit-` is what iOS below 15.4 answers to,
+   and an unmasked photo would be a hard horizontal edge across the page.
+   --------------------------------------------------------------- */
+
+.hero-portrait-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 17%);
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 17%);
+}
+
+@media (min-width: 640px) {
+  /* Past `sm` she stands in a shorter box, so the same share of it is fewer
+     pixels of dissolve — raised here to keep the fade about as long as it
+     reads on a phone, and still short of her tiara. */
+  .hero-portrait-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 22%);
+  }
+}
+
+/*
+ * The swipe cue stands on her gown, where dark ink on light pink is only
+ * just legible and the pink shifts under it from phone to phone. A white
+ * halo lifts it off the photograph — no box, no scrim, nothing laid over
+ * her. Three stops rather than one: a tight bright core to carve the
+ * letterforms out, and a wider soft one to hold them together.
+ */
+.cue-halo {
+  text-shadow:
+    0 0 4px rgba(255, 255, 255, 0.95),
+    0 0 10px rgba(255, 255, 255, 0.85),
+    0 1px 3px rgba(255, 255, 255, 0.9);
+}
+
+/*
+ * The princess wallpaper on the timeline's title page.
+ *
+ * One tile on both axes and no other distance: the pattern is a lattice of
+ * that pitch, so landing exactly one tile along in each direction is the
+ * only end point that leaves it looking untouched. The component sets
+ * `--tile` from the lattice it builds, so the figure lives in one place.
+ */
+@keyframes princess-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(var(--tile) * -1), calc(var(--tile) * -1), 0);
+  }
+}
+
+.princess-drift {
+  /* Linear, or the wallpaper would visibly slow at each loop. The duration
+     comes from the component, which sets it from the tile's own size so the
+     drift keeps one speed whatever that size becomes. */
+  animation: princess-drift var(--drift-duration, 60s) linear infinite;
+}
+
+/*
+ * The left edge of the picture on the date card, dissolved so she emerges
+ * out of the card rather than out of a rectangle. The mask sits on the frame
+ * and not on the photograph itself: the photograph is scaled up inside that
+ * frame to crop in on her, and a mask riding along with it would be scaled
+ * and shifted too, taking the fade off the edge it is meant to soften.
+ */
+.date-portrait-fade {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 46%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 46%);
+}
+
+/*
+ * The same dissolve as the hero's, on the picture that closes the deck —
+ * but measured in pixels rather than in a share of the box.
+ *
+ * The hero's photograph is a fixed share of the screen, so a percentage
+ * there is a stable distance. This one takes whatever height the words
+ * above it leave over, which changes with the screen and with how the
+ * paragraph wraps; a percentage of that would wander up and down her face.
+ * What has to stay put is the fade's distance from the top of her head, and
+ * that is a pixel figure.
+ */
+.finale-portrait-fade {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 84px);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 84px);
+}
+
+@media (min-width: 640px) {
+  /* Past `sm` the picture is capped in width and centred, which fixes how
+     far down it her head sits — a little lower than on a phone, so the
+     dissolve gets a little longer. Not much longer: the cap is what stops
+     it running into her forehead. */
+  .finale-portrait-fade {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 96px);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 96px);
+  }
 }
 
 /* Faint scattered stars for the ballroom slide. */

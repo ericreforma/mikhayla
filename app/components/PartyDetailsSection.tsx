@@ -13,10 +13,11 @@ import {
   VENUE_VIDEO_POSTER,
   VENUE_MAP_IMAGE,
   VENUE_MAP_EMBED,
-  VENUE_MAP_LINK,
 } from "@/app/config";
 import { Crown, Sparkle, MapPinIcon, PlayIcon, PalmIcon, ExpandIcon } from "./Ornaments";
 import { ImageLightbox } from "./ImageLightbox";
+import { MapLightbox } from "./MapLightbox";
+import { Directions } from "./Directions";
 import { RsvpDialog } from "./RsvpDialog";
 import { useSlideIsActive } from "./SlideActive";
 
@@ -157,8 +158,18 @@ export function PartyDetailsSection() {
    */
   const [pane, setPane] = useState<Pane>("video");
   const [mapOpen, setMapOpen] = useState(false);
+  /*
+   * The live map is Google's script and a screenful of tiles, and the tab it
+   * sits behind starts closed. This latches the first time a guest opens that
+   * tab, so the embed loads when it is asked for and not on the way past.
+   */
+  const [mapAsked, setMapAsked] = useState(false);
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    if (pane === "map") setMapAsked(true);
+  }, [pane]);
 
   /* Nothing plays off-screen: swiping to another section stops the
      walkthrough, and so does switching to the map. Autoplay is muted, which
@@ -339,9 +350,43 @@ export function PartyDetailsSection() {
               hidden={pane !== "map"}
               className="aspect-video w-full"
             >
-              {VENUE_MAP_IMAGE ? (
+              {VENUE_MAP_EMBED ? (
                 /*
-                 * The sheet is portrait and the window is 16:9, so the
+                 * A live map, but a still one: the iframe takes no pointer
+                 * events, so a swipe across it still pages the deck instead
+                 * of dragging Google's tiles. The button over it is the whole
+                 * window, and it opens the map full screen — which is where
+                 * panning and zooming belong, with nothing behind it to
+                 * fight over the gesture.
+                 */
+                <div className="relative h-full w-full bg-mist">
+                  {mapAsked ? (
+                    <iframe
+                      src={VENUE_MAP_EMBED}
+                      title="Map preview"
+                      aria-hidden
+                      tabIndex={-1}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      className="pointer-events-none absolute inset-0 h-full w-full border-0"
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => setMapOpen(true)}
+                    aria-label={`Open the full map to ${PARTY_LOCATION}`}
+                    className="group absolute inset-0 flex items-end justify-end p-1.5 transition hover:bg-night/5"
+                  >
+                    <span className="flex items-center gap-1 rounded-full bg-night/75 px-2.5 py-1 text-[10px] font-medium text-parchment backdrop-blur-sm transition group-hover:bg-night sm:text-xs">
+                      <ExpandIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                      Tap for full map
+                    </span>
+                  </button>
+                </div>
+              ) : VENUE_MAP_IMAGE ? (
+                /*
+                 * The drawn sheet, if one is configured in place of the live
+                 * map. It is portrait and the window is 16:9, so the
                  * thumbnail is cropped from the top — which is where the
                  * Casa Maria sign and the main road are, so it still reads
                  * as their map rather than as a band of unnamed streets.
@@ -366,15 +411,6 @@ export function PartyDetailsSection() {
                     Tap for full map
                   </span>
                 </button>
-              ) : VENUE_MAP_EMBED ? (
-                <iframe
-                  title={`Map to ${PARTY_LOCATION}`}
-                  src={VENUE_MAP_EMBED}
-                  className="h-full w-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
-                />
               ) : (
                 <Placeholder
                   icon={<MapPinIcon className="h-5 w-5 sm:h-6 sm:w-6" />}
@@ -417,24 +453,28 @@ export function PartyDetailsSection() {
               RSVP by {RSVP_BY}
             </a>
           )}
-          <a
-            href={VENUE_MAP_LINK}
-            target="_blank"
-            rel="noreferrer"
-            className="flex min-h-[3rem] items-center justify-center gap-2 rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition active:scale-[0.98] hover:bg-goldSoft/40 sm:px-9 sm:text-lg"
-          >
+          <Directions className="flex min-h-[3rem] items-center justify-center gap-2 rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition active:scale-[0.98] hover:bg-goldSoft/40 sm:px-9 sm:text-lg">
             <MapPinIcon className="h-4 w-4 flex-none text-goldDeep sm:h-5 sm:w-5" />
             Get directions
-          </a>
+          </Directions>
         </motion.div>
       </motion.div>
 
-      <ImageLightbox
-        src={VENUE_MAP_IMAGE}
-        alt={`Map to ${PARTY_LOCATION}`}
-        open={mapOpen}
-        onClose={() => setMapOpen(false)}
-      />
+      {VENUE_MAP_EMBED ? (
+        <MapLightbox
+          src={VENUE_MAP_EMBED}
+          title={`Map to ${PARTY_LOCATION}`}
+          open={mapOpen}
+          onClose={() => setMapOpen(false)}
+        />
+      ) : (
+        <ImageLightbox
+          src={VENUE_MAP_IMAGE}
+          alt={`Map to ${PARTY_LOCATION}`}
+          open={mapOpen}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
 
       <RsvpDialog open={rsvpOpen} onClose={() => setRsvpOpen(false)} />
     </div>

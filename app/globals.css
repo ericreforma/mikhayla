@@ -429,3 +429,454 @@ body {
     radial-gradient(1px 1px at 22% 86%, #e8b4c8 50%, transparent 50%);
   opacity: 0.7;
 }
+
+/* ---------------------------------------------------------------
+   The timeline's weather
+   ---------------------------------------------------------------
+   Every month of her year has something in the air over it — Snow White's
+   apples falling, Ariel's bubbles rising, Pocahontas's leaves blowing
+   through. The drawings are in MilestoneMotifs.tsx and the casting is in
+   MilestoneAmbience.tsx; what is here is the movement itself.
+
+   CSS rather than framer-motion, and deliberately: a panel can have thirty
+   of these on it at once, and thirty springs on the main thread is a rail
+   that stutters as you swipe it. These are declarative, compositor-only
+   (transform and opacity, nothing else) and cost the same whether there is
+   one or fifty.
+
+   The shape of one particle:
+
+     .mk-lane      a strip the full height (or width) of the panel, which
+                   carries the long journey across it. Zero-sized on its
+                   other axis, so it never affects layout.
+       .mk-sprite  the drawing's own box, centred on the lane and sized by
+                   --size.
+         .mk-*     the wobble — sway, tumble, swirl. Separate from the
+                   journey so the two can have different periods and the
+                   motion never looks metronomic.
+
+   Everything is tuned by custom properties set per particle in the JSX:
+   --x / --y where the lane sits, --dur how long the crossing takes,
+   --delay when it starts, --size the drawing, --peak how solid it gets,
+   --sway how far it wanders, --wob the wobble's own period.
+   --------------------------------------------------------------- */
+
+.mk-field {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.mk-lane {
+  position: absolute;
+  /* Vertical by default: a full-height strip at --x. The horizontal fields
+     override both of these. */
+  top: 0;
+  left: var(--x, 50%);
+  width: 0;
+  height: 100%;
+  animation-duration: var(--dur, 11s);
+  animation-delay: var(--delay, 0s);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  /*
+     `backwards` is load-bearing, not tidying. The fields that start empty —
+     the butterflies, the birds — do it with a delay of a second or two, and
+     without a fill the browser leaves the element at its untouched position
+     for that whole delay: at full opacity, at the top of its lane, perfectly
+     still. Three butterflies pinned to the top edge of the page waiting
+     their turn. This hands them their first keyframe instead, which is off
+     the panel and at zero.
+  */
+  animation-fill-mode: backwards;
+  will-change: transform, opacity;
+}
+
+/* A lane that crosses the panel sideways instead: full width, at --y. */
+.mk-lane-x {
+  top: var(--y, 50%);
+  left: 0;
+  width: 100%;
+  height: 0;
+}
+
+.mk-sprite {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  /* The lane is a line, so the drawing hangs off it centred rather than
+     starting at it — otherwise every particle would sit a half-width to the
+     right of where it was placed. */
+  margin-left: calc(var(--size, 20px) / -2);
+  margin-top: calc(var(--size, 20px) / -2);
+}
+
+.mk-wobble {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation-duration: var(--wob, 4s);
+  animation-delay: var(--delay, 0s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-fill-mode: backwards;
+}
+
+/* ---- the journeys ---- */
+
+/*
+ * Every journey starts the moment the page lands — nothing is ever caught
+ * half-way across on arrival. That is what makes the weather feel like it
+ * belongs to the swipe: you land on Snow White and *then* the apples start
+ * falling, rather than arriving at a fall already in progress.
+ *
+ * It follows that the run-up matters. The old margins parked a particle a
+ * seventh of a screen outside the frame, which at a ten-second crossing is a
+ * second and a half of nothing before the first one is even visible. These
+ * sit just off the edge instead, and come up to full in a twentieth of the
+ * crossing rather than a tenth.
+ */
+
+/*
+ * Down the panel, and back above it to start again. It enters and leaves
+ * already faded, so nothing ever pops into being against the photograph —
+ * and the fade out is early enough that the last of it happens above the
+ * caption rather than on top of the words.
+ */
+@keyframes mk-fall {
+  0% {
+    transform: translate3d(0, -8%, 0);
+    opacity: 0;
+  }
+  5% {
+    opacity: var(--peak, 0.85);
+  }
+  84% {
+    opacity: var(--peak, 0.85);
+  }
+  100% {
+    transform: translate3d(0, 116%, 0);
+    opacity: 0;
+  }
+}
+
+/* Up it: bubbles, and Rapunzel's flowers. */
+@keyframes mk-rise {
+  0% {
+    transform: translate3d(0, 106%, 0);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--peak, 0.8);
+  }
+  86% {
+    opacity: var(--peak, 0.8);
+  }
+  100% {
+    transform: translate3d(0, -16%, 0);
+    opacity: 0;
+  }
+}
+
+/* Across it, left to right: the wind, and Cinderella's birds. */
+@keyframes mk-cross {
+  0% {
+    transform: translate3d(-10%, 0, 0);
+    opacity: 0;
+  }
+  6% {
+    opacity: var(--peak, 0.9);
+  }
+  88% {
+    opacity: var(--peak, 0.9);
+  }
+  100% {
+    transform: translate3d(116%, 0, 0);
+    opacity: 0;
+  }
+}
+
+/*
+ * The two fields with wings, which have to be flying the instant you land
+ * rather than a beat later.
+ *
+ * They are the sparse ones — three butterflies, four birds — so there is no
+ * crowd to hide a slow entrance behind: if the first one takes a second to
+ * clear the edge, the page is simply empty for that second. These start with
+ * the creature already breaking the frame and come up to full in a
+ * twenty-fifth of the crossing, so the first wingbeat is on screen
+ * immediately and the entrance still isn't a pop.
+ */
+@keyframes mk-rise-now {
+  0% {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+  }
+  4% {
+    opacity: var(--peak, 0.9);
+  }
+  86% {
+    opacity: var(--peak, 0.9);
+  }
+  100% {
+    transform: translate3d(0, -16%, 0);
+    opacity: 0;
+  }
+}
+
+@keyframes mk-cross-now {
+  0% {
+    transform: translate3d(-4%, 0, 0);
+    opacity: 0;
+  }
+  4% {
+    opacity: var(--peak, 0.9);
+  }
+  88% {
+    opacity: var(--peak, 0.9);
+  }
+  100% {
+    transform: translate3d(116%, 0, 0);
+    opacity: 0;
+  }
+}
+
+.mk-fall {
+  animation-name: mk-fall;
+}
+.mk-rise {
+  animation-name: mk-rise;
+}
+.mk-cross {
+  animation-name: mk-cross;
+}
+.mk-rise-now {
+  animation-name: mk-rise-now;
+}
+.mk-cross-now {
+  animation-name: mk-cross-now;
+}
+
+/* ---- the wobbles ---- */
+
+/* Confetti: over and over, swinging as it goes. Petals, blossoms, apples. */
+@keyframes mk-tumble {
+  0% {
+    transform: translateX(calc(var(--sway, 14px) * -1)) rotate(0deg);
+  }
+  50% {
+    transform: translateX(var(--sway, 14px)) rotate(190deg);
+  }
+  100% {
+    transform: translateX(calc(var(--sway, 14px) * -1)) rotate(380deg);
+  }
+}
+
+/* Snow: the same idea with the tumble taken out — it drifts, it doesn't
+   cartwheel. */
+@keyframes mk-drift {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway, 10px) * -1)) rotate(-28deg);
+  }
+  50% {
+    transform: translateX(var(--sway, 10px)) rotate(28deg);
+  }
+}
+
+/* Something with weight to it — a coconut. Barely any sway, and it rocks
+   rather than spins. */
+@keyframes mk-rock {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway, 4px) * -1)) rotate(-14deg);
+  }
+  50% {
+    transform: translateX(var(--sway, 4px)) rotate(14deg);
+  }
+}
+
+/* A butterfly climbing: it wanders, and banks into each turn. */
+@keyframes mk-flutter {
+  0% {
+    transform: translateX(calc(var(--sway, 26px) * -1)) rotate(-10deg);
+  }
+  25% {
+    transform: translateX(calc(var(--sway, 26px) * 0.45)) rotate(12deg);
+  }
+  50% {
+    transform: translateX(var(--sway, 26px)) rotate(7deg);
+  }
+  75% {
+    transform: translateX(calc(var(--sway, 26px) * -0.45)) rotate(-14deg);
+  }
+  100% {
+    transform: translateX(calc(var(--sway, 26px) * -1)) rotate(-10deg);
+  }
+}
+
+/* A bird holding its line: just enough rise and fall to not be a sticker. */
+@keyframes mk-glide {
+  0%,
+  100% {
+    transform: translateY(calc(var(--sway, 10px) * -1));
+  }
+  50% {
+    transform: translateY(var(--sway, 10px));
+  }
+}
+
+/*
+ * Pocahontas's wind, which is the one journey with a story in it: the leaf
+ * blows in flat, loops once halfway across, and blows on.
+ *
+ * The loop is a circle of radius 0.7·--r centred a radius to the right of
+ * where the leaf would otherwise be — which is why it starts and ends at
+ * (0, 0) and leaves the crossing underneath it undisturbed. It rides on top
+ * of `mk-cross`, so during the loop the leaf is still travelling; what you
+ * see is a spiral, not a wheel spinning on the spot.
+ */
+@keyframes mk-swirl {
+  0%,
+  34% {
+    transform: translate(0, 0);
+  }
+  42% {
+    transform: translate(calc(var(--r, 26px) * 0.7), calc(var(--r, 26px) * -0.7));
+  }
+  50% {
+    transform: translate(calc(var(--r, 26px) * 1.4), 0);
+  }
+  58% {
+    transform: translate(calc(var(--r, 26px) * 0.7), calc(var(--r, 26px) * 0.7));
+  }
+  66%,
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+/* The leaf's own spin, hurried through the middle of the loop. */
+@keyframes mk-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  34% {
+    transform: rotate(40deg);
+  }
+  66% {
+    transform: rotate(420deg);
+  }
+  100% {
+    transform: rotate(470deg);
+  }
+}
+
+.mk-tumble {
+  animation-name: mk-tumble;
+  animation-timing-function: linear;
+}
+.mk-drift {
+  animation-name: mk-drift;
+}
+.mk-rock {
+  animation-name: mk-rock;
+}
+.mk-flutter {
+  animation-name: mk-flutter;
+}
+.mk-glide {
+  animation-name: mk-glide;
+}
+
+/* The swirl and the spin are two halves of one gesture, so both are pinned to
+   the crossing's own clock rather than to the wobble's. */
+.mk-swirl,
+.mk-spin {
+  display: block;
+  width: 100%;
+  height: 100%;
+  animation-duration: var(--dur, 11s);
+  animation-delay: var(--delay, 0s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-fill-mode: backwards;
+}
+.mk-swirl {
+  animation-name: mk-swirl;
+}
+.mk-spin {
+  animation-name: mk-spin;
+  animation-timing-function: linear;
+}
+
+/* ---- wings ---- */
+
+/*
+ * A wing beats far faster than anything else moves, and on its own clock —
+ * `--flap` is a fraction of a second where `--dur` is ten of them.
+ *
+ * `transform-box: fill-box` is what makes the origin below mean "the edge of
+ * this wing" rather than "the corner of the SVG's viewBox", which is the
+ * default and would swing each wing around the drawing instead of hinging it.
+ */
+.mk-wing {
+  transform-box: fill-box;
+  animation-duration: var(--flap, 0.34s);
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+
+/* A butterfly from above: the wings foreshorten towards the body rather than
+   rotating, which is what the beat actually looks like from that angle. */
+.mk-wing-l {
+  transform-origin: right center;
+  animation-name: mk-beat;
+}
+.mk-wing-r {
+  transform-origin: left center;
+  animation-name: mk-beat;
+}
+
+@keyframes mk-beat {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.3);
+  }
+}
+
+/* A bird from the side: one wing, hinged at the shoulder, swinging. */
+.mk-wing-up {
+  transform-origin: 50% 100%;
+  animation-name: mk-wingbeat;
+}
+
+@keyframes mk-wingbeat {
+  0%,
+  100% {
+    transform: rotate(-30deg);
+  }
+  50% {
+    transform: rotate(26deg);
+  }
+}
+
+/*
+ * Asked for less motion, the honest answer is none of it. The blanket rule at
+ * the top of this file only shortens durations, which would leave every
+ * particle frozen wherever its first hundredth of a second put it — a panel
+ * of litter rather than a panel of weather. The component checks too; this is
+ * here so the markup can never outlive the check.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .mk-field {
+    display: none;
+  }
+}

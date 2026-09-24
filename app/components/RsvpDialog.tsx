@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { BABY_NAME, RSVP_BY, RSVP_EMAIL, RSVP_ENDPOINT, RSVP_MAX_GUESTS } from "@/app/config";
 import { Crown, Sparkle, CheckIcon, CloseIcon } from "./Ornaments";
+import { useCloseOnBack } from "./backButton";
 
 /** Remembers, on this device only, that an RSVP already went in. */
 const STORE_KEY = "mikhayla-rsvp";
@@ -61,6 +62,10 @@ function Form({ onClose }: { onClose: () => void }) {
 
   const nameRef = useRef<HTMLInputElement>(null);
   const firstOpen = useRef(true);
+
+  /* Back closes the form rather than the invitation — the same thing the X
+     does, and what a guest who opened it by accident will reach for first. */
+  useCloseOnBack(onClose);
 
   /* Flag the deck off the keyboard while we're up — it listens for arrow
      keys on `window` — and start the guest in the first field. */

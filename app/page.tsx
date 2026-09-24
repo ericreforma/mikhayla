@@ -8,6 +8,7 @@ import { ChristeningSection } from "@/app/components/ChristeningSection";
 import { DateTimeSection } from "@/app/components/DateTimeSection";
 import { PartyDetailsSection } from "@/app/components/PartyDetailsSection";
 import { FinaleSection } from "@/app/components/FinaleSection";
+import { LeaveGuard } from "@/app/components/LeaveGuard";
 import {
   TiaraIcon,
   StorybookIcon,
@@ -49,6 +50,8 @@ export default function Page() {
   return (
     <main>
       <Deck slides={SLIDES} sections={SECTIONS} />
+      {/* Asks before a stray Back swipe takes a guest off the invitation. */}
+      <LeaveGuard />
     </main>
   );
 }

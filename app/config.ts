@@ -104,38 +104,59 @@ export const VENUE_VIDEO = asset("");
 export const VENUE_VIDEO_POSTER = asset("");
 
 /**
- * A picture of the map — the venue's own directions sheet, with the
- * landmarks on it that a live map doesn't name.
+ * The venue as Google Maps searches for it. The live map in the "Map" tab and
+ * the "Get directions" button are both built from this, so both stay right if
+ * the name or the address above changes.
+ */
+const MAP_QUERY = encodeURIComponent(`${PARTY_LOCATION}, ${PARTY_ADDRESS}`);
+
+/**
+ * The live map shown in the "Map" tab, and the one that opens full screen
+ * when a guest taps it.
+ *
+ * This is Google's keyless search embed, which needs no API key and no
+ * billing account — it finds the venue by name, the same way a guest would.
+ * To pin an exact spot instead: Google Maps → the venue → Share → Embed a map
+ * → copy the `src` out of the iframe it gives you, and paste just that URL
+ * here.
+ */
+export const VENUE_MAP_EMBED = `https://www.google.com/maps?q=${MAP_QUERY}&z=16&hl=en&output=embed`;
+
+/**
+ * A picture of a map, used only when `VENUE_MAP_EMBED` above is emptied — the
+ * venue's own directions sheet, say, with the landmarks on it that a live map
+ * doesn't name.
  *
  * It shows cropped to fit the window on the page and opens full screen when
- * tapped, where it can be pinched and dragged, so a tall sheet like this one
- * stays readable on a phone. Anything from a photo of a printed map to a
- * screenshot works; portrait is fine.
+ * tapped, where it can be pinched and dragged, so a tall sheet stays readable
+ * on a phone. Anything from a photo of a printed map to a screenshot works;
+ * portrait is fine.
  *
- * This takes precedence over `VENUE_MAP_EMBED` below — a drawn map with
- * "FROM MUZON" and "FROM GUMAOK" on it beats a generic pin, and the
- * "Get directions" button already covers turn-by-turn.
+ * The sheet the invitation shipped with is still in the repo, if you ever
+ * want it back in place of the live map: `"/venue/casa-maria-poster.jpg"`.
  */
-export const VENUE_MAP_IMAGE = asset("/venue/casa-maria-poster.jpg");
+export const VENUE_MAP_IMAGE = asset("");
 
 /**
- * A live embedded map, used only when `VENUE_MAP_IMAGE` above is empty.
- * Google Maps → the venue → Share → Embed a map → copy the `src` out of the
- * iframe it gives you, and paste just that URL here.
+ * Where "Get directions" goes — the one thing that has to work on the day,
+ * whatever the tab above is showing. These leave the site and hand the guest
+ * to a real navigation app, which the embed can't do on its own.
  *
- * A keyless search embed works too, if you'd rather not fetch the exact pin:
- * `"https://www.google.com/maps?q=Casa+Maria+Resort+San+Jose+del+Monte+Bulacan&output=embed"`
+ * Both are ordinary https links, and that matters: a phone with the app
+ * installed opens it, and a phone without one opens the same place on the
+ * web instead of failing. Neither is an `app://` scheme, which is the only
+ * thing that can dead-end.
+ *
+ * Which of them a guest is offered is decided on their phone — see
+ * `Directions.tsx`. An iPhone without Google Maps installed would otherwise
+ * land on a web page nagging it to install one, so it gets the choice.
  */
-export const VENUE_MAP_EMBED = "";
-
-/**
- * Where "Open in Google Maps" goes — the one thing that has to work on the
- * day, whether or not the embed above is filled in. Built from the address so
- * it stays right if the address changes.
- */
-export const VENUE_MAP_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-  `${PARTY_LOCATION}, ${PARTY_ADDRESS}`
-)}`;
+export const VENUE_MAP_LINKS = {
+  google: `https://www.google.com/maps/search/?api=1&query=${MAP_QUERY}`,
+  /* Apple's own form. Every iPhone has Maps, so this one can't fail there;
+     elsewhere it opens Apple's web map. */
+  apple: `https://maps.apple.com/?q=${MAP_QUERY}`,
+};
 
 /* ---------------------------------------------------------------
    The dedication
@@ -168,6 +189,46 @@ export type PrincessAccent =
   | "merida"
   | "moana"
   | "mikhayla";
+
+/**
+ * What is in the air over a month's page — her princess's own weather, drawn
+ * over the photograph once the page has finished arriving.
+ *
+ * The three verbs are worth reading as a set, because they are what the
+ * effect actually is: something `-fall`s down the page, something `-rise`s up
+ * it, and the rest cross it or play out a little scene.
+ *
+ * The drawings are in `MilestoneMotifs.tsx` and the movement in
+ * `MilestoneAmbience.tsx` — adding a kind means a case in each.
+ */
+export type Ambience =
+  /** Month 0 — blossoms falling like confetti. */
+  | "flower-fall"
+  /** Snow White — her apples, tumbling down. */
+  | "apple-fall"
+  /** Aurora — a few butterflies climbing the page from below. */
+  | "butterflies"
+  /** Elsa — snow. */
+  | "snow-fall"
+  /** Anna — autumn leaves coming down. */
+  | "leaf-fall"
+  /** Pocahontas — the same leaves on a wind, blown left to right, looping
+      once as they pass the middle. */
+  | "leaf-wind"
+  /** Ariel — bubbles up from the bottom. */
+  | "bubbles"
+  /** Jasmine — green gems out of the Cave of Wonders. */
+  | "gem-fall"
+  /** Rapunzel — flowers rising instead of falling. */
+  | "flower-rise"
+  /** Moana — coconuts, and they drop like coconuts. */
+  | "coconut-fall"
+  /** Belle — rose petals. */
+  | "rose-petals"
+  /** Cinderella — bluebirds across the page. */
+  | "birds"
+  /** Her own month — a wand waves a spell and lights its tip. */
+  | "magic-wand";
 
 export type Milestone = {
   month: number;
@@ -209,6 +270,30 @@ export type Milestone = {
    * When omitted, the page is simply its `tint`.
    */
   photo?: string;
+  /**
+   * The month's weather — what drifts across the photo once the page has
+   * settled. See `Ambience` above for the list. Omit it for a still page.
+   */
+  ambience?: Ambience;
+  /**
+   * Her princess's song, played while this page is the one on screen and
+   * faded out into the next month's as you swipe. Put the file in
+   * `public/audio/` and reference it from the site root, e.g.
+   * `music: "/audio/elsa.MP3"`.
+   *
+   * Spell the extension exactly as the file has it. These are served from
+   * GitHub Pages, where `elsa.MP3` and `elsa.mp3` are two different files and
+   * only one of them exists — a mistake a Windows checkout will not show you,
+   * because Windows thinks they are the same name.
+   *
+   * Nothing is fetched until its page is reached, so a guest only ever
+   * downloads the months they actually look at. Keep clips short for that
+   * reason: a five-minute song is several megabytes of somebody's mobile
+   * data spent on a page they may swipe past in four seconds.
+   *
+   * Omit it for a silent page — the title page has no song, and needs none.
+   */
+  music?: string;
 };
 
 /**
@@ -219,19 +304,19 @@ export type Milestone = {
  * worth rewriting in your own words.
  */
 const MILESTONE_PAGES: Milestone[] = [
-  { month: 0,  princess: "",           title: "A princess is born",            note: "Before the gowns and the crowns — the day your kingdom met you.",         tint: "#EAE2E1", accent: "newborn",                                            photo: "/milestones/00-newborn.png" },
-  { month: 1,  princess: "Snow White", title: "Fairest of them all",           note: "One month old, and already able to hush a room full of admirers.",        tint: "#F1E9DA", accent: "snow",       character: "/princesses/snowwhite.png", photo: "/milestones/01-snowwhite.png" },
-  { month: 2,  princess: "Aurora",     title: "Once upon a dream",             note: "Your first real smile arrived mid-nap, like something you'd dreamt up.",  tint: "#F1DADD", accent: "aurora",     character: "/princesses/aurora.png",    photo: "/milestones/02-aurora.png" },
-  { month: 3,  princess: "Elsa",       title: "The cold never bothered you",   note: "You found your own hands this month and would not let them go.",          tint: "#DEE4ED", accent: "elsa",       character: "/princesses/elsa.png",      photo: "/milestones/03-elsa.png" },
-  { month: 4,  princess: "Anna",       title: "For the first time in forever", note: "Front to back, all on your own, and very pleased about it.",              tint: "#E2E0EB", accent: "anna",       character: "/princesses/anna.png",      photo: "/milestones/04-anna.png" },
-  { month: 5,  princess: "Pocahontas", title: "Colors of the wind",            note: "Giggles for days — the best sound in the house, and it carried.",         tint: "#EDDEE2", accent: "pocahontas", character: "/princesses/pocahontas.png", photo: "/milestones/05-pocahontas.png" },
-  { month: 6,  princess: "Ariel",      title: "Part of your world",            note: "Sitting up solo, suddenly eye-level with the whole world.",               tint: "#DDE2EE", accent: "ariel",      character: "/princesses/ariel.png",     photo: "/milestones/06-ariel.png" },
-  { month: 7,  princess: "Jasmine",    title: "A whole new world",             note: "Your first taste of real food. Mashed banana went everywhere. Worth it.", tint: "#DAE9F1", accent: "jasmine",    character: "/princesses/jasmine.png",   photo: "/milestones/07-jasmine.png" },
-  { month: 8,  princess: "Rapunzel",   title: "Let down your hair",            note: "You said something very close to “dada”. We are counting it.",            tint: "#EEDFDD", accent: "rapunzel",   character: "/princesses/rapunzel.png",  photo: "/milestones/08-rapunzel.png" },
-  { month: 9,  princess: "Moana",      title: "How far you'll go",             note: "You started crawling, and nothing in this house was safe again.",         tint: "#F1DADB", accent: "moana",      character: "/princesses/moana.png",     photo: "/milestones/09-moana.png" },
-  { month: 10, princess: "Belle",      title: "Tale as old as time",           note: "You waved bye-bye. A tiny hand, and a very big deal.",                    tint: "#F1E9DA", accent: "belle",      character: "/princesses/belle.png",     photo: "/milestones/10-belle.png" },
-  { month: 11, princess: "Cinderella", title: "If the shoe fits",              note: "First steps — wobbly, brave, and gone in a blink. No midnight needed.",   tint: "#E1E1EA", accent: "cinderella", character: "/princesses/cinderella.png", photo: "/milestones/11-cinderella.png" },
-  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png" },
+  { month: 0,  princess: "",           title: "A princess is born",            note: "Before the gowns and the crowns — the day your kingdom met you.",         tint: "#EAE2E1", accent: "newborn",                                            photo: "/milestones/00-newborn.png",    ambience: "flower-fall",  music: "/audio/newborn.mp3" },
+  { month: 1,  princess: "Snow White", title: "Fairest of them all",           note: "One month old, and already able to hush a room full of admirers.",        tint: "#F1E9DA", accent: "snow",       character: "/princesses/snowwhite.png", photo: "/milestones/01-snowwhite.png",  ambience: "apple-fall",   music: "/audio/snow-white.MP3" },
+  { month: 2,  princess: "Aurora",     title: "Once upon a dream",             note: "Your first real smile arrived mid-nap, like something you'd dreamt up.",  tint: "#F1DADD", accent: "aurora",     character: "/princesses/aurora.png",    photo: "/milestones/02-aurora.png",     ambience: "butterflies",  music: "/audio/aurora.MP3" },
+  { month: 3,  princess: "Elsa",       title: "The cold never bothered you",   note: "You found your own hands this month and would not let them go.",          tint: "#DEE4ED", accent: "elsa",       character: "/princesses/elsa.png",      photo: "/milestones/03-elsa.png",       ambience: "snow-fall",    music: "/audio/elsa.MP3" },
+  { month: 4,  princess: "Anna",       title: "For the first time in forever", note: "Front to back, all on your own, and very pleased about it.",              tint: "#E2E0EB", accent: "anna",       character: "/princesses/anna.png",      photo: "/milestones/04-anna.png",       ambience: "leaf-fall",    music: "/audio/anna.MP3" },
+  { month: 5,  princess: "Pocahontas", title: "Colors of the wind",            note: "Giggles for days — the best sound in the house, and it carried.",         tint: "#EDDEE2", accent: "pocahontas", character: "/princesses/pocahontas.png", photo: "/milestones/05-pocahontas.png", ambience: "leaf-wind",    music: "/audio/pocahontas.MP3" },
+  { month: 6,  princess: "Ariel",      title: "Part of your world",            note: "Sitting up solo, suddenly eye-level with the whole world.",               tint: "#DDE2EE", accent: "ariel",      character: "/princesses/ariel.png",     photo: "/milestones/06-ariel.png",      ambience: "bubbles",      music: "/audio/ariel.MP3" },
+  { month: 7,  princess: "Jasmine",    title: "A whole new world",             note: "Your first taste of real food. Mashed banana went everywhere. Worth it.", tint: "#DAE9F1", accent: "jasmine",    character: "/princesses/jasmine.png",   photo: "/milestones/07-jasmine.png",    ambience: "gem-fall",     music: "/audio/jasmine.MP3" },
+  { month: 8,  princess: "Rapunzel",   title: "Let down your hair",            note: "You said something very close to “dada”. We are counting it.",            tint: "#EEDFDD", accent: "rapunzel",   character: "/princesses/rapunzel.png",  photo: "/milestones/08-rapunzel.png",   ambience: "flower-rise",  music: "/audio/rapunzel.MP3" },
+  { month: 9,  princess: "Moana",      title: "How far you'll go",             note: "You started crawling, and nothing in this house was safe again.",         tint: "#F1DADB", accent: "moana",      character: "/princesses/moana.png",     photo: "/milestones/09-moana.png",      ambience: "coconut-fall", music: "/audio/moana.MP3" },
+  { month: 10, princess: "Belle",      title: "Tale as old as time",           note: "You waved bye-bye. A tiny hand, and a very big deal.",                    tint: "#F1E9DA", accent: "belle",      character: "/princesses/belle.png",     photo: "/milestones/10-belle.png",      ambience: "rose-petals",  music: "/audio/belle.MP3" },
+  { month: 11, princess: "Cinderella", title: "If the shoe fits",              note: "First steps — wobbly, brave, and gone in a blink. No midnight needed.",   tint: "#E1E1EA", accent: "cinderella", character: "/princesses/cinderella.png", photo: "/milestones/11-cinderella.png", ambience: "birds",        music: "/audio/cinderella.MP3" },
+  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png",   ambience: "magic-wand",   music: "/audio/mikhayla.mp3" },
 ];
 
 /**
@@ -243,6 +328,7 @@ export const MILESTONES: Milestone[] = MILESTONE_PAGES.map((page) => ({
   ...page,
   character: page.character && asset(page.character),
   photo: page.photo && asset(page.photo),
+  music: page.music && asset(page.music),
 }));
 
 /**

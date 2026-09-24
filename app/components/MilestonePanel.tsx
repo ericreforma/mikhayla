@@ -3,6 +3,7 @@
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Milestone, ACCENT_STYLES, BABY_NAME, MILESTONES } from "@/app/config";
 import { useSlideIsActive } from "./SlideActive";
+import { MilestoneAmbience } from "./MilestoneAmbience";
 
 /** The last month in the story, for the "3 / 11" counter. */
 const FINAL_MONTH = MILESTONES[MILESTONES.length - 1].month;
@@ -241,6 +242,15 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           </motion.div>
         </motion.div>
       </div>
+
+      {/*
+        The month's own weather — her apples, her snow, her bubbles. Last in
+        the panel, so it passes in front of the caption rather than behind
+        it: a petal that falls *behind* the words reads as a mark on the
+        photograph, where one that crosses them reads as something in the
+        room. It draws nothing until the page above has finished arriving.
+      */}
+      <MilestoneAmbience kind={m.ambience} seed={m.month + 1} />
     </div>
   );
 }

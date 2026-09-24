@@ -196,6 +196,33 @@ export function ExpandIcon({ className = "" }: IconProps) {
   );
 }
 
+/**
+ * The music is on — a speaker with two waves coming off it.
+ *
+ * Paired with SpeakerOffIcon below, and the two are deliberately the same
+ * speaker: only what is to the right of it changes, so the button doesn't
+ * appear to become a different control when it is toggled.
+ */
+export function SpeakerIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path d="M4 9.5 H7.2 L12 5.4 V18.6 L7.2 14.5 H4 Z" {...stroke} />
+      <path d="M15.4 9.4 A3.6 3.6 0 0 1 15.4 14.6" {...stroke} />
+      <path d="M18 6.9 A7.2 7.2 0 0 1 18 17.1" {...stroke} />
+    </svg>
+  );
+}
+
+/** And off — the same speaker, with the waves struck through. */
+export function SpeakerOffIcon({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={className}>
+      <path d="M4 9.5 H7.2 L12 5.4 V18.6 L7.2 14.5 H4 Z" {...stroke} />
+      <path d="M15.6 10 L20.4 14.8 M20.4 10 L15.6 14.8" {...stroke} />
+    </svg>
+  );
+}
+
 /** Sent, saved, done — a tick. */
 export function CheckIcon({ className = "" }: IconProps) {
   return (

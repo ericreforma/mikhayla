@@ -6,6 +6,7 @@ import { SlideActiveContext, useSlideIsActive } from "./SlideActive";
 import { useSnapTrack } from "./useSnapTrack";
 import { TimelineIntroPanel } from "./TimelineIntroPanel";
 import { MilestonePanel } from "./MilestonePanel";
+import { TimelineMusic } from "./TimelineMusic";
 
 /** The title page, then a page per month. */
 const PANEL_COUNT = MILESTONES.length + 1;
@@ -141,8 +142,18 @@ export function TimelineSlide() {
     return () => el.removeEventListener("wheel", onWheel);
   }, [sectionActive, goTo, railRef, indexRef]);
 
+  /*
+   * The song of the month on screen — and nothing at all for the title page,
+   * which is panel zero and has no princess, or for her year being off screen
+   * altogether. The player fades between the two on its own; all this has to
+   * get right is which song, if any, belongs to right now.
+   */
+  const music = sectionActive && index > 0 ? MILESTONES[index - 1]?.music : undefined;
+
   return (
     <div className="relative h-full">
+      <TimelineMusic track={music} />
+
       <div
         ref={railRef}
         className="rail-track"

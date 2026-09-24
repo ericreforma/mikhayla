@@ -1,8 +1,10 @@
 "use client";
 
-import { forwardRef, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
+import { ChromeButton, ChromeTitle } from "./OverlayChrome";
+import { useCloseOnBack } from "./backButton";
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 6;
@@ -73,6 +75,9 @@ function Viewer({ src, alt, onClose }: { src: string; alt: string; onClose: () =
    * and those two have to do different things.
    */
   const downTarget = useRef<EventTarget | null>(null);
+
+  /* Back closes the picture rather than the invitation. */
+  useCloseOnBack(onClose);
 
   const apply = useCallback(() => {
     const img = imgRef.current;
@@ -278,9 +283,7 @@ function Viewer({ src, alt, onClose }: { src: string; alt: string; onClose: () =
       {/* Chrome sits above the stage and keeps its own pointer events, so a
           drag that ends on a button doesn't also pan the map. */}
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-        <p className="pointer-events-none max-w-[60%] rounded-full bg-night/60 px-3 py-1.5 text-xs text-parchment/80 sm:text-sm">
-          {alt}
-        </p>
+        <ChromeTitle>{alt}</ChromeTitle>
         <div className="pointer-events-auto flex items-center gap-1.5">
           <ChromeButton label="Zoom out" onClick={() => step(1 / STEP)} disabled={!zoomed}>
             <path d="M8 12 h8" />
@@ -300,32 +303,3 @@ function Viewer({ src, alt, onClose }: { src: string; alt: string; onClose: () =
     </motion.div>
   );
 }
-
-/**
- * One of the round controls in the top bar. The children are the icon's
- * paths, drawn in the same stroke family as the rest of the ornaments.
- *
- * It forwards a ref so the overlay can move focus onto the close button the
- * moment it opens.
- */
-const ChromeButton = forwardRef<
-  HTMLButtonElement,
-  { label: string; onClick: () => void; disabled?: boolean; children: ReactNode }
->(function ChromeButton({ label, onClick, disabled, children }, ref) {
-  return (
-    <button
-      ref={ref}
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className="flex h-10 w-10 items-center justify-center rounded-full border border-gold/40 bg-night/70 text-parchment shadow-sm transition active:scale-95 hover:bg-night disabled:opacity-35"
-    >
-      <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none">
-        <g stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          {children}
-        </g>
-      </svg>
-    </button>
-  );
-});

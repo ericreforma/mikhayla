@@ -1,6 +1,8 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { Deck, type DeckSlide } from "@/app/components/Deck";
+import { LoadingScreen } from "@/app/components/LoadingScreen";
 import type { NavSection } from "@/app/components/BottomNav";
 import { HeroSection } from "@/app/components/HeroSection";
 import { TimelineSlide } from "@/app/components/TimelineSlide";
@@ -47,11 +49,31 @@ const SLIDES: DeckSlide[] = [
 ];
 
 export default function Page() {
+  /*
+   * The deck is not built until every photograph and song is in the cache.
+   *
+   * Holding it back rather than hiding it is what buys the opening its one
+   * good moment: the hero's entrance is a CSS animation that starts the
+   * instant its markup exists, so a deck mounted behind the curtain would
+   * spend that entrance somewhere nobody could see it and arrive already
+   * finished. Mounted at the reveal, her crown and her name rise as the
+   * curtain thins — which is also why LoadingScreen calls this a beat before
+   * it begins to dissolve, and not after.
+   */
+  const [open, setOpen] = useState(false);
+  const enter = useCallback(() => setOpen(true), []);
+
   return (
     <main>
-      <Deck slides={SLIDES} sections={SECTIONS} />
-      {/* Asks before a stray Back swipe takes a guest off the invitation. */}
-      <LeaveGuard />
+      {open && (
+        <>
+          <Deck slides={SLIDES} sections={SECTIONS} />
+          {/* Asks before a stray Back swipe takes a guest off the invitation. */}
+          <LeaveGuard />
+        </>
+      )}
+
+      <LoadingScreen onReady={enter} />
     </main>
   );
 }

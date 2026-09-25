@@ -880,3 +880,129 @@ body {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------
+   The curtain: the loading screen
+   ---------------------------------------------------------------
+   Her photographs and her twelve songs are some seventy megabytes, and
+   nothing in the invitation survives them arriving late: a month's page
+   with its costume shot still downloading is a coloured rectangle, and a
+   song that starts buffering mid-swipe is a page that stutters. So they
+   are all fetched at the door, behind this.
+
+   Four things move on that screen — the bar, the sparkle on its leading
+   edge, the gilding creeping up the crown, and the glow behind it — and
+   all four are the same number. `--p` is that number: the eased fraction
+   downloaded, 0 to 1, written onto the screen's root element once a frame
+   by LoadingScreen. One DOM write drives the lot.
+   --------------------------------------------------------------- */
+
+/* The filled part of the rail. Blush at the tail into gold at the head,
+   the same run of colour the bottom bar uses for the deck's own progress. */
+.load-fill {
+  width: calc(var(--p, 0) * 100%);
+  background-image: linear-gradient(90deg, #e8b4c8 0%, #d4af37 55%, #f0dfa8 100%);
+}
+
+/* A sheen travelling the rail, so the bar is alive even while a single
+   large file is landing and the width itself has little to say. */
+.load-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent);
+  background-size: 45% 100%;
+  background-repeat: no-repeat;
+  animation: load-sheen 2.4s ease-in-out infinite;
+}
+
+@keyframes load-sheen {
+  0% {
+    background-position: -60% 0;
+  }
+  100% {
+    background-position: 160% 0;
+  }
+}
+
+/* The sparkle at the head of the fill. Centred on the point rather than
+   starting at it, so it rides the edge instead of trailing behind it. */
+.load-rider {
+  left: calc(var(--p, 0) * 100%);
+  transform: translate(-50%, -50%);
+}
+
+/*
+ * The crown gilding from the base up.
+ *
+ * `inset()` measured from the top, so at nothing downloaded the whole
+ * drawing is clipped away and the faint crown underneath is all there is;
+ * at full, the clip is gone. Clipping rather than masking a gradient: the
+ * edge wants to be a clean waterline of gold, the way gilt actually goes on.
+ */
+.load-gild {
+  clip-path: inset(calc((1 - var(--p, 0)) * 100%) 0 0 0);
+}
+
+/* And its aura, which comes up with it — barely there at the start, full
+   by the time the crown is. */
+.load-halo {
+  opacity: calc(0.2 + var(--p, 0) * 0.6);
+}
+
+/* The sparkles drifting around the screen. Each carries its own period and
+   throw, so the four of them never fall into step. */
+@keyframes load-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(var(--rise, -16px));
+  }
+}
+
+.load-float {
+  animation: load-float var(--float, 5s) ease-in-out infinite;
+}
+
+/*
+ * Asked for less motion, the curtain keeps the one thing that is
+ * information — the bar's width, and the gilding, which are not animations
+ * at all but a number being displayed — and drops the decoration.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .load-fill::after,
+  .load-float {
+    animation: none;
+  }
+}
+
+/*
+ * A phone held sideways, and anything else short.
+ *
+ * The curtain is a column of fixed type sizes — crown, name, rail, caption —
+ * which on a 360px-high window adds up to more than there is room for. And
+ * the curtain clips rather than scrolls, so what overflows is simply gone:
+ * the top of her crown, in practice.
+ *
+ * Rather than a second set of sizes for a case this rare, the whole stack is
+ * scaled down about its centre. Nothing reflows and nothing re-wraps, so the
+ * proportions a guest sees sideways are the ones that were designed.
+ *
+ * It sits on its own wrapper because the element inside carries the transform
+ * that lifts the composition away at the reveal, and two transforms on one
+ * element is one of them winning.
+ */
+@media (max-height: 430px) {
+  .load-fit {
+    transform: scale(0.82);
+  }
+}
+
+@media (max-height: 340px) {
+  .load-fit {
+    transform: scale(0.68);
+  }
+}

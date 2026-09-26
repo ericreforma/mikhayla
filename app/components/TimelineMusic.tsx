@@ -1,20 +1,28 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SILENCE, fadeAudio, stopFade } from "./audio";
+import { useMusic, useMusicFloor } from "./Music";
 import { SpeakerIcon, SpeakerOffIcon } from "./Ornaments";
 
 /**
  * Her princess's song, one per month, changing as you swipe through her year.
  *
- * Only the timeline has music, so this lives on the rail rather than on the
- * deck: the moment you leave her year for the blessing or the RSVP the song
- * fades out, and nothing plays over a page that isn't hers.
+ * It lives on the rail rather than on the deck, because the songs do: the
+ * moment you leave her year for the blessing or the RSVP the song fades out,
+ * and the bed underneath the invitation — which stood down for it — comes
+ * back up. Claiming the floor while a month is on screen is the whole of
+ * that arrangement; see `Music.tsx`.
+ *
+ * The speaker button here is the invitation's only music control, and it
+ * governs both players rather than just this one. Which is why the
+ * preference behind it lives in the music context and not in this file.
  *
  * Three things make this harder than an `<audio autoplay>`:
  *
  *  - Browsers refuse to start audio a hand didn't ask for, and iOS refuses
  *    until the *first* play() on an element happens inside a real gesture
- *    handler. See PRIMER below.
+ *    handler. See SILENCE in `audio.ts`.
  *  - Cutting from one song to the next is a lurch. Two players, alternating,
  *    let the outgoing month fade under the incoming one.
  *  - The files are somebody's mobile data. Nothing is fetched until its month
@@ -27,53 +35,6 @@ const FADE_MS = 550;
 /** Loud enough to be there, quiet enough to talk over. */
 const VOLUME = 0.55;
 
-/** Remembers a guest who turned the music off, so it stays off. */
-const STORAGE_KEY = "mikhayla:music";
-
-/**
- * A tenth of a second of silence, as a data URI.
- *
- * iOS will not let a page start audio on its own. What it actually gates is
- * the first `play()` on each element: do that once from inside a genuine
- * gesture handler and the element stays unlocked for the rest of the visit,
- * whatever you point it at afterwards. So on the first touch anywhere on the
- * invitation — the swipe that opens her year, most likely — both players are
- * handed this and told to play. Nobody hears anything, and by the time a song
- * is wanted the players will take it.
- *
- * It is a data URI rather than a file because it has to be instant: a fetch
- * that lands after the gesture has passed is a fetch that unlocks nothing.
- */
-const PRIMER =
-  "data:audio/wav;base64,UklGRmQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-
-/*
- * Volume ramps, one per player, cancelled by whatever starts the next.
- *
- * A WeakMap rather than state: these run every frame and nothing renders off
- * them, so putting them through React would be sixty renders a second to
- * animate a number the DOM already owns.
- */
-const ramps = new WeakMap<HTMLAudioElement, number>();
-
-function fadeTo(el: HTMLAudioElement, target: number, ms: number, done?: () => void) {
-  const running = ramps.get(el);
-  if (running) cancelAnimationFrame(running);
-  const from = el.volume;
-  const started = performance.now();
-  const step = (now: number) => {
-    const k = ms <= 0 ? 1 : Math.min(1, (now - started) / ms);
-    el.volume = Math.min(1, Math.max(0, from + (target - from) * k));
-    if (k < 1) {
-      ramps.set(el, requestAnimationFrame(step));
-    } else {
-      ramps.delete(el);
-      done?.();
-    }
-  };
-  ramps.set(el, requestAnimationFrame(step));
-}
-
 /**
  * @param track The song for the month on screen, or nothing at all — the
  *   title page, or her year being off screen entirely.
@@ -81,12 +42,9 @@ function fadeTo(el: HTMLAudioElement, target: number, ms: number, done?: () => v
 export function TimelineMusic({ track }: { track?: string }) {
   /*
    * Whether the guest wants music, which is not the same as whether any is
-   * playing. It starts as yes and is overridden from storage in an effect
-   * rather than read during render: a value read from localStorage while
-   * rendering is a value the server could not have known, and the first paint
-   * would not match the markup it hydrates.
+   * playing — and shared with the bed, so one button answers for both.
    */
-  const [wanted, setWanted] = useState(true);
+  const { wanted, setWanted } = useMusic();
 
   /* The browser refused to start it. Not an error — it is the default state
      of any page nobody has touched yet — but the button says "off" while it
@@ -98,21 +56,38 @@ export function TimelineMusic({ track }: { track?: string }) {
   /** Which of the two is holding the song right now. */
   const liveRef = useRef<0 | 1>(0);
 
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem(STORAGE_KEY) === "off") setWanted(false);
-    } catch {
-      /* Private mode, or storage turned off. The default stands. */
-    }
-  }, []);
+  /*
+   * Which call to `apply` is the current one.
+   *
+   * `play()` answers a promise, and the answer can arrive after the question
+   * stopped mattering — a guest who lands on a month and swipes straight on
+   * asks for two contradictory things inside a few milliseconds. The later
+   * call fades the song away; the earlier call's promise then resolves and
+   * fades it back up, over a page that isn't hers and over the bed that had
+   * just been given the floor back. Stamping each call and checking the
+   * stamp on the way out is the whole guard.
+   */
+  const turnRef = useRef(0);
 
-  /* The unlocking touch — see PRIMER. Once only, and it listens on the way
+  /*
+   * Stand the bed down while a month with a song is on screen.
+   *
+   * `track` is already exactly that question — the rail hands over nothing
+   * at all for the title page or for her year being off screen — so the
+   * floor is claimed and released by the same fact that starts and stops the
+   * song. `blocked` is deliberately not in here: a browser that has refused
+   * this player has refused the bed too, and a floor held by silence would
+   * simply mean no music anywhere.
+   */
+  useMusicFloor(Boolean(track) && wanted);
+
+  /* The unlocking touch — see SILENCE. Once only, and it listens on the way
      down so it runs before the swipe it belongs to has finished. */
   useEffect(() => {
     const prime = () => {
       for (const el of [oneRef.current, twoRef.current]) {
         if (!el || el.src) continue; // already carrying a song; leave it be
-        el.src = PRIMER;
+        el.src = SILENCE;
         el.volume = 0;
         void el.play().then(
           () => el.pause(),
@@ -143,13 +118,15 @@ export function TimelineMusic({ track }: { track?: string }) {
    * the song already live and only tops up the volume.
    */
   const apply = useCallback((song: string | undefined, want: boolean) => {
+    const turn = (turnRef.current += 1);
+    const current = () => turnRef.current === turn;
     const live = (liveRef.current === 0 ? oneRef : twoRef).current;
     const idle = (liveRef.current === 0 ? twoRef : oneRef).current;
     if (!live || !idle) return;
 
     // Off her year, or the guest has asked for quiet.
     if (!song || !want) {
-      fadeTo(live, 0, FADE_MS, () => live.pause());
+      fadeAudio(live, 0, FADE_MS, () => live.pause());
       return;
     }
 
@@ -158,15 +135,15 @@ export function TimelineMusic({ track }: { track?: string }) {
     if (live.dataset.track === song) {
       if (live.paused) {
         void live.play().then(
-          () => setBlocked(false),
-          () => setBlocked(true),
+          () => current() && setBlocked(false),
+          () => current() && setBlocked(true),
         );
       }
-      fadeTo(live, VOLUME, FADE_MS);
+      fadeAudio(live, VOLUME, FADE_MS);
       return;
     }
 
-    fadeTo(live, 0, FADE_MS, () => live.pause());
+    fadeAudio(live, 0, FADE_MS, () => live.pause());
 
     /*
      * The `src` is set here and nowhere else, which is what keeps the download
@@ -180,10 +157,11 @@ export function TimelineMusic({ track }: { track?: string }) {
     liveRef.current = liveRef.current === 0 ? 1 : 0;
     void idle.play().then(
       () => {
+        if (!current()) return;
         setBlocked(false);
-        fadeTo(idle, VOLUME, FADE_MS);
+        fadeAudio(idle, VOLUME, FADE_MS);
       },
-      () => setBlocked(true),
+      () => current() && setBlocked(true),
     );
   }, []);
 
@@ -201,8 +179,7 @@ export function TimelineMusic({ track }: { track?: string }) {
     () => () => {
       for (const el of [oneRef.current, twoRef.current]) {
         if (!el) continue;
-        const running = ramps.get(el);
-        if (running) cancelAnimationFrame(running);
+        stopFade(el);
         el.pause();
       }
     },
@@ -225,18 +202,14 @@ export function TimelineMusic({ track }: { track?: string }) {
    */
   const toggle = useCallback(() => {
     const next = !on;
+    /* Remembered by the provider, and read by the bed as well as by this. */
     setWanted(next);
     /* A tap is the gesture the browser was holding out for. */
     if (next) setBlocked(false);
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
-    } catch {
-      /* Nothing to remember it with. It still works for this visit. */
-    }
     /* Played from inside the tap, not from the effect that follows it: on a
        phone, only the first of those two counts as being asked. */
     apply(track, next);
-  }, [apply, on, track]);
+  }, [apply, on, setWanted, track]);
 
   return (
     <>

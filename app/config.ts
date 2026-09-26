@@ -35,6 +35,37 @@ export const BABY_FULL_NAME = "Mikhayla Maeve";
  * is faded out and written over, and the bottom runs off the screen, so
  * anything in either is lost. Put the file in `public/images/`.
  */
+/**
+ * The castle the invitation opens on — the painting the opening sequence
+ * flies at, before the hero.
+ *
+ * It is the first thing a guest sees after the loading screen, so it is
+ * also the first thing fetched: see `preloadManifest`. Landscape, and used
+ * edge to edge at every shape of window, so it is cropped hard on a phone —
+ * keep the castle central and the gate near the middle of the width.
+ *
+ * Swapping it means re-measuring the doorway in `CastleIntro.tsx`, which is
+ * where the drawn doors that open are hung onto the painted ones.
+ */
+export const CASTLE_SCENE = asset("/images/fairy-castle.png");
+
+/**
+ * The music under the whole invitation, from the moment the curtain lifts.
+ *
+ * It loops, so give it something that comes round without a seam — and keep
+ * it quiet and wordless. It is the thing playing while a guest reads the
+ * venue and the dress code, and it steps aside entirely on her year so each
+ * month's own song can be heard: see `BackgroundMusic.tsx`.
+ *
+ * Put the file in `public/audio/` and spell the extension exactly as the
+ * file has it — GitHub Pages treats `.mp3` and `.MP3` as two different
+ * files, which a Windows checkout will not show you.
+ *
+ * Leave it empty for an invitation with no music of its own; her months
+ * keep theirs either way.
+ */
+export const BACKGROUND_TRACK = asset("/audio/background.mp3");
+
 export const HERO_PORTRAIT = asset("/images/mikhayla-front.png");
 
 /**
@@ -227,8 +258,8 @@ export type Ambience =
   | "rose-petals"
   /** Cinderella — bluebirds across the page. */
   | "birds"
-  /** Her own month — a wand waves a spell and lights its tip. */
-  | "magic-wand";
+  /** Her own month — the invitation's own sparkles, coming down. */
+  | "sparkle-fall";
 
 export type Milestone = {
   month: number;
@@ -316,7 +347,7 @@ const MILESTONE_PAGES: Milestone[] = [
   { month: 9,  princess: "Moana",      title: "How far you'll go",             note: "You started crawling, and nothing in this house was safe again.",         tint: "#F1DADB", accent: "moana",      character: "/princesses/moana.png",     photo: "/milestones/09-moana.png",      ambience: "coconut-fall", music: "/audio/moana.MP3" },
   { month: 10, princess: "Belle",      title: "Tale as old as time",           note: "You waved bye-bye. A tiny hand, and a very big deal.",                    tint: "#F1E9DA", accent: "belle",      character: "/princesses/belle.png",     photo: "/milestones/10-belle.png",      ambience: "rose-petals",  music: "/audio/belle.MP3" },
   { month: 11, princess: "Cinderella", title: "If the shoe fits",              note: "First steps — wobbly, brave, and gone in a blink. No midnight needed.",   tint: "#E1E1EA", accent: "cinderella", character: "/princesses/cinderella.png", photo: "/milestones/11-cinderella.png", ambience: "birds",        music: "/audio/cinderella.MP3" },
-  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png",   ambience: "magic-wand",   music: "/audio/mikhayla.mp3" },
+  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png",   ambience: "sparkle-fall", music: "/audio/mikhayla.mp3" },
 ];
 
 /**

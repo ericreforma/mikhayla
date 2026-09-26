@@ -370,103 +370,41 @@ export function Bird({ color, detail = "#FFF8F0" }: MotifProps) {
 }
 
 /* ---------------------------------------------------------------
-   The last page: a wand, and the light off the end of it
+   The last page: her own sparkles
    ---------------------------------------------------------------
-   Drawn in a 120 box rather than 24 — this is one large prop, not a
-   particle, and the sequence that waves it needs room to work in.
-
-   Two points below are load-bearing, and both are published as constants
-   because the sequence in MilestoneAmbience.tsx has to pivot on one and put
-   the spark on the other: the grip at (102, 104) and the star at (42, 44).
+   Every other month borrows its weather from a film. The twelfth has no
+   film to borrow from, so it gets the invitation's own motif instead —
+   the four-point star that sits beside her name on the hero, on the
+   loading screen and at the head of the progress bar — coming down over
+   her like the rest of her year came down over her princesses.
    --------------------------------------------------------------- */
 
-/** Where the hand would be — the point the wave rotates about. */
-export const WAND_GRIP = "85% 86.7%";
-
-/** The star on the end, in the same box, for whatever is put there. */
-export const WAND_TIP = { left: "35%", top: "36.7%" };
-
-export function Wand({ className = "" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 120 120" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="mkWandShaft" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#F7E3A4" />
-          <stop offset="50%" stopColor="#D4AF37" />
-          <stop offset="100%" stopColor="#A5811F" />
-        </linearGradient>
-        <radialGradient id="mkWandStar" cx="38%" cy="32%" r="72%">
-          <stop offset="0%" stopColor="#FFFDF2" />
-          <stop offset="55%" stopColor="#F7DE8B" />
-          <stop offset="100%" stopColor="#E7BE4C" />
-        </radialGradient>
-      </defs>
-
-      {/* Ribbons off the collar, trailing back down the shaft. */}
-      <g fill="none" stroke="#E8B4C8" strokeWidth="3" strokeLinecap="round" opacity="0.9">
-        <path d="M60 62 C70 68 68 80 78 82" />
-        <path d="M60 62 C64 74 56 82 60 92" />
-      </g>
-
-      <path d="M102 104 L54 56" stroke="url(#mkWandShaft)" strokeWidth="7" strokeLinecap="round" />
-      {/* A gilt band where the hand goes, so the shaft isn't a bare stick. */}
-      <path
-        d="M94 96 L84 86"
-        stroke="#FFF3D0"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        opacity="0.75"
-      />
-
-      <path
-        d="M42 14 L50.4 35.6 L72 44 L50.4 52.4 L42 74 L33.6 52.4 L12 44 L33.6 35.6 Z"
-        fill="url(#mkWandStar)"
-        stroke="#D4AF37"
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      <circle cx="38" cy="39" r="5" fill="#FFFDF2" opacity="0.7" />
-    </svg>
-  );
-}
-
 /**
- * The light off the end of it: a core flare, eight rays and three stars
- * thrown clear. Drawn centred in its box, so putting it on the wand's tip is
- * a matter of centring the box there and nothing else.
+ * A four-point sparkle, pinched at the waist.
+ *
+ * The same silhouette as `Sparkle` in `Ornaments.tsx`, redrawn here because
+ * a particle needs a colour per instance and that one takes `currentColor`
+ * — a field of thirty identical golds is a field of stickers.
+ *
+ * The small cross behind it is what keeps it from reading as a plain star:
+ * two faint diagonal spikes catching a different light, the way a real
+ * glint has more than four arms.
  */
-export function Spark({ className = "" }: { className?: string }) {
+export function Star({ color, detail = "#FFFDF2" }: MotifProps) {
   return (
-    <svg viewBox="0 0 120 120" className={className} aria-hidden>
-      <defs>
-        <radialGradient id="mkSparkGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FFFDF2" stopOpacity="0.95" />
-          <stop offset="45%" stopColor="#F7DE8B" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#F7DE8B" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <circle cx="60" cy="60" r="44" fill="url(#mkSparkGlow)" />
-      <g stroke="#FFF3D0" strokeWidth="2.6" strokeLinecap="round" opacity="0.9">
-        {[0, 45, 90, 135, 180, 225, 270, 315].map((a, i) => (
-          <path key={a} d={i % 2 ? "M60 32 V18" : "M60 27 V10"} transform={`rotate(${a} 60 60)`} />
-        ))}
+    <svg viewBox="0 0 24 24" className={BOX} aria-hidden>
+      {/* The diagonals, half the reach of the main star and half as solid. */}
+      <g stroke={color} strokeWidth="1.1" strokeLinecap="round" opacity="0.55">
+        <path d="M5.2 5.2 L18.8 18.8" />
+        <path d="M18.8 5.2 L5.2 18.8" />
       </g>
-      {/*
-        The four-point flare — the same pinched star as the deck's Sparkle.
-        Not quite opaque: it fires over a photograph of her face, and a solid
-        white star at this size is a hole in the picture rather than a light
-        in front of it.
-      */}
       <path
-        d="M60 24 C63.2 48.8 68.8 54.4 96 60 C68.8 65.6 63.2 71.2 60 96 C56.8 71.2 51.2 65.6 24 60 C51.2 54.4 56.8 48.8 60 24 Z"
-        fill="#FFFDF2"
-        fillOpacity="0.88"
+        d="M12 0.4 C12.85 7.6 16.4 11.15 23.6 12 C16.4 12.85 12.85 16.4 12 23.6 C11.15 16.4 7.6 12.85 0.4 12 C7.6 11.15 11.15 7.6 12 0.4 Z"
+        fill={color}
       />
-      <g fill="#F7DE8B">
-        <circle cx="93" cy="34" r="3.4" />
-        <circle cx="30" cy="40" r="2.6" />
-        <circle cx="80" cy="92" r="2.9" />
-      </g>
+      {/* The hot centre. Every one of these falls over a photograph of her
+          face, so the core is a highlight rather than a second colour. */}
+      <circle cx="12" cy="12" r="2.1" fill={detail} opacity="0.85" />
     </svg>
   );
 }

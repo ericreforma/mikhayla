@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BABY_FULL_NAME } from "@/app/config";
 import { Crown, Sparkle } from "./Ornaments";
 import { PRELOAD_ASSETS } from "./preloadManifest";
@@ -53,8 +53,9 @@ const MIN_MS = 850;
  * The invitation is a lot of photographs, and somewhere there is a phone on
  * one bar of signal holding an excited relative. Everything degrades
  * gracefully without its pictures — they arrive as they arrive — so after
- * this long the door is simply opened to anyone who asks. Nothing opens it
- * for them: it is offered, quietly, and the download carries on either way.
+ * this long the way in is offered regardless, and the download carries on
+ * behind it. It is the same tap as the one at the end — see `knock` — so a
+ * guest who takes it early still gets the music.
  */
 const ESCAPE_MS = 12_000;
 
@@ -66,14 +67,20 @@ const FADE_MS = 700;
  * fetched before a guest is let in, with the percentage and the bar that the
  * waiting is spent watching.
  *
- * It shares the hero's `royal-dawn` ground and its three opening elements —
- * crown, "By royal invitation", her name — in that order, on purpose. The two
- * screens dissolve into one another rather than cutting, so what a guest sees
- * is the words settling into place, not one page being swapped for another.
+ * It shares the `royal-dawn` ground of both screens either side of it, and
+ * the hero's own three opening elements — crown, "By royal invitation", her
+ * name — in that order, on purpose. Nothing here cuts to anything: the
+ * curtain dissolves onto the castle standing on the same dawn, and the
+ * castle's light later dissolves onto the hero, so a guest sees one place
+ * changing rather than three pages being swapped.
  *
- * `onReady` fires the moment the deck should mount, which is a beat *before*
- * the curtain starts to lift — see the reveal below for why that order
- * matters.
+ * The curtain does not lift on its own. It waits to be knocked on: see
+ * `knock` below for why one deliberate tap is worth asking for, and what
+ * the whole opening gets in exchange.
+ *
+ * `onReady` fires the moment the castle should mount, which is a beat
+ * *before* the curtain starts to lift — see the reveal below for why that
+ * order matters.
  */
 export function LoadingScreen({ onReady }: { onReady: () => void }) {
   const { ratioRef, done } = useAssetPreload(PRELOAD_ASSETS);
@@ -85,7 +92,8 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
   const [stage, setStage] = useState(0);
   const [waited, setWaited] = useState(false);
   const [offerEscape, setOfferEscape] = useState(false);
-  const [bypassed, setBypassed] = useState(false);
+  /** The guest has knocked. Nothing opens until they do — see `knock`. */
+  const [entered, setEntered] = useState(false);
 
   /**
    * `loading` → `revealing` (the deck mounts behind us) → `leaving` (we
@@ -172,30 +180,50 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
     return () => cancelAnimationFrame(raf);
   }, [ratioRef]);
 
+  /** Everything is in the cache and the curtain has been up long enough. */
+  const ready = done && waited;
+
+  /*
+   * The knock, and why the door is not simply opened.
+   *
+   * No browser will start audio a hand did not ask for, and this screen is
+   * the last place on the invitation where a hand can be asked. Opened on a
+   * timer, the curtain dissolves into the castle, the castle into her name,
+   * and none of it makes a sound until a guest happens to touch something —
+   * which on a laptop, where a wheel is not a gesture as far as the audio
+   * gate is concerned, can be several screens later or never.
+   *
+   * So the last beat of the wait is a tap. It costs one deliberate gesture
+   * and buys the whole opening its music, which is a good trade: knocking at
+   * a castle gate is not the worst thing to ask of somebody either.
+   *
+   * It is the same gesture that unlocks the players — see BackgroundMusic —
+   * so nothing here has to know about the music at all.
+   */
+  const knock = useCallback(() => setEntered(true), []);
+
   /*
    * The reveal, in the order it has to happen.
    *
-   * `onReady` first, so the deck mounts while the curtain is still solid.
-   * That render is the whole invitation at once — six sections, fourteen
-   * timeline panels, every particle of weather on them — and it is not free.
-   * Done underneath an opaque curtain it costs a beat of stillness at 100%,
-   * which reads as a pause for breath. Done during the dissolve it would be a
-   * stutter at the exact moment the invitation is trying to make its first
-   * impression.
+   * `onReady` first, so the castle is raised while the curtain is still
+   * solid. It is one drawing and costs little, but its opening beat is the
+   * thing being protected: the castle has to be standing and still by the
+   * time it can be seen, or a guest watches it appear rather than watching
+   * the curtain come off it. The expensive render — the deck, six sections
+   * and fourteen timeline panels — is the castle's problem, and it hides
+   * that one behind its own flood of light the same way.
    *
-   * Two frames and a short settle later the dissolve starts, and it overlaps
-   * the hero's own opening rather than waiting for it: her crown and her name
-   * are already rising as the curtain thins.
+   * Two frames and a short settle later the dissolve starts, and what comes
+   * through it is a castle already there.
    */
   const announced = useRef(false);
-  const ready = bypassed || (done && waited);
 
   useEffect(() => {
-    if (!ready || announced.current) return;
+    if (!entered || announced.current) return;
     announced.current = true;
     setPhase("revealing");
     onReady();
-  }, [ready, onReady]);
+  }, [entered, onReady]);
 
   useEffect(() => {
     if (phase !== "revealing") return;
@@ -364,22 +392,44 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
           </div>
 
           {/*
-            The way out, offered after a long wait. The space it will take is
-            reserved from the start, so the composition doesn't jump when it
-            appears — and it is quiet, offered rather than urged, with a tap
-            target bigger than its type: that is what the negative margin is
-            for, growing the box without moving anything around it.
+            The way in, and — while there is still downloading to do — the
+            way in early.
+
+            One slot for both, because they are the same act: a guest asking
+            to be let in. The space is reserved from the start so the
+            composition doesn't jump when either appears.
+
+            They are weighted differently on purpose. The gate is the thing
+            everybody is meant to press, so it is the invitation's own
+            primary button; the early way in is a compromise offered to
+            somebody on a thin connection, so it stays quiet — offered
+            rather than urged — with a tap target bigger than its type,
+            which is what the negative margin is for.
           */}
-          <div className="mt-9 flex h-5 items-start">
-            {offerEscape && !ready && (
+          <div className="mt-8 flex h-14 items-start justify-center">
+            {ready ? (
               <button
                 type="button"
-                onClick={() => setBypassed(true)}
-                className="hero-rise -m-3 p-3 text-[0.6875rem] text-ink/40 underline decoration-gold/50 underline-offset-4 transition hover:text-ink/70"
+                onClick={knock}
+                autoFocus
+                /* Focused on arrival, so a guest on a screen reader or a
+                   keyboard lands on the one thing there is to do — and given
+                   a gilt ring rather than the browser's black one, since
+                   with autofocus that ring is something every guest sees
+                   before they have touched anything. */
+                className="hero-rise flex min-h-[3rem] items-center justify-center rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition hover:bg-goldSoft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60 focus-visible:ring-offset-2 focus-visible:ring-offset-mist active:scale-[0.98] sm:px-9 sm:text-lg"
+              >
+                Open the gates
+              </button>
+            ) : offerEscape ? (
+              <button
+                type="button"
+                onClick={knock}
+                className="hero-rise -m-3 mt-1 p-3 text-[0.6875rem] text-ink/40 underline decoration-gold/50 underline-offset-4 transition hover:text-ink/70"
               >
                 Enter without waiting
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

@@ -776,6 +776,26 @@ body {
   }
 }
 
+/*
+ * A sparkle: it breathes rather than tumbles.
+ *
+ * The only wobble that touches opacity as well as transform, and that is the
+ * whole effect — the lane's own fade decides whether a particle is on the
+ * page at all, and this multiplies into it to decide how brightly. Two
+ * clocks, so no two sparkles catch the light at the same moment.
+ */
+@keyframes mk-shimmer {
+  0%,
+  100% {
+    transform: translateX(calc(var(--sway, 10px) * -1)) rotate(-16deg) scale(0.66);
+    opacity: 0.45;
+  }
+  50% {
+    transform: translateX(var(--sway, 10px)) rotate(16deg) scale(1.14);
+    opacity: 1;
+  }
+}
+
 .mk-tumble {
   animation-name: mk-tumble;
   animation-timing-function: linear;
@@ -791,6 +811,9 @@ body {
 }
 .mk-glide {
   animation-name: mk-glide;
+}
+.mk-shimmer {
+  animation-name: mk-shimmer;
 }
 
 /* The swirl and the spin are two halves of one gesture, so both are pinned to
@@ -976,6 +999,157 @@ body {
   .load-fill::after,
   .load-float {
     animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The way in: the castle
+   ---------------------------------------------------------------
+   Between the curtain and the invitation. The scene itself — the rush at
+   the gate, the doors, the light behind them — is a scripted sequence and
+   lives in CastleIntro.tsx; what is here is the two washes it paints the
+   window with, and the sparkles it throws out of them.
+   --------------------------------------------------------------- */
+
+/*
+ * The light coming out of the doorway. `closest-side` is what makes it a
+ * circle in a square box rather than an ellipse stretched to the corners,
+ * so the light spreads evenly however the window is shaped.
+ *
+ * Candlelight at the core into blush at the edge — it is coming out of a
+ * gilt arch onto a dawn, and a white glow on that ground reads as a hole
+ * punched in the page rather than as light on it.
+ */
+.castle-bloom {
+  background-image: radial-gradient(
+    closest-side,
+    rgba(255, 253, 242, 0.98),
+    rgba(247, 222, 139, 0.6) 40%,
+    rgba(232, 180, 200, 0.22) 70%,
+    rgba(232, 180, 200, 0) 100%
+  );
+}
+
+/*
+ * The white itself, and it is the hero's own `royal-dawn` with the lights
+ * turned up rather than a flat white. That is the whole trick of the
+ * handoff: at full strength this is an opaque copy of the page underneath,
+ * so what a guest sees as it fades is not a curtain coming off a screen but
+ * the dawn settling back to its proper colour with her name already in it.
+ */
+.castle-flash {
+  background-image: linear-gradient(180deg, #ffffff 0%, #fffaf4 58%, #fdf1f4 100%);
+}
+
+/*
+ * The two doors, hinged on their outer edges.
+ *
+ * The hinge itself is set per leaf in CastleIntro.tsx, in viewBox units —
+ * see the note there for why it cannot be `transform-box: fill-box`, which
+ * is what every other hinge in this file uses.
+ *
+ * These are the one part of the opening that is CSS rather than part of the
+ * sequence, and not by preference: framer-motion computes an SVG element's
+ * transform-origin itself, from its bounding box, and overwrites whatever
+ * it was given. So the doors keep their own clock, and the beat they open
+ * on is handed down from the sequence as `--door-at`.
+ *
+ * They stop just short of nothing. A leaf scaled to zero is a door that was
+ * never there; a sliver left at the hinge is a door standing open, seen
+ * edge-on.
+ */
+.castle-door {
+  animation: castle-door-open var(--door-for, 800ms) cubic-bezier(0.65, 0, 0.35, 1)
+    var(--door-at, 1800ms) both;
+}
+
+@keyframes castle-door-open {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0.04);
+  }
+}
+
+/* The candlelight behind them, coming up as they go — held at nothing until
+   the doors are moving, so what opens is a dark doorway that then lights,
+   rather than a lit one that was always lit. */
+.castle-gate-glow {
+  animation: castle-gate-light var(--glow-for, 800ms) ease-in var(--glow-at, 2300ms) both;
+}
+
+@keyframes castle-gate-light {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/*
+ * One sparkle of the burst.
+ *
+ * Two elements, for the reason the milestone particles are two: the outer
+ * one is placed and sized, the inner one carries the throw. Centred on its
+ * point rather than starting at it — otherwise twenty-six sparkles all set
+ * off from half their own width down and to the right of the middle.
+ */
+.castle-spark {
+  position: absolute;
+  display: block;
+  width: var(--size, 20px);
+  height: var(--size, 20px);
+  margin-left: calc(var(--size, 20px) / -2);
+  margin-top: calc(var(--size, 20px) / -2);
+}
+
+.castle-spark > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /*
+     `both` matters as much here as `backwards` does on a milestone lane:
+     these start as late as three and a half seconds in, and without a fill
+     every one of them would sit at full size in the middle of the screen
+     for the whole of the castle sequence, waiting its turn.
+  */
+  animation: castle-burst var(--dur, 1.4s) cubic-bezier(0.16, 1, 0.3, 1) var(--delay, 0s) both;
+}
+
+/* Out of the light and away, turning as it goes. It ends at nothing rather
+   than at rest: a sparkle that stops is a sparkle still on the page. */
+@keyframes castle-burst {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.25) rotate(0deg);
+    opacity: 0;
+  }
+  14% {
+    opacity: 1;
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate3d(var(--tx, 0), var(--ty, 0), 0) scale(1.05) rotate(var(--spin, 120deg));
+    opacity: 0;
+  }
+}
+
+/*
+ * Asked for less motion, the opening does not play at all — there is no
+ * honest short version of a zoom into a doorway, and the component returns
+ * nothing rather than flashing the castle up and cutting it. This is here so
+ * the markup can never outlive that check.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .castle-spark,
+  .castle-bloom,
+  .castle-flash,
+  .castle-door,
+  .castle-gate-glow {
+    display: none;
   }
 }
 

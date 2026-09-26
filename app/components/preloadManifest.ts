@@ -1,4 +1,6 @@
 import {
+  BACKGROUND_TRACK,
+  CASTLE_SCENE,
   DATE_PORTRAIT,
   FINALE_PORTRAIT,
   HERO_PORTRAIT,
@@ -55,6 +57,10 @@ const INCLUDE_AUDIO = true;
  * off the wire a moment later. Taken from what is in `public/` today.
  */
 const EST = {
+  /** The castle the opening sequence flies at. */
+  scene: 2_200_000,
+  /** The music under the whole invitation. */
+  bed: 4_300_000,
   /** The three big portraits: hero, date, finale. */
   portrait: 2_900_000,
   /** A month's costume shot — the largest group, and the heaviest. */
@@ -68,7 +74,11 @@ const EST = {
 } as const;
 
 const image = (url: string, est: number): PreloadAsset => ({ url, kind: "image", est });
-const audio = (url: string): PreloadAsset => ({ url, kind: "audio", est: EST.song });
+const audio = (url: string, est: number = EST.song): PreloadAsset => ({
+  url,
+  kind: "audio",
+  est,
+});
 
 /** Drops anything the config leaves empty, and anything listed twice. */
 function collect(...groups: PreloadAsset[][]): PreloadAsset[] {
@@ -88,8 +98,21 @@ function collect(...groups: PreloadAsset[][]): PreloadAsset[] {
  * restart the pool on every frame.
  */
 export const PRELOAD_ASSETS: PreloadAsset[] = collect(
-  /* The first screen, first. */
-  [image(HERO_PORTRAIT, EST.portrait)],
+  /*
+   * The castle the curtain lifts onto, the first screen behind it, and the
+   * music that starts with them — in the order they are actually met.
+   *
+   * The bed is in here whatever `INCLUDE_AUDIO` says below, and that is not
+   * an oversight: the flag is about her twelve songs, which are only wanted
+   * if a guest swipes as far as the month that owns them. This one plays a
+   * second after the curtain lifts, so a guest who waited at the door and
+   * then heard it buffer would have waited for nothing.
+   */
+  [
+    image(CASTLE_SCENE, EST.scene),
+    image(HERO_PORTRAIT, EST.portrait),
+    audio(BACKGROUND_TRACK, EST.bed),
+  ],
 
   /* Her year: each month's photograph, then the figure that stands on it. */
   MILESTONES.flatMap((m) =>

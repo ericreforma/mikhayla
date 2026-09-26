@@ -1,6 +1,6 @@
 "use client";
 
-import { BABY_NAME, FINALE_PORTRAIT } from "@/app/config";
+import { BABY_FULL_NAME, BABY_NAME, FINALE_PORTRAIT } from "@/app/config";
 import { Crown } from "./Ornaments";
 
 /**
@@ -20,9 +20,30 @@ export function FinaleSection() {
 
       <div className="relative flex flex-col items-center px-gutter">
         <Crown className="h-9 w-auto text-gold drop-shadow-sm sm:h-12" />
-        <h2 className="mt-4 max-w-[20ch] font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:mt-5 sm:max-w-none sm:text-5xl">
-          One whole year of Princess {BABY_NAME}
+
+        {/*
+          Her name alone on the big line, with the sentiment in small caps
+          underneath — the same shape the hero makes, and on purpose. These
+          are the first and last screens of the invitation, so closing the
+          way it opened makes the two read as a pair of covers rather than as
+          two unrelated pages that happen to share a photograph.
+
+          Which is also why the name is set a size under the hero's: this is
+          the echo, not the announcement.
+        */}
+        <h2 className="mt-4 font-display text-[1.875rem] italic leading-[1.15] text-ink xs:text-[2.25rem] sm:mt-5 sm:text-5xl">
+          {BABY_FULL_NAME}
         </h2>
+
+        {/* Too long for a phone at this tracking, so it is given a width to
+            break against and `text-balance` to break evenly — two tidy lines
+            rather than five words and an orphan. Past `sm` there is room for
+            all of it on one line, which is where the hero's own subtitle
+            sits, so the width comes off. */}
+        <p className="mx-auto mt-2.5 max-w-[30ch] text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep xs:text-xs sm:mt-3 sm:max-w-none sm:text-sm sm:tracking-[0.3em]">
+          One whole year of our little princess
+        </p>
+
         <div aria-hidden className="gilt-rule mt-4 h-px w-32 xs:w-40 sm:mt-5 sm:w-56" />
         <p className="mx-auto mt-4 max-w-[34ch] text-sm leading-relaxed text-ink/75 sm:mt-5 sm:max-w-md sm:text-base">
           Thank you for being part of her first year — every gown, every giggle, every tiny

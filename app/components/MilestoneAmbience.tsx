@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import type { Ambience } from "@/app/config";
 import { useSlideIsActive } from "./SlideActive";
 import {
@@ -15,18 +15,15 @@ import {
   Leaf,
   Petal,
   Snowflake,
-  Spark,
-  Wand,
-  WAND_GRIP,
-  WAND_TIP,
+  Star,
 } from "./MilestoneMotifs";
 
 /**
  * Something in the air over every month of her year.
  *
  * Each page gets the weather of its own film: apples for Snow White, snow for
- * Elsa, bubbles for Ariel, and on the last page — the only one with a story
- * rather than a scatter — a wand that waves itself and lights up.
+ * Elsa, bubbles for Ariel, and on the last page — the one month that is hers
+ * rather than a princess's — the invitation's own sparkles.
  *
  * Which page gets what is set in `config.ts` beside the photo and the tint,
  * so the whole look of a month still reads off one line of that table.
@@ -240,6 +237,13 @@ const PALETTE = {
   rose: ["#C7283F", "#E05068", "#A81F35", "#EE8098"],
   /** Cinderella's bluebirds. */
   bluebird: ["#5FA8D8", "#7FC0E6", "#4A8FC4", "#93CDEE"],
+  /** Her own month. Gold and candlelight with a blush through it — the
+      invitation's own colours rather than a film's, and meant to read as
+      glints coming off the page rather than as objects falling past it.
+      No white in the set, tempting as it is for a sparkle: half of month
+      twelve's photograph is a pale gown under bright light, and a white
+      glint on that is a glint that is simply not there. */
+  starlight: ["#F3DC9A", "#FFF3D0", "#E8C86B", "#EFB9D2", "#D4AF37"],
 } as const;
 
 /* ---------------------------------------------------------------
@@ -382,6 +386,18 @@ function Weather({ kind, seed }: { kind: Ambience; seed: number }) {
           stagger: [0, 0.6],
           colors: PALETTE.bluebird,
         });
+      case "sparkle-fall":
+        return cast(seed, 24, {
+          size: [11, 28],
+          dur: [7, 13],
+          peak: [0.75, 1],
+          sway: [8, 22],
+          /* Twice the rate of the drifting fields. A sparkle that takes four
+             seconds to brighten isn't twinkling, it's breathing — and the
+             whole point of this field is that it catches the light. */
+          wob: [1.3, 2.6],
+          colors: PALETTE.starlight,
+        });
       default:
         return [];
     }
@@ -495,113 +511,14 @@ function Weather({ kind, seed }: { kind: Ambience; seed: number }) {
         />
       );
 
-    case "magic-wand":
-      return <MagicWand />;
+    case "sparkle-fall":
+      return (
+        <Field bits={bits} journey="mk-fall" wobble="mk-shimmer" render={(b) => <Star color={b.color} />} />
+      );
 
     default:
       return null;
   }
-}
-
-/* ---------------------------------------------------------------
-   The last page
-   ---------------------------------------------------------------
-   Her own month, and the only one where something happens rather than
-   drifts: the wand comes in from the right, shakes itself through the
-   spell, settles pointing at the middle of the page, and the light goes
-   off the end of it.
-
-   framer-motion here and not CSS, unlike every field above. This is one
-   element following a script with named beats, and the beats have to line
-   up across three of them — the travel, the wave and the light. Giving all
-   three the same `duration` and `repeatDelay` and moving the beats around
-   inside `times` keeps them in step by construction.
-   --------------------------------------------------------------- */
-
-/** One whole cast, in seconds. The beats below are fractions of it. */
-const CAST = 5.4;
-/** A breath between casts, so it reads as a spell and not as a loop. */
-const BETWEEN = 1.1;
-
-const CYCLE = { duration: CAST, repeat: Infinity, repeatDelay: BETWEEN } as const;
-
-function MagicWand() {
-  return (
-    /*
-     * The wrapper puts the wand's *tip* on the middle of the panel rather
-     * than the wand's box — the offset is the tip's own place in that box,
-     * from MilestoneMotifs — so "points at the middle" is true of the star
-     * and not merely of the picture.
-     */
-    <div
-      className="absolute left-1/2 top-1/2 w-[132px] xs:w-[152px] sm:w-[184px]"
-      style={{ transform: `translate(-${WAND_TIP.left}, -${WAND_TIP.top})` }}
-    >
-      {/*
-        Beat one: in from the right, held out there for the spell, over to
-        the middle for the point, and away the way it came.
-
-        It leaves rather than fading where it stands. A wand that dissolves
-        on the spot looks like the page giving up halfway; a wand that is
-        taken back off is somebody holding it.
-      */}
-      <motion.div
-        initial={{ x: "62vw", opacity: 0 }}
-        animate={{
-          x: ["62vw", "17vw", "17vw", "0vw", "0vw", "0vw", "34vw"],
-          opacity: [0, 1, 1, 1, 1, 1, 0],
-        }}
-        transition={{ ...CYCLE, times: [0, 0.18, 0.5, 0.64, 0.86, 0.9, 1], ease: "easeOut" }}
-      >
-        {/*
-          Beat two: the spell itself. It pivots on the grip, so the star on
-          the end throws the widest arc — which is what makes it read as a
-          wrist flicking rather than a stick sliding about.
-        */}
-        <motion.div
-          className="relative"
-          style={{ transformOrigin: WAND_GRIP }}
-          initial={{ rotate: 14 }}
-          animate={{ rotate: [14, 6, -22, 16, -19, 13, -7, 0, 0, 12] }}
-          transition={{
-            ...CYCLE,
-            times: [0, 0.16, 0.23, 0.3, 0.37, 0.44, 0.51, 0.64, 0.9, 1],
-            ease: "easeInOut",
-          }}
-        >
-          <Wand className="block w-full drop-shadow-[0_2px_10px_rgba(155,47,96,0.35)]" />
-
-          {/* Beat three: the light, centred on the star and riding with it. */}
-          {/* Sized against the wand rather than the page: big enough to be a
-              flash off the star, small enough that it never becomes a white
-              sheet over her face — which is what the whole page is of. */}
-          <motion.div
-            className="pointer-events-none absolute w-[118%]"
-            style={{
-              left: WAND_TIP.left,
-              top: WAND_TIP.top,
-              translateX: "-50%",
-              translateY: "-50%",
-            }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{
-              scale: [0, 0, 0.3, 1.05, 0.82, 0.95, 0.5, 0.5],
-              opacity: [0, 0, 0.45, 0.95, 0.85, 0.7, 0, 0],
-            }}
-            /* Spent by 0.9, which is where the wand starts to leave — the
-               light has to have gone out before the hand takes it away. */
-            transition={{
-              ...CYCLE,
-              times: [0, 0.58, 0.63, 0.7, 0.77, 0.84, 0.9, 1],
-              ease: "easeOut",
-            }}
-          >
-            <Spark className="block w-full" />
-          </motion.div>
-        </motion.div>
-      </motion.div>
-    </div>
-  );
 }
 
 /**

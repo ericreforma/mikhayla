@@ -48,18 +48,6 @@ function stageAt(ratio: number) {
  */
 const MIN_MS = 850;
 
-/**
- * How long a guest waits before being offered a way in regardless.
- *
- * The invitation is a lot of photographs, and somewhere there is a phone on
- * one bar of signal holding an excited relative. Everything degrades
- * gracefully without its pictures — they arrive as they arrive — so after
- * this long the way in is offered regardless, and the download carries on
- * behind it. It is the same tap as the one at the end — see `knock` — so a
- * guest who takes it early still gets the music.
- */
-const ESCAPE_MS = 12_000;
-
 /** How long the curtain takes to dissolve. Matches `duration-700` below. */
 const FADE_MS = 700;
 
@@ -92,7 +80,6 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
 
   const [stage, setStage] = useState(0);
   const [waited, setWaited] = useState(false);
-  const [offerEscape, setOfferEscape] = useState(false);
   /** The guest has knocked. Nothing opens until they do — see `knock`. */
   const [entered, setEntered] = useState(false);
 
@@ -117,11 +104,7 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
 
   useEffect(() => {
     const min = window.setTimeout(() => setWaited(true), MIN_MS);
-    const escape = window.setTimeout(() => setOfferEscape(true), ESCAPE_MS);
-    return () => {
-      window.clearTimeout(min);
-      window.clearTimeout(escape);
-    };
+    return () => window.clearTimeout(min);
   }, []);
 
   /*
@@ -393,19 +376,9 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
           </div>
 
           {/*
-            The way in, and — while there is still downloading to do — the
-            way in early.
-
-            One slot for both, because they are the same act: a guest asking
-            to be let in. The space is reserved from the start so the
-            composition doesn't jump when either appears.
-
-            They are weighted differently on purpose. The gate is the thing
-            everybody is meant to press, so it is the invitation's own
-            primary button; the early way in is a compromise offered to
-            somebody on a thin connection, so it stays quiet — offered
-            rather than urged — with a tap target bigger than its type,
-            which is what the negative margin is for.
+            The way in. Nothing opens until a guest presses it — see `knock`
+            — so the space it will occupy is reserved from the start, and
+            the composition doesn't jump when it arrives.
           */}
           <div className="relative mt-8 flex h-14 items-start justify-center">
             {ready ? (
@@ -421,14 +394,6 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
                 className="hero-rise flex min-h-[3rem] items-center justify-center rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition hover:bg-goldSoft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60 focus-visible:ring-offset-2 focus-visible:ring-offset-mist active:scale-[0.98] sm:px-9 sm:text-lg"
               >
                 Open the gates
-              </button>
-            ) : offerEscape ? (
-              <button
-                type="button"
-                onClick={knock}
-                className="hero-rise -m-3 mt-1 p-3 text-[0.6875rem] text-ink/40 underline decoration-gold/50 underline-offset-4 transition hover:text-ink/70"
-              >
-                Enter without waiting
               </button>
             ) : null}
 

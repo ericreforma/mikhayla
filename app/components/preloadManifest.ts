@@ -3,7 +3,7 @@ import {
   CASTLE_SCENE,
   DATE_PORTRAIT,
   FINALE_PORTRAIT,
-  HERO_PORTRAIT,
+  HERO_PORTRAITS,
   MILESTONES,
   POINTING_HAND,
   SWIMWEAR_ICON,
@@ -18,7 +18,7 @@ import type { PreloadAsset } from "./useAssetPreload";
  * ---------------------------------------------------------------------------
  * A word on weight, because this is the one number worth watching here
  * ---------------------------------------------------------------------------
- * As it stands, the list below is roughly 44 MB of photographs and 25 MB of
+ * As it stands, the list below is roughly 53 MB of photographs and 25 MB of
  * music. That is a lot to ask of a guest on mobile data — on a middling 4G
  * connection it is the better part of a minute at the door, and on a poor one
  * it is longer than anyone will wait.
@@ -26,7 +26,7 @@ import type { PreloadAsset } from "./useAssetPreload";
  * Two things follow from that.
  *
  * First, the order. The pool works down this list, so the things a guest sees
- * soonest are fetched soonest: her portrait, then her year, then the rooms
+ * soonest are fetched soonest: her portraits, then her year, then the rooms
  * further in, and the music last. If anyone ever leaves early — see the way
  * out on the loading screen — what they already have is the front of the
  * invitation rather than a random scattering of it.
@@ -111,7 +111,11 @@ export const PRELOAD_ASSETS: PreloadAsset[] = collect(
    */
   [
     image(CASTLE_SCENE, EST.scene),
-    image(HERO_PORTRAIT, EST.portrait),
+    /* Every one of the hero's pictures, not just the one it opens on: the
+       first turn comes three seconds after the curtain lifts, which is
+       sooner than a guest could reach anything else on this list, and a
+       dissolve into a picture still downloading is a blank where she was. */
+    ...HERO_PORTRAITS.map((src) => image(src, EST.portrait)),
     audio(BACKGROUND_TRACK, EST.bed),
   ],
 

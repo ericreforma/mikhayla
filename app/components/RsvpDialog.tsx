@@ -3,14 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { BABY_NAME, RSVP_BY, RSVP_EMAIL, RSVP_ENDPOINT, RSVP_MAX_GUESTS } from "@/app/config";
-import { Crown, Sparkle, CheckIcon, CloseIcon } from "./Ornaments";
+import { BABY_NAME, RSVP_BY, RSVP_EMAIL, RSVP_ENDPOINT } from "@/app/config";
+import { Crown, Sparkle, CheckIcon, CloseIcon, Spinner } from "./Ornaments";
 import { useCloseOnBack } from "./backButton";
 
 /** Remembers, on this device only, that an RSVP already went in. */
 const STORE_KEY = "mikhayla-rsvp";
 
 type Status = "idle" | "sending" | "sent" | "error";
+
+/**
+ * Which court a guest arrives from. It settles the seat count without asking
+ * anyone to do arithmetic: family come as a household, friends and godparents
+ * come with one companion.
+ */
+type GuestType = "family" | "friends";
+
+const GUEST_TYPES: { value: GuestType; label: string }[] = [
+  { value: "family", label: "Family / Relative" },
+  { value: "friends", label: "Friends / Godparents" },
+];
 
 type Sent = { name: string; at: string };
 
@@ -45,7 +57,7 @@ export function RsvpDialog({ open, onClose }: { open: boolean; onClose: () => vo
 
 function Form({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState("");
-  const [guests, setGuests] = useState(1);
+  const [guestType, setGuestType] = useState<GuestType | null>(null);
   const [message, setMessage] = useState("");
   /*
    * Opt-in, not opt-out. Publishing what someone wrote to the family is not
@@ -95,11 +107,13 @@ function Form({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const guestTypeLabel = GUEST_TYPES.find((t) => t.value === guestType)?.label ?? "";
+
   /** The same details as an email, for when the endpoint is unreachable. */
   const mailto = `mailto:${RSVP_EMAIL}?subject=${encodeURIComponent(
     `RSVP — ${BABY_NAME}'s First Birthday`
   )}&body=${encodeURIComponent(
-    `Name: ${name}\nGuests: ${guests}\n\n${message}`.trim()
+    `Name: ${name}\nGuest type: ${guestTypeLabel}\n\n${message}`.trim()
   )}`;
 
   async function submit(e: React.FormEvent) {
@@ -108,6 +122,10 @@ function Form({ onClose }: { onClose: () => void }) {
     if (!name.trim()) {
       setError("Please tell us who's coming.");
       nameRef.current?.focus();
+      return;
+    }
+    if (!guestType) {
+      setError("Please choose which court you're joining us from.");
       return;
     }
 
@@ -126,7 +144,7 @@ function Form({ onClose }: { onClose: () => void }) {
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
           name: name.trim(),
-          guests,
+          guestType,
           message: message.trim(),
           public: share,
           website,
@@ -212,18 +230,51 @@ function Form({ onClose }: { onClose: () => void }) {
                       onChange={(e) => setName(e.target.value)}
                       autoComplete="name"
                       maxLength={100}
-                      placeholder="Nina Dela Cruz"
+                      placeholder="Juan Dela Cruz"
                       className={`${INPUT} w-full`}
                     />
                   </Field>
 
-                  <Field
-                    label="Number of guests"
-                    htmlFor="rsvp-guests"
-                    hint="Including yourself"
-                  >
-                    <Stepper value={guests} onChange={setGuests} />
-                  </Field>
+                  <fieldset className="text-left">
+                    <legend className="text-xs font-semibold uppercase tracking-[0.14em] text-goldDeep">
+                      Guest type
+                    </legend>
+                    <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
+                      {GUEST_TYPES.map((type) => (
+                        <GuestChoice
+                          key={type.value}
+                          on={guestType === type.value}
+                          onClick={() => setGuestType(type.value)}
+                        >
+                          {type.label}
+                        </GuestChoice>
+                      ))}
+                    </div>
+
+                    {/* The plus-one only concerns friends and godparents, so
+                        it arrives with that answer rather than sitting there
+                        confusing everyone else. */}
+                    <AnimatePresence initial={false}>
+                      {guestType === "friends" && (
+                        <motion.div
+                          key="plus-one"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-ink/60 sm:text-xs">
+                            <Sparkle className="mt-0.5 h-3 w-3 flex-none text-gold" />
+                            <span>
+                              By royal decree, one companion may accompany you to the ball — two
+                              seats are held in your name.
+                            </span>
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </fieldset>
 
                   <Field
                     label="A message"
@@ -294,7 +345,7 @@ function Form({ onClose }: { onClose: () => void }) {
                   >
                     {sending ? (
                       <>
-                        <Spinner />
+                        <Spinner className="h-4 w-4" />
                         Sending…
                       </>
                     ) : (
@@ -449,76 +500,30 @@ function Field({
 }
 
 /**
- * The guest count. A stepper rather than a number input: on a phone, `type
- *="number"` opens a full keyboard for a value that is almost always 1 to 4,
- * and its spinners are unusable at thumb size.
- *
- * The readout is still a real input, so it can be typed into on a desktop
- * and is announced properly by a screen reader.
+ * One of the two guest types. A pair of buttons rather than a `<select>`:
+ * both answers stay visible, and each is a thumb-sized target.
  */
-function Stepper({ value, onChange }: { value: number; onChange: (n: number) => void }) {
-  const clamp = (n: number) => Math.min(Math.max(n, 1), RSVP_MAX_GUESTS);
-  return (
-    <div className="flex items-center gap-2">
-      <StepButton
-        label="One fewer guest"
-        onClick={() => onChange(clamp(value - 1))}
-        disabled={value <= 1}
-      >
-        <path d="M6 12 h12" />
-      </StepButton>
-
-      <input
-        id="rsvp-guests"
-        name="guests"
-        type="number"
-        inputMode="numeric"
-        min={1}
-        max={RSVP_MAX_GUESTS}
-        value={value}
-        onChange={(e) => onChange(clamp(parseInt(e.target.value, 10) || 1))}
-        className={`${INPUT} w-16 flex-none px-0 text-center font-display text-lg [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
-      />
-
-      <StepButton
-        label="One more guest"
-        onClick={() => onChange(clamp(value + 1))}
-        disabled={value >= RSVP_MAX_GUESTS}
-      >
-        <path d="M12 6 v12 M6 12 h12" />
-      </StepButton>
-
-      <span className="ml-1 text-xs text-ink/50">
-        {value === 1 ? "guest" : "guests"}
-      </span>
-    </div>
-  );
-}
-
-function StepButton({
-  label,
+function GuestChoice({
+  on,
   onClick,
-  disabled,
   children,
 }: {
-  label: string;
+  on: boolean;
   onClick: () => void;
-  disabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className="flex h-11 w-11 flex-none items-center justify-center rounded-full border border-gold/40 bg-parchment text-goldDeep shadow-sm transition active:scale-95 hover:bg-mist disabled:opacity-35"
+      aria-pressed={on}
+      className={`flex min-h-[3rem] items-center justify-center rounded-xl border px-3 text-center font-display text-sm leading-snug transition active:scale-[0.98] sm:text-base ${
+        on
+          ? "border-gold bg-gold font-semibold text-night shadow-sm shadow-gold/20"
+          : "border-gold/40 bg-parchment text-ink/70 shadow-sm hover:bg-mist hover:text-ink"
+      }`}
     >
-      <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="none">
-        <g stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-          {children}
-        </g>
-      </svg>
+      {children}
     </button>
   );
 }
@@ -543,14 +548,5 @@ function Choice({
     >
       {children}
     </button>
-  );
-}
-
-function Spinner() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 animate-spin" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.25" />
-      <path d="M21 12 a9 9 0 0 0 -9 -9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
   );
 }

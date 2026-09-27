@@ -232,6 +232,29 @@ export function CheckIcon({ className = "" }: IconProps) {
   );
 }
 
+/**
+ * Something is happening — a ring with a quarter of it drawn bright, turned
+ * by `animate-spin`.
+ *
+ * Shared rather than kept where it was first needed: the RSVP wears it while
+ * the form is in the air, and the walkthrough wears it while YouTube is
+ * still on its way, and two waits that look different read as two different
+ * kinds of wait.
+ */
+export function Spinner({ className = "" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className={`animate-spin ${className}`} fill="none">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" opacity="0.25" />
+      <path
+        d="M21 12 a9 9 0 0 0 -9 -9"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** Dismiss — a cross, distinct from the dedication's Latin cross. */
 export function CloseIcon({ className = "" }: IconProps) {
   return (

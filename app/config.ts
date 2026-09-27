@@ -27,15 +27,6 @@ export const BABY_NAME = "Mikhayla";
 export const BABY_FULL_NAME = "Mikhayla Maeve";
 
 /**
- * The hero's portrait — the first picture of her anyone sees. It stands at
- * the bottom of the first screen, edge to edge, dissolving into the page at
- * the top so the headline can sit over it.
- *
- * That framing wants a tall shot with her high in it: the top of the picture
- * is faded out and written over, and the bottom runs off the screen, so
- * anything in either is lost. Put the file in `public/images/`.
- */
-/**
  * The castle the invitation opens on — the painting the opening sequence
  * flies at, before the hero.
  *
@@ -77,7 +68,30 @@ export const BACKGROUND_TRACK = asset("/audio/background.mp3");
  */
 export const POINTING_HAND = asset("/icons/pointing-hand.svg");
 
-export const HERO_PORTRAIT = asset("/images/mikhayla-front.png");
+/**
+ * The pictures of her at the foot of the first screen, in the order they
+ * come round. The first is the one the invitation opens on; the rest fade
+ * up behind it on a turn of a few seconds — see `HeroSection`.
+ *
+ * She stands there edge to edge, dissolving into the page at the top so the
+ * headline can sit over it, so every shot in this list wants the same
+ * framing: tall, with her high in it and towards the middle. The top of the
+ * picture is faded out and written over and the bottom runs off the screen,
+ * so anything in either is lost — and because the pictures are stacked in
+ * one box and crossfaded, a shot framed differently from its neighbours
+ * will jump rather than dissolve. Put the files in `public/images/`.
+ *
+ * One entry is a perfectly good answer: the slideshow simply doesn't turn.
+ * Every picture here is downloaded at the door, though — see
+ * `preloadManifest.ts` — so each one added is a couple of megabytes more
+ * before the curtain lifts.
+ */
+export const HERO_PORTRAITS = [
+  asset("/images/mikhayla-front.png"),
+  asset("/images/mikhayla-front-2.png"),
+  asset("/images/mikhayla-front-3.png"),
+  asset("/images/mikhayla-front-4.png"),
+];
 
 /**
  * The picture beside the date. It stands in the right-hand half of the date
@@ -105,7 +119,7 @@ export const PARTY_TIME = "10:00 AM – 2:00 PM";
 export const PARTY_LOCATION = "Casa Maria Resort and Events Place";
 export const PARTY_ADDRESS = "San Mateo St., Poblacion, City of San Jose del Monte, Bulacan";
 export const RSVP_EMAIL = "rsvp@example.com";
-export const RSVP_BY = "October 3";
+export const RSVP_BY = "October 10";
 
 /**
  * Where the RSVP form posts. This is the web-app URL of the Google Apps
@@ -117,9 +131,6 @@ export const RSVP_BY = "October 3";
  * to change when you fill it in.
  */
 export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbwbEY5AXjP5W0qOQaHDlCaQUL-qHZM7ZDiEoyYuzO_g4r8BaCZhuMo7kmJC06hUiArr5w/exec";
-
-/** The most a single RSVP can bring. The stepper stops here. */
-export const RSVP_MAX_GUESTS = 12;
 
 /* ---------------------------------------------------------------
    The venue's two windows: a walkthrough video and a map
@@ -136,14 +147,79 @@ export const RSVP_MAX_GUESTS = 12;
  * It plays muted, inline and on a loop, so it behaves like moving wallpaper
  * rather than a thing a guest has to start. Keep it short (20–40s) and
  * compressed — most people open this on mobile data.
+ *
+ * Empty, and the YouTube link below is used instead — which is what the
+ * invitation does today. A file here wins if both are filled in: it asks
+ * nothing of a third party, and it can play in the tab itself.
  */
 export const VENUE_VIDEO = asset("");
 
 /**
- * A still pulled from the video, shown while it loads and in place of the
- * first black frame. Same idea: `"/venue/casa-maria-poster.jpg"`.
+ * The walkthrough as it actually exists: the last turn off the main road and
+ * the run up to the gate, filmed from the road and put up as a Short.
+ *
+ * Paste the link in whichever form YouTube hands you — a `shorts/` link, a
+ * `watch?v=`, a `youtu.be/`, or the bare id. The share tail (`?si=…`) can
+ * stay; the id is picked out of it below.
+ *
+ * It sits on YouTube rather than in `public/` on purpose. This is the one
+ * asset here that is minutes of video rather than seconds, and YouTube hands
+ * a guest the quality their phone and their signal can actually take — which
+ * is the one thing a file served from this site cannot do.
  */
-export const VENUE_VIDEO_POSTER = asset("");
+export const VENUE_VIDEO_YOUTUBE = "https://youtube.com/shorts/Ixs0pT8rSUY";
+
+/**
+ * The id, pulled out of whichever form of link that is: the `v=` of a watch
+ * link, or the last segment of a `shorts/`, `embed/` or `youtu.be/` one.
+ * Anything with no slash in it is taken to be an id already.
+ */
+const YOUTUBE_ID = (() => {
+  const link = VENUE_VIDEO_YOUTUBE.trim();
+  if (!link) return "";
+  if (!link.includes("/")) return link;
+  const watch = link.match(/[?&]v=([\w-]{6,})/);
+  if (watch) return watch[1];
+  const path = link.match(/(?:shorts|embed|live|youtu\.be)\/([\w-]{6,})/);
+  return path ? path[1] : "";
+})();
+
+/**
+ * The player that opens full screen when a guest taps the Walkthrough tab.
+ *
+ * `youtube-nocookie.com` is YouTube's own no-tracking host: same player,
+ * but it sets nothing on a guest's phone unless they actually watch. The
+ * rest is small print — `autoplay` because the dialog is only ever opened by
+ * a tap and nobody should have to press play twice, `playsinline` so a phone
+ * plays it in the dialog rather than throwing up its own full-screen player
+ * over the invitation, and `rel=0` so whatever YouTube offers at the end
+ * comes from this channel rather than from the whole internet.
+ */
+export const VENUE_VIDEO_EMBED = YOUTUBE_ID
+  ? `https://www.youtube-nocookie.com/embed/${YOUTUBE_ID}?autoplay=1&playsinline=1&rel=0`
+  : "";
+
+/**
+ * Whether the walkthrough stands taller than it is wide, which decides the
+ * shape of the frame it opens into. Read off the link rather than set by
+ * hand: a Short is vertical by definition.
+ */
+export const VENUE_VIDEO_VERTICAL = /\/shorts\//.test(VENUE_VIDEO_YOUTUBE);
+
+/**
+ * A still from the walkthrough — and the one picture of it a guest ever
+ * loads unless they ask for the video.
+ *
+ * With a file in `VENUE_VIDEO` it is the poster, shown while the video loads
+ * in place of a black first frame. With the YouTube link it is the tab
+ * itself: the frame behind the play button, so the window onto the
+ * walkthrough is served from here and YouTube is not asked for anything
+ * until a guest taps it.
+ *
+ * Portrait is fine — the tab is 16:9 and crops it, and the crop is set in
+ * `PartyDetailsSection` to hold the venue's name and the turn.
+ */
+export const VENUE_VIDEO_POSTER = asset("/venue/walkthrough-poster.jpg");
 
 /**
  * The venue as Google Maps searches for it. The live map in the "Map" tab and
@@ -210,7 +286,7 @@ export const VENUE_MAP_LINKS = {
 export const PASTOR_NAME = "Pastor Pablo Sabit III";
 
 /** Listed in the order they'll be called up front. */
-export const GODMOTHERS = ["Nina", "Diana", "Jasmine", "Shielo", "Jessalyn", "Cherry Ann"];
+export const GODMOTHERS = ["Niña", "Diana", "Jasmine", "Shielo", "Jessalyn", "Cherry Ann"];
 export const GODFATHERS = ["Renan", "Christian", "Gideon", "Benjie", "Romnick", "Joel"];
 
 /** Accent keys — one per princess. Each maps to a colour in tailwind.config.ts. */

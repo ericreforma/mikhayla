@@ -11,12 +11,15 @@ import {
   RSVP_ENDPOINT,
   VENUE_VIDEO,
   VENUE_VIDEO_POSTER,
+  VENUE_VIDEO_EMBED,
+  VENUE_VIDEO_VERTICAL,
   VENUE_MAP_IMAGE,
   VENUE_MAP_EMBED,
 } from "@/app/config";
 import { Crown, Sparkle, MapPinIcon, PlayIcon, PalmIcon, ExpandIcon } from "./Ornaments";
 import { ImageLightbox } from "./ImageLightbox";
 import { MapLightbox } from "./MapLightbox";
+import { VideoLightbox } from "./VideoLightbox";
 import { Directions } from "./Directions";
 import { RsvpDialog } from "./RsvpDialog";
 import { useSlideIsActive } from "./SlideActive";
@@ -157,6 +160,7 @@ export function PartyDetailsSection() {
    * to be seen without a scroll.
    */
   const [pane, setPane] = useState<Pane>("video");
+  const [videoOpen, setVideoOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
   /*
    * The live map is Google's script and a screenful of tiles, and the tab it
@@ -188,6 +192,7 @@ export function PartyDetailsSection() {
      would otherwise leave it covering whichever page you landed on. */
   useEffect(() => {
     if (isActive) return;
+    setVideoOpen(false);
     setMapOpen(false);
     setRsvpOpen(false);
   }, [isActive]);
@@ -334,6 +339,67 @@ export function PartyDetailsSection() {
                   playsInline
                   preload="metadata"
                 />
+              ) : VENUE_VIDEO_EMBED ? (
+                /*
+                 * The hosted walkthrough, as a still with the player one tap
+                 * away — the same bargain the map tab makes, and for the same
+                 * reason: what fits in this window is a thumbnail either way,
+                 * and the tap is what turns it into something you can read
+                 * the road signs off.
+                 *
+                 * Nothing of YouTube's is fetched until that tap. The frame
+                 * is our own still out of `public/`, which came down with the
+                 * rest of the invitation at the door.
+                 *
+                 * The still is portrait — it is a Short — and this window is
+                 * 16:9, so a band of it is all that shows. It is taken low
+                 * rather than through the middle: low is the road up to the
+                 * gate with the turn drawn across it, and the middle is the
+                 * caption the video writes over that — and a play button
+                 * sitting on a half-covered sentence is neither one thing
+                 * nor the other.
+                 */
+                <button
+                  type="button"
+                  onClick={() => setVideoOpen(true)}
+                  aria-label={`Play the walkthrough to ${PARTY_LOCATION}`}
+                  className="group relative block h-full w-full bg-night"
+                >
+                  {VENUE_VIDEO_POSTER ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={VENUE_VIDEO_POSTER}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        className="h-full w-full object-cover object-[50%_72%] transition duration-300 group-hover:scale-[1.03]"
+                      />
+                      {/* A breath of night over the picture, so the gold
+                          reads against a bright road at noon. */}
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 bg-night/10 transition group-hover:bg-night/20"
+                      />
+                    </>
+                  ) : null}
+                  <span aria-hidden className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full border border-goldSoft bg-gold/95 text-night shadow-lg transition group-active:scale-95 sm:h-14 sm:w-14">
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden
+                        fill="currentColor"
+                        className="h-5 w-5 translate-x-px sm:h-6 sm:w-6"
+                      >
+                        <path d="M9 7 L17.5 12 L9 17 Z" />
+                      </svg>
+                    </span>
+                  </span>
+                  <span className="pointer-events-none absolute bottom-1.5 right-1.5 flex items-center gap-1 rounded-full bg-night/75 px-2.5 py-1 text-[10px] font-medium text-parchment backdrop-blur-sm sm:text-xs">
+                    <ExpandIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                    Tap to watch
+                  </span>
+                </button>
               ) : (
                 <Placeholder
                   icon={<PlayIcon className="h-5 w-5 sm:h-6 sm:w-6" />}
@@ -350,7 +416,18 @@ export function PartyDetailsSection() {
               hidden={pane !== "map"}
               className="aspect-video w-full"
             >
-              {VENUE_MAP_EMBED ? (
+              {VENUE_VIDEO_EMBED ? (
+        <VideoLightbox
+          src={VENUE_VIDEO_EMBED}
+          title={`The way to ${PARTY_LOCATION}`}
+          poster={VENUE_VIDEO_POSTER}
+          vertical={VENUE_VIDEO_VERTICAL}
+          open={videoOpen}
+          onClose={() => setVideoOpen(false)}
+        />
+      ) : null}
+
+      {VENUE_MAP_EMBED ? (
                 /*
                  * A live map, but a still one: the iframe takes no pointer
                  * events, so a swipe across it still pages the deck instead

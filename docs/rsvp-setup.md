@@ -20,7 +20,7 @@ tab, with these headers, the first time an RSVP arrives:
 
 | A | B | C | D | E | F |
 |---|---|---|---|---|---|
-| Timestamp | Name | Guests | Message | Public | Approved |
+| Timestamp | Name | Guest type | Message | Public | Approved |
 
 The script fills A–E. **Column F is yours** — see "A public guestbook" at the
 bottom.
@@ -35,7 +35,14 @@ and save.
 
 ```js
 const SHEET_NAME = "RSVPs";
-const HEADERS = ["Timestamp", "Name", "Guests", "Message", "Public", "Approved"];
+const HEADERS = ["Timestamp", "Name", "Guest type", "Message", "Public", "Approved"];
+
+// The form sends the key, not the wording, so the sheet stays readable even
+// if the labels on the page are reworded later.
+const GUEST_TYPES = {
+  family: "Family / Relative",
+  friends: "Friends / Godparents",
+};
 
 /**
  * The RSVPs tab — created, with its headers, the first time it's needed.
@@ -78,12 +85,12 @@ function doPost(e) {
     const name = String(data.name || "").trim();
     if (!name) return json({ ok: false, error: "Name is required" });
 
-    const guests = Math.min(Math.max(parseInt(data.guests, 10) || 1, 1), 20);
+    const guestType = GUEST_TYPES[String(data.guestType || "")] || "";
 
     getSheet().appendRow([
       new Date(),
       name.slice(0, 100),
-      guests,
+      guestType,
       String(data.message || "").trim().slice(0, 1000),
       data.public ? "Yes" : "No",
       "", // Approved — left for you to tick

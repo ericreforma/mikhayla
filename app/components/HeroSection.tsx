@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { motion } from "framer-motion";
-import { BABY_FULL_NAME, HERO_PORTRAIT } from "@/app/config";
+import { BABY_FULL_NAME, HERO_PORTRAITS } from "@/app/config";
 import { Hint } from "./Hint";
 import { Crown, Sparkle } from "./Ornaments";
 import { useSlideIsActive } from "./SlideActive";
@@ -27,49 +27,7 @@ export function HeroSection() {
     <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
-      {/*
-        She stands at the bottom of the screen, edge to edge — no frame, no
-        gutter — with the top of the picture dissolved into the dawn wash so
-        the headline can sit over it. `object-top` keeps her face and tiara in
-        frame and lets the gown run off the bottom of the screen instead,
-        which is the part there is most of and least to lose.
-
-        Height is a share of the screen rather than a fixed figure, so the
-        same proportion holds from a short phone to a laptop. The taller this
-        box is, the higher up the screen her face lands — which is why the
-        fade in globals.css is measured against it.
-
-        Full bleed is a phone's shape, though: on a wide, short window a
-        portrait cropped to fill the width blows up until all that is left of
-        her is a forehead. So past `sm` the picture stops widening and stands
-        centred instead, at about the width of a phone held up to the screen —
-        and takes a shorter share of the height, which is what walks her head
-        back down the screen and out from under the words.
-      */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 mx-auto h-[74%] sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem]"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={HERO_PORTRAIT}
-          alt=""
-          width={1414}
-          height={2000}
-          decoding="async"
-          fetchPriority="high"
-          className="hero-portrait-fade h-full w-full object-cover object-top"
-        />
-
-        {/*
-          Where the picture is narrower than the screen, its two sides are cut
-          edges against the wash, so they get the same treatment as the top.
-          `mist` is the colour the dawn wash lands on down here, which is why
-          a flat gradient disappears into it.
-        */}
-        <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-mist to-transparent sm:block md:w-20" />
-        <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-mist to-transparent sm:block md:w-20" />
-      </div>
+      <HeroPortraits active={isActive} />
 
       {/* Floating sparkles, kept to the top half now that the bottom of the
           screen is her photograph. */}
@@ -162,6 +120,139 @@ export function HeroSection() {
           </motion.div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * How long a picture holds before the next one starts fading up, in ms.
+ * The dissolve itself is the `duration-1000` below, so each shot is fully
+ * itself for a couple of seconds and on its way out for the last one.
+ */
+const HOLD_MS = 3000;
+
+/**
+ * How far a finger has to travel sideways before it counts as a swipe rather
+ * than a tap that wandered.
+ */
+const SWIPE_PX = 40;
+
+/**
+ * Her pictures at the foot of the first screen, crossfading on a turn.
+ *
+ * ---------------------------------------------------------------------------
+ * The box
+ * ---------------------------------------------------------------------------
+ * She stands at the bottom of the screen, edge to edge — no frame, no gutter
+ * — with the top of the picture dissolved into the dawn wash so the headline
+ * can sit over it. `object-top` keeps her face and tiara in frame and lets
+ * the gown run off the bottom of the screen instead, which is the part there
+ * is most of and least to lose.
+ *
+ * Height is a share of the screen rather than a fixed figure, so the same
+ * proportion holds from a short phone to a laptop. The taller this box is,
+ * the higher up the screen her face lands — which is why the fade in
+ * globals.css is measured against it.
+ *
+ * Full bleed is a phone's shape, though: on a wide, short window a portrait
+ * cropped to fill the width blows up until all that is left of her is a
+ * forehead. So past `sm` the picture stops widening and stands centred
+ * instead, at about the width of a phone held up to the screen — and takes a
+ * shorter share of the height, which is what walks her head back down the
+ * screen and out from under the words.
+ *
+ * ---------------------------------------------------------------------------
+ * The turn
+ * ---------------------------------------------------------------------------
+ * Every picture is in the DOM at once, stacked in that one box, and only
+ * opacity moves: a dissolve between two shots of the same girl in the same
+ * frame reads as her shifting pose, where a slide would read as a carousel
+ * and drag the eye away from her name. There is deliberately nothing to
+ * press — no dots, no arrows — because the first screen already asks for one
+ * gesture (swipe up, to begin) and a second set of controls arguing with it
+ * is how a guest ends up stuck here. A sideways swipe works for anyone who
+ * tries it; nothing advertises that it does.
+ *
+ * The turn stops while the hero is off screen, so a guest four sections deep
+ * isn't paying for a slideshow nobody is watching, and comes back to the
+ * picture they left on. Under `prefers-reduced-motion` the global rule in
+ * globals.css flattens the dissolve to a cut — the pictures still change,
+ * but nothing animates.
+ */
+function HeroPortraits({ active }: { active: boolean }) {
+  const count = HERO_PORTRAITS.length;
+  const [shown, setShown] = useState(0);
+
+  /* Keyed on `shown` as well as `active`, so the clock restarts from whatever
+     picture a swipe just landed on — otherwise a swipe could be overtaken by
+     the turn a moment later. */
+  useEffect(() => {
+    if (!active || count < 2) return;
+    const t = window.setTimeout(() => setShown((i) => (i + 1) % count), HOLD_MS);
+    return () => window.clearTimeout(t);
+  }, [active, shown, count]);
+
+  /*
+   * A sideways swipe turns the pictures by hand. The deck underneath moves up
+   * and down, so only clearly horizontal travel is taken — and `touch-pan-y`
+   * on the box below leaves the vertical gesture to the deck, which also
+   * means the browser cancels this pointer the moment a swipe up starts
+   * scrolling. Nothing here calls preventDefault: the deck's gesture must
+   * survive a finger that happens to start on her gown.
+   */
+  const from = useRef<{ x: number; y: number } | null>(null);
+
+  const onDown = (e: ReactPointerEvent) => {
+    from.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const onUp = (e: ReactPointerEvent) => {
+    const start = from.current;
+    from.current = null;
+    if (!start || count < 2) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) <= Math.abs(dy)) return;
+    setShown((i) => (i + (dx < 0 ? 1 : -1) + count) % count);
+  };
+
+  const onCancel = () => {
+    from.current = null;
+  };
+
+  return (
+    <div
+      aria-hidden
+      onPointerDown={onDown}
+      onPointerUp={onUp}
+      onPointerCancel={onCancel}
+      className="absolute inset-x-0 bottom-0 mx-auto h-[74%] touch-pan-y select-none sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem]"
+    >
+      {HERO_PORTRAITS.map((src, i) => (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          key={src}
+          src={src}
+          alt=""
+          width={1414}
+          height={2000}
+          draggable={false}
+          decoding="async"
+          fetchPriority={i === 0 ? "high" : "low"}
+          className={`hero-portrait-fade absolute inset-0 h-full w-full object-cover object-top transition-opacity duration-1000 ease-in-out ${
+            i === shown ? "opacity-100" : "opacity-0"
+          }`}
+        />
+      ))}
+
+      {/*
+        Where the picture is narrower than the screen, its two sides are cut
+        edges against the wash, so they get the same treatment as the top.
+        `mist` is the colour the dawn wash lands on down here, which is why
+        a flat gradient disappears into it.
+      */}
+      <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-mist to-transparent sm:block md:w-20" />
+      <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-mist to-transparent sm:block md:w-20" />
     </div>
   );
 }

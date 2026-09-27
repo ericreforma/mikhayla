@@ -224,6 +224,24 @@ body {
     }
   }
 
+  /*
+     Keeps the tablet caption clear of the princess standing in the corner.
+
+     Past `md` a month's caption is centred down the left half of the page
+     rather than hung off the bottom of it, and the figure is still where it
+     always was — feet on the tab bar, at the screen edge. Centred in the whole
+     height the two would meet on a short window; centred in the height *above*
+     the figure, which is what this padding leaves, they cannot.
+
+     The terms are the figure's own measurements, in the same order they are
+     written in the component: its height is 6.375 title lines and the title is
+     `text-4xl` at this width, and under it sits the same offset `bottom-menu`
+     uses to stand it on the bar. The last term is breathing room.
+  */
+  .pb-figure {
+    padding-bottom: calc(6.375 * 2.25rem + 3.5rem + 1px + env(safe-area-inset-bottom) + 1rem);
+  }
+
   @media (min-width: 640px) {
     .px-gutter {
       padding-left: max(1.5rem, env(safe-area-inset-left));
@@ -342,6 +360,22 @@ body {
 }
 
 /*
+ * Past `md` she is the right-hand half of the screen rather than a band along
+ * the foot of it, so the dissolve turns through ninety degrees: it is her left
+ * edge that now meets the page, and her top edge runs cleanly off it.
+ *
+ * A mask rather than a gradient overlay, here as on a phone, because what
+ * shows through is the dawn wash — which is a gradient of its own, and no flat
+ * colour laid over it would ever quite disappear into it.
+ */
+@media (min-width: 768px) {
+  .hero-portrait-fade {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 34%);
+  }
+}
+
+/*
  * The swipe cue stands on her gown, where dark ink on light pink is only
  * just legible and the pink shifts under it from phone to phone. A white
  * halo lifts it off the photograph — no box, no scrim, nothing laid over
@@ -415,6 +449,16 @@ body {
   .finale-portrait-fade {
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 96px);
     mask-image: linear-gradient(to bottom, transparent 0, #000 96px);
+  }
+}
+
+/* And past `md` she stands in the right-hand half of the page rather than
+   under the words, so the dissolve turns onto her left edge — the same turn
+   the hero's makes, at the same width, for the same reason. */
+@media (min-width: 768px) {
+  .finale-portrait-fade {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
+    mask-image: linear-gradient(to right, transparent 0%, #000 34%);
   }
 }
 

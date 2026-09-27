@@ -147,10 +147,26 @@ export function ChristeningSection() {
         still={still}
       />
 
+      {/*
+        One column on a phone, two past `md`.
+
+        This is the longest page in the deck — a paragraph, a verse and twelve
+        names — and on an iPad held sideways the officiant's line fell off the
+        bottom of it and had to be scrolled to. Split in two it is the same
+        page at half the height, and it fills a tablet's width instead of
+        running as a narrow ribbon down the middle of it.
+
+        The order is unchanged on a phone: the wrappers stack, and their
+        contents come out in exactly the sequence they always did.
+      */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg md:max-w-4xl md:flex-row md:items-center md:gap-9 lg:gap-12"
         initial={false}
         animate={state}
+        variants={GROUP}
+      >
+      <motion.div
+        className="flex w-full flex-col items-center md:flex-1 md:items-start md:text-left"
         variants={GROUP}
       >
         {/* A cross in a gilt ring, with a halo behind it that breathes — the
@@ -186,7 +202,7 @@ export function ChristeningSection() {
         <motion.div
           aria-hidden
           variants={rule}
-          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48"
+          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48 md:w-40 lg:w-48"
         />
 
         <motion.p
@@ -212,10 +228,17 @@ export function ChristeningSection() {
           </figcaption>
         </motion.figure>
 
+      </motion.div>
+
+      {/* The plate of names, and who reads them out. Its own column past `md`. */}
+      <motion.div
+        className="flex w-full flex-col items-center md:flex-1"
+        variants={GROUP}
+      >
         {/* The people standing up with her. */}
         <motion.div
           variants={still ? STILL : CARD}
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5"
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5 md:mt-0"
         >
           <p className="font-hand text-base text-berry xs:text-lg sm:text-xl">
             Standing with her
@@ -239,6 +262,7 @@ export function ChristeningSection() {
           <CrossIcon className="h-3.5 w-3.5 flex-none text-goldDeep sm:h-4 sm:w-4" />
           <span>Officiated by {PASTOR_NAME}</span>
         </motion.p>
+      </motion.div>
       </motion.div>
     </div>
   );

@@ -17,6 +17,73 @@
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 const asset = (path: string) => (path ? `${BASE_PATH}${path}` : path);
 
+/* ---------------------------------------------------------------
+   Which size of every photograph this visit gets
+   ---------------------------------------------------------------
+   The pictures are served at three resolutions, and a guest downloads
+   exactly one of them. See `scripts/optimize-images.py`, which renders all
+   three out of `assets-src/` — that folder is the originals, and it sits
+   outside `public/` so the full-size files are never deployed.
+   --------------------------------------------------------------- */
+
+export type AssetTier = "mobile" | "tablet" | "desktop";
+
+/**
+ * The tier this visit uses, chosen once and then fixed for as long as the tab
+ * is open.
+ *
+ * Fixed, and that is the whole point. Two separate things ask for every
+ * picture — the loading screen, which downloads them all at the door, and the
+ * section that eventually shows one — and if those two ever disagreed about
+ * which size they wanted, every photograph would be fetched twice: once to
+ * wait for, and again to look at. One module constant, read by both, is what
+ * makes that impossible.
+ *
+ * The cost of fixing it is that a desktop window dragged from narrow to wide
+ * mid-visit keeps the smaller pictures until the tab is reloaded. That is a
+ * fair trade against a phone — the case this is really for — where the window
+ * is the screen and never changes size at all.
+ *
+ * The cut-offs are the layout's own: `md` (768px) is an iPad held upright, and
+ * `xl` (1280px) is where a window stops being a tablet's. Keeping them in step
+ * with `tailwind.config.ts` means the two-column tablet layout and the
+ * middle-sized pictures arrive together.
+ *
+ * On the server there is no window to measure. Nothing that renders during the
+ * static export shows a photograph — the deck and the castle are both behind
+ * state flags that start false, and the loading screen draws no pictures at
+ * all — so the value chosen here is never the one in the markup, and there is
+ * nothing for hydration to disagree with.
+ */
+export const ASSET_TIER: AssetTier = ((): AssetTier => {
+  if (typeof window === "undefined") return "desktop";
+  const w = window.innerWidth;
+  if (w < 768) return "mobile";
+  if (w < 1280) return "tablet";
+  return "desktop";
+})();
+
+/**
+ * A photograph, resolved to this visit's tier.
+ *
+ * Write the path as the original is named in `assets-src/` — say
+ * `/milestones/03-elsa.png` — and this points it at the rendered file that
+ * actually ships: `/milestones/mobile/03-elsa.webp`, or the tablet or desktop
+ * one. Keeping the authored path the original's means the tables below read as
+ * a list of the pictures on disk rather than of build artefacts.
+ *
+ * Only for the four folders the optimiser knows about (`images`,
+ * `milestones`, `princesses`, `venue`). Anything else — the line-art icons,
+ * the music — goes through `asset()` unchanged.
+ */
+const picture = (path: string) => {
+  if (!path) return path;
+  const slash = path.lastIndexOf("/");
+  const folder = path.slice(0, slash);
+  const name = path.slice(slash + 1).replace(/\.(png|jpe?g|webp)$/i, ".webp");
+  return asset(`${folder}/${ASSET_TIER}/${name}`);
+};
+
 export const BABY_NAME = "Mikhayla";
 
 /**
@@ -38,7 +105,7 @@ export const BABY_FULL_NAME = "Mikhayla Maeve";
  * Swapping it means re-measuring the doorway in `CastleIntro.tsx`, which is
  * where the drawn doors that open are hung onto the painted ones.
  */
-export const CASTLE_SCENE = asset("/images/fairy-castle.png");
+export const CASTLE_SCENE = picture("/images/fairy-castle.png");
 
 /**
  * The music under the whole invitation, from the moment the curtain lifts.
@@ -79,18 +146,19 @@ export const POINTING_HAND = asset("/icons/pointing-hand.svg");
  * picture is faded out and written over and the bottom runs off the screen,
  * so anything in either is lost — and because the pictures are stacked in
  * one box and crossfaded, a shot framed differently from its neighbours
- * will jump rather than dissolve. Put the files in `public/images/`.
+ * will jump rather than dissolve. Put the files in `assets-src/images/` and
+ * re-run `scripts/optimize-images.py`.
  *
  * One entry is a perfectly good answer: the slideshow simply doesn't turn.
  * Every picture here is downloaded at the door, though — see
- * `preloadManifest.ts` — so each one added is a couple of megabytes more
+ * `preloadManifest.ts` — so each one added is another hundred kilobytes or so
  * before the curtain lifts.
  */
 export const HERO_PORTRAITS = [
-  asset("/images/mikhayla-front.png"),
-  asset("/images/mikhayla-front-2.png"),
-  asset("/images/mikhayla-front-3.png"),
-  asset("/images/mikhayla-front-4.png"),
+  picture("/images/mikhayla-front.png"),
+  picture("/images/mikhayla-front-2.png"),
+  picture("/images/mikhayla-front-3.png"),
+  picture("/images/mikhayla-front-4.png"),
 ];
 
 /**
@@ -99,7 +167,7 @@ export const HERO_PORTRAITS = [
  * is high in the frame and to the middle — the left of the shot is faded
  * away and the bottom runs out of the card.
  */
-export const DATE_PORTRAIT = asset("/images/mikhayla-fairy.png");
+export const DATE_PORTRAIT = picture("/images/mikhayla-fairy.png");
 
 /**
  * The icon on the swimwear pass. A picture rather than one of the drawn
@@ -111,7 +179,7 @@ export const DATE_PORTRAIT = asset("/images/mikhayla-fairy.png");
  * wanted: her high in a tall shot, since the top is faded out and written
  * over and the bottom runs off the screen.
  */
-export const FINALE_PORTRAIT = asset("/images/mikhayla-cake.png");
+export const FINALE_PORTRAIT = picture("/images/mikhayla-cake.png");
 
 export const SWIMWEAR_ICON = asset("/icons/swimwear.png");
 export const PARTY_DATE = "Saturday, October 17, 2026";
@@ -219,7 +287,7 @@ export const VENUE_VIDEO_VERTICAL = /\/shorts\//.test(VENUE_VIDEO_YOUTUBE);
  * Portrait is fine — the tab is 16:9 and crops it, and the crop is set in
  * `PartyDetailsSection` to hold the venue's name and the turn.
  */
-export const VENUE_VIDEO_POSTER = asset("/venue/walkthrough-poster.jpg");
+export const VENUE_VIDEO_POSTER = picture("/venue/walkthrough-poster.jpg");
 
 /**
  * The venue as Google Maps searches for it. The live map in the "Map" tab and
@@ -252,8 +320,9 @@ export const VENUE_MAP_EMBED = `https://www.google.com/maps?q=${MAP_QUERY}&z=16&
  *
  * The sheet the invitation shipped with is still in the repo, if you ever
  * want it back in place of the live map: `"/venue/casa-maria-poster.jpg"`.
+ * Name the original, as everywhere else — the rendered WebP is found for you.
  */
-export const VENUE_MAP_IMAGE = asset("");
+export const VENUE_MAP_IMAGE = picture("");
 
 /**
  * Where "Get directions" goes — the one thing that has to work on the day,
@@ -367,11 +436,15 @@ export type Milestone = {
   /**
    * The princess herself, from the film — a small figure tucked into the
    * bottom-left corner of the page, so it is obvious at a glance who the gown
-   * is. Put the file in `public/princesses/` and reference it from the
-   * site root, e.g. `character: "/princesses/elsa.png"`.
+   * is. Put the file in `assets-src/princesses/`, re-run
+   * `scripts/optimize-images.py`, and reference it here by the *original's*
+   * name from the site root, e.g. `character: "/princesses/elsa.png"` — the
+   * tier folder and the `.webp` ending are filled in for you.
    *
    * It renders at the height of the title and keeps its own proportions, so
-   * a transparent cut-out with the figure tight to the edges works best.
+   * a transparent cut-out with the figure tight to the edges works best — the
+   * transparency survives the WebP rendering.
+   *
    * Decorative only — the caption already names her — so it is hidden from
    * screen readers. Month zero has no gown, and so no figure.
    */
@@ -379,8 +452,9 @@ export type Milestone = {
   /**
    * The costume shot for this month. It is the page — it fills the whole
    * panel edge to edge, with the caption sitting over a `tint` fade at the
-   * bottom. Put the file in `public/milestones/` and reference it from
-   * the site root, e.g. `photo: "/milestones/01-snowwhite.png"`.
+   * bottom. Put the file in `assets-src/milestones/`, re-run
+   * `scripts/optimize-images.py`, and reference it here by the *original's*
+   * name from the site root, e.g. `photo: "/milestones/01-snowwhite.png"`.
    *
    * Tall phone-shaped portraits (9:16) fit the panel exactly. The image is
    * cropped to fill and anchored near the top, so keep her face in the upper
@@ -444,8 +518,8 @@ const MILESTONE_PAGES: Milestone[] = [
  */
 export const MILESTONES: Milestone[] = MILESTONE_PAGES.map((page) => ({
   ...page,
-  character: page.character && asset(page.character),
-  photo: page.photo && asset(page.photo),
+  character: page.character && picture(page.character),
+  photo: page.photo && picture(page.photo),
   music: page.music && asset(page.music),
 }));
 

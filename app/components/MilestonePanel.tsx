@@ -77,11 +77,36 @@ const STILL_PHOTO: Variants = {
  * where her face sits.
  */
 function captionFade(tint: string) {
-  const c = [1, 3, 5].map((i) => parseInt(tint.slice(i, i + 2), 16)).join(", ");
+  const c = channels(tint);
   return (
     `linear-gradient(to top, rgba(${c}, 0.97) 0%, rgba(${c}, 0.94) 22%, ` +
     `rgba(${c}, 0.78) 36%, rgba(${c}, 0.32) 50%, rgba(${c}, 0) 64%)`
   );
+}
+
+/**
+ * The same fade turned on its side, for the tablet layout below, where the
+ * photograph is the right-hand half of the page rather than the whole of it
+ * and the caption stands beside her instead of under her.
+ *
+ * The photograph reaches further left than the caption column needs it to —
+ * 64% of the width against the caption's 50% — and that overlap is the whole
+ * trick. A fade that began where the picture began would have nothing to
+ * dissolve *over* for its first half, and flat tint would meet photograph at a
+ * visible seam. Starting it well inside the picture means the two never meet
+ * at a line.
+ */
+function captionFadeSide(tint: string) {
+  const c = channels(tint);
+  return (
+    `linear-gradient(to right, rgba(${c}, 0.97) 0%, rgba(${c}, 0.95) 28%, ` +
+    `rgba(${c}, 0.72) 42%, rgba(${c}, 0.28) 55%, rgba(${c}, 0) 68%)`
+  );
+}
+
+/** A `#rrggbb` tint as the "r, g, b" an `rgba()` wants. */
+function channels(tint: string) {
+  return [1, 3, 5].map((i) => parseInt(tint.slice(i, i + 2), 16)).join(", ");
 }
 
 /**
@@ -122,7 +147,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
       */}
       {m.photo ? (
         <motion.div
-          className="absolute inset-0"
+          className="absolute inset-0 md:left-auto md:w-[64%]"
           initial={false}
           animate={state}
           variants={reduce ? STILL_PHOTO : PHOTO}
@@ -148,10 +173,17 @@ export function MilestonePanel({ m }: { m: Milestone }) {
       )}
 
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
+      {/* One fade or the other, never both — the layout underneath them is
+          different enough that a single gradient cannot serve both. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0"
+        className="pointer-events-none absolute inset-0 md:hidden"
         style={{ backgroundImage: captionFade(m.tint) }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 hidden md:block"
+        style={{ backgroundImage: captionFadeSide(m.tint) }}
       />
 
       {/*
@@ -182,11 +214,24 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         </motion.div>
       ) : null}
 
-      <div className="relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center">
+      {/*
+        The caption. On a phone it is hung from the foot of the page, over the
+        fade, with the photograph filling everything above it.
+
+        Past `md` it becomes the left-hand half of the page and centres itself
+        down that half, reading left-aligned beside her rather than centred
+        under her. `pb-figure` is what keeps the centring clear of the princess
+        standing in the bottom corner — see globals.css.
+      */}
+      <div
+        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center md:w-[50%] md:justify-center md:pr-2 md:text-left${
+          m.character ? " md:pb-figure" : ""
+        }`}
+      >
         <motion.div className="w-full" initial={false} animate={state} variants={GROUP}>
           {/* The heading group clears the top of the figure, so it stays
               centred on the page as before. */}
-          <motion.div className="mx-auto w-full max-w-sm sm:max-w-md" variants={GROUP}>
+          <motion.div className="mx-auto w-full max-w-sm sm:max-w-md md:mx-0" variants={GROUP}>
             <motion.p
               variants={line}
               className={`font-hand text-xl leading-none xs:text-2xl ${accent.text}`}
@@ -204,7 +249,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
             <motion.div
               aria-hidden
               variants={rule}
-              className={`mx-auto mt-3 h-px w-16 sm:w-20 ${accent.rule}`}
+              className={`mx-auto mt-3 h-px w-16 sm:w-20 md:mx-0 ${accent.rule}`}
             />
           </motion.div>
 
@@ -222,7 +267,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           */}
           <motion.div
             variants={TAIL_GROUP}
-            className={m.character ? "beside-figure mt-3 text-left md:mx-auto md:max-w-[32ch]" : "mt-3"}
+            className={m.character ? "beside-figure mt-3 text-left md:max-w-[34ch]" : "mt-3 md:max-w-[34ch]"}
           >
             {/* A shade heavier than the parchment sections: the ground under it
                 is a tint rather than near-white paper. */}

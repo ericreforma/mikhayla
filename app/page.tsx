@@ -14,6 +14,8 @@ import { DateTimeSection } from "@/app/components/DateTimeSection";
 import { PartyDetailsSection } from "@/app/components/PartyDetailsSection";
 import { FinaleSection } from "@/app/components/FinaleSection";
 import { LeaveGuard } from "@/app/components/LeaveGuard";
+import { useBackgroundFetch } from "@/app/components/useAssetPreload";
+import { DEFERRED_ASSETS } from "@/app/components/preloadManifest";
 import {
   TiaraIcon,
   StorybookIcon,
@@ -92,6 +94,18 @@ export default function Page() {
    * speakers. See BackgroundMusic.
    */
   const started = intro || open;
+
+  /*
+   * Her twelve months' songs, fetched quietly from the moment the castle goes
+   * up — fifteen megabytes that used to sit in front of the door and now ride
+   * along behind it. See `preloadManifest.ts` for the split.
+   *
+   * It starts with the castle rather than with the deck because the castle is
+   * several seconds of animation a guest can only watch, which is the one
+   * stretch of the visit with a connection going spare and nothing else
+   * asking for it.
+   */
+  useBackgroundFetch(DEFERRED_ASSETS, started);
 
   return (
     <main>

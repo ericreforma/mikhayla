@@ -17,6 +17,16 @@ export type PreloadAsset = {
   url: string;
   kind: "image" | "audio";
   est: number;
+  /**
+   * Whether to keep this image decoded in memory for the life of the page —
+   * see `held` below. Images only; meaningless on a song.
+   *
+   * Off by default, and it matters that it is. A decoded bitmap costs width x
+   * height x 4 bytes however small the file it came from was, so holding all
+   * thirteen of her months at once is some sixty megabytes of a phone's
+   * memory for pages most guests look at for four seconds each.
+   */
+  hold?: boolean;
 };
 
 /**
@@ -31,24 +41,26 @@ export type PreloadAsset = {
 const CONCURRENCY = 6;
 
 /**
- * Every image pulled down, kept alive for as long as the page is open.
- *
- * This array is the whole reason the preload works, and it is not an
- * optimisation — without it the feature quietly does nothing.
- *
- * The obvious design is to fetch each file, throw the bytes away, and trust
- * the HTTP cache to have them when the invitation asks. Measured, that trust
- * is misplaced: this invitation is some seventy megabytes, which is large
- * enough that writing the end of it evicts the beginning. Her hero portrait
- * is the *first* file fetched and so the first evicted, and the hero is the
- * very screen the curtain lifts onto — it was going back to the network at
- * the one moment the whole exercise exists to protect.
+ * The handful of images kept alive in memory for the life of the page.
  *
  * A live `HTMLImageElement` holding a loaded `src` is a client on that
  * resource, so the browser keeps it whatever the disk cache does, and any
- * later `<img>` with the same URL is served from memory. Holding them costs
- * roughly what the files weigh — which is the price of the promise this
- * screen makes, and a good deal cheaper than downloading them twice.
+ * later `<img>` with the same URL is served from memory rather than decoded
+ * again.
+ *
+ * This used to hold *every* image, and it had to: the invitation was some
+ * seventy megabytes of PNG, which is large enough that writing the end of it
+ * evicts the beginning — her hero portrait was the first file fetched and so
+ * the first thrown away, at the one moment the whole exercise exists to
+ * protect. Now that the photographs are WebP and the whole set is a couple of
+ * megabytes, no cache anywhere is going to evict any of it, and holding
+ * everything buys nothing while costing a phone a great deal of memory (see
+ * `PreloadAsset.hold`).
+ *
+ * So what is left here is only the pictures wanted within a second or two of
+ * the curtain lifting, where even a fifteen-millisecond decode would land in
+ * the middle of an animation. Everything else is fetched, cached, and decoded
+ * when it is actually drawn.
  */
 const held: HTMLImageElement[] = [];
 
@@ -56,18 +68,17 @@ const held: HTMLImageElement[] = [];
  * Pulls an image into memory and decodes it.
  *
  * Two things, not one. The fetch that ran before this put the bytes within
- * reach; this makes them pixels, because a cached 2 MB PNG is still a few
- * hundred milliseconds of decoding away from being on screen — and holds on
- * to the result, for the reason above.
+ * reach; this makes them pixels, which is still real work — and, where `keep`
+ * is set, holds on to the result for the reason above.
  *
  * It never rejects. An image that will not decode is an image the guest sees
  * a moment late, which is not a reason to hold the door shut.
  */
-function warmDecode(url: string): Promise<void> {
+function warmDecode(url: string, keep: boolean): Promise<void> {
   return new Promise((resolve) => {
     const img = new Image();
     img.decoding = "async";
-    held.push(img);
+    if (keep) held.push(img);
     img.onload = () => resolve();
     img.onerror = () => resolve();
     img.src = url;
@@ -142,9 +153,9 @@ export function useAssetPreload(assets: PreloadAsset[]) {
          * of the body, so the bar's proportions are corrected while it is
          * still near the start and the correction is invisible.
          *
-         * These are PNGs and MP3s, which no sane server re-compresses, so the
-         * header and the stream agree on what a byte is. Where there is no
-         * header at all the estimate stands and the file lands whole — see
+         * These are WebPs and MP3s, which no sane server re-compresses, so
+         * the header and the stream agree on what a byte is. Where there is
+         * no header at all the estimate stands and the file lands whole — see
          * the else branch.
          */
         const declared = Number(res.headers.get("content-length"));
@@ -177,7 +188,7 @@ export function useAssetPreload(assets: PreloadAsset[]) {
           await res.arrayBuffer();
         }
 
-        if (asset.kind === "image") await warmDecode(asset.url);
+        if (asset.kind === "image") await warmDecode(asset.url, asset.hold === true);
       } catch {
         /*
          * A file that 404s, or a connection that drops one, is not worth
@@ -226,4 +237,72 @@ export function useAssetPreload(assets: PreloadAsset[]) {
   }, [assets]);
 
   return { ratioRef, done };
+}
+
+/**
+ * How many of the second wave's files are in the air at once.
+ *
+ * Two, against the gate's six, and deliberately so. This wave runs *while a
+ * guest is reading* rather than while they wait, so it is sharing the
+ * connection with whatever the invitation itself still wants — and with a
+ * song the timeline may ask for directly, if the guest gets there first. A
+ * narrow pool leaves room for that; a wide one would have the background
+ * work elbow the foreground out of the way, which is exactly backwards.
+ */
+const BACKGROUND_CONCURRENCY = 2;
+
+/**
+ * Pulls a list of files down quietly, once a guest is already inside.
+ *
+ * The second half of the two-wave arrangement described in
+ * `preloadManifest.ts`: her twelve months' songs, which are far too heavy to
+ * hold the door for and are wanted by nobody until they have read the first
+ * screen and swiped down to her year.
+ *
+ * Nothing reports progress and nothing waits on it. The whole contract is
+ * that by the time a swipe asks for one of these, it is already in the cache
+ * — and if it is not, the thing that wanted it loads it the way it would have
+ * anyway. That is why there is no `done` here to read, and why a failure is
+ * simply dropped: there is nothing this could usefully tell anyone.
+ *
+ * `start` is the switch, so this can be mounted from the first paint and held
+ * until the invitation is actually open. `assets` must be a stable reference,
+ * for the same reason as in `useAssetPreload`.
+ */
+export function useBackgroundFetch(assets: PreloadAsset[], start: boolean) {
+  useEffect(() => {
+    if (!start || assets.length === 0) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const queue = [...assets];
+    const worker = async () => {
+      for (;;) {
+        const next = queue.shift();
+        if (!next || cancelled) return;
+        try {
+          const res = await fetch(next.url, {
+            signal: controller.signal,
+            credentials: "same-origin",
+          });
+          /* Read to the end and throw the bytes away: the point is the entry
+             this leaves in the HTTP cache, not the buffer. Without draining
+             the body the response may never be written there at all. */
+          if (res.ok) await res.arrayBuffer();
+        } catch {
+          /* See above — nothing here is worth reporting or retrying. */
+        }
+      }
+    };
+
+    void Promise.all(
+      Array.from({ length: Math.min(BACKGROUND_CONCURRENCY, queue.length) }, worker),
+    );
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [assets, start]);
 }

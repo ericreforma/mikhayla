@@ -234,10 +234,31 @@ export function PartyDetailsSection() {
         still={still}
       />
 
+      {/*
+        One column on a phone; two past `md`, laid out as a grid rather than a
+        row.
+
+        A grid because the three pieces do not read top to bottom in the same
+        order at both sizes. On a phone it is the words, then the venue, then
+        the RSVP — the card in the middle, where a thumb meets it. On a tablet
+        the card stands on the right as a single tall object and the words and
+        the RSVP share the left, which means the third piece has to jump back
+        up alongside the first. Explicit rows and columns say that in two
+        classes; a flex row could not say it at all without moving the markup
+        and changing the phone's order with it.
+
+        The section overflowed an iPad held sideways before this — the RSVP
+        button, the one thing on the page that has to be seen, sat below the
+        fold behind a scroll nobody would guess was there.
+      */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg md:grid md:max-w-4xl md:grid-cols-2 md:items-center md:gap-x-9 md:gap-y-6 lg:gap-x-12"
         initial={false}
         animate={state}
+        variants={GROUP}
+      >
+      <motion.div
+        className="flex w-full flex-col items-center md:col-start-1 md:row-start-1 md:items-start md:text-left"
         variants={GROUP}
       >
         {/* The crown keeps breathing after it has arrived, so the page is
@@ -268,7 +289,7 @@ export function PartyDetailsSection() {
         <motion.div
           aria-hidden
           variants={rule}
-          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48"
+          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48 md:w-40 lg:w-48"
         />
 
         <motion.p
@@ -285,9 +306,11 @@ export function PartyDetailsSection() {
           Keeping all three in one card rather than stacking two is what keeps
           the RSVP above the fold on a phone.
         */}
+      </motion.div>
+
         <motion.div
           variants={still ? STILL : CARD}
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4"
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 md:col-start-2 md:row-span-2 md:row-start-1 md:mt-0 md:self-center"
         >
           <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl">
             <PalmIcon className="h-5 w-5 flex-none text-goldDeep sm:h-6 sm:w-6" />
@@ -504,7 +527,7 @@ export function PartyDetailsSection() {
             comes back for on the day. */}
         <motion.div
           variants={line}
-          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3"
+          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 md:col-start-1 md:row-start-2 md:mt-0 md:flex-wrap md:justify-start"
         >
           {/*
             The same button either way. With an endpoint configured it opens

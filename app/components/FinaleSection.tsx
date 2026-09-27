@@ -15,10 +15,20 @@ import { Crown } from "./Ornaments";
  */
 export function FinaleSection() {
   return (
-    <div className="relative flex min-h-full flex-col overflow-hidden pt-6 text-center sm:pt-8">
+    /*
+      Past `md` this splits the way the hero does — the words on the left, her
+      on the right, floor to ceiling — and that is the point of it. The two
+      are written as a matching pair of covers, so a first screen that reads
+      as a spread and a last one that still reads as a phone would break the
+      rhyme at exactly the width where there is most room to hear it.
+    */
+    <div className="relative flex min-h-full flex-col overflow-hidden pt-6 text-center sm:pt-8 md:flex-row md:items-stretch md:pt-0 md:text-left">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
-      <div className="relative flex flex-col items-center px-gutter">
+      {/* The words. `pb-nav` only past `md`: on a phone this column sits above
+          her picture, which is meant to run on behind the tab bar, so nothing
+          here has to clear it. Side by side, it does. */}
+      <div className="relative flex flex-col items-center px-gutter md:w-[46%] md:max-w-[34rem] md:flex-none md:items-start md:justify-center md:pb-nav md:pr-6 md:text-left">
         <Crown className="h-9 w-auto text-gold drop-shadow-sm sm:h-12" />
 
         {/*
@@ -31,7 +41,7 @@ export function FinaleSection() {
           Which is also why the name is set a size under the hero's: this is
           the echo, not the announcement.
         */}
-        <h2 className="mt-4 font-display text-[1.875rem] italic leading-[1.15] text-ink xs:text-[2.25rem] sm:mt-5 sm:text-5xl">
+        <h2 className="mt-4 font-display text-[1.875rem] italic leading-[1.15] text-ink xs:text-[2.25rem] sm:mt-5 sm:text-5xl md:text-[2.5rem] lg:text-5xl">
           {BABY_FULL_NAME}
         </h2>
 
@@ -40,17 +50,17 @@ export function FinaleSection() {
             rather than five words and an orphan. Past `sm` there is room for
             all of it on one line, which is where the hero's own subtitle
             sits, so the width comes off. */}
-        <p className="mx-auto mt-2.5 max-w-[30ch] text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep xs:text-xs sm:mt-3 sm:max-w-none sm:text-sm sm:tracking-[0.3em]">
+        <p className="mx-auto mt-2.5 max-w-[30ch] text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep xs:text-xs sm:mt-3 sm:max-w-none sm:text-sm sm:tracking-[0.3em] md:mx-0 md:tracking-[0.13em] lg:tracking-[0.3em]">
           One whole year of our little princess
         </p>
 
-        <div aria-hidden className="gilt-rule mt-4 h-px w-32 xs:w-40 sm:mt-5 sm:w-56" />
-        <p className="mx-auto mt-4 max-w-[34ch] text-sm leading-relaxed text-ink/75 sm:mt-5 sm:max-w-md sm:text-base">
+        <div aria-hidden className="gilt-rule mt-4 h-px w-32 xs:w-40 sm:mt-5 sm:w-56 md:w-44 lg:w-56" />
+        <p className="mx-auto mt-4 max-w-[34ch] text-sm leading-relaxed text-ink/75 sm:mt-5 sm:max-w-md sm:text-base md:mx-0">
           Thank you for being part of her first year — every gown, every giggle, every tiny
           milestone. We can&apos;t wait to celebrate this one with you.
         </p>
-        <p className="mt-5 font-hand text-xl text-berry xs:text-2xl sm:mt-6">
-          And they all lived happily ever after 👑
+        <p className="mt-5 font-hand text-xl text-berry xs:text-2xl sm:mt-6 md:text-xl lg:text-2xl">
+          And they all lived happily ever after&nbsp;👑
         </p>
       </div>
 
@@ -69,7 +79,7 @@ export function FinaleSection() {
       */}
       <div
         aria-hidden
-        className="relative -mt-6 min-h-[38%] flex-1 sm:-mt-8 sm:mx-auto sm:w-full sm:max-w-[34rem] md:max-w-[38rem]"
+        className="relative -mt-6 min-h-[38%] flex-1 sm:-mt-8 sm:mx-auto sm:w-full sm:max-w-[34rem] md:mx-0 md:mt-0 md:min-h-0 md:w-[54%] md:max-w-none md:flex-none"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -85,8 +95,8 @@ export function FinaleSection() {
         {/* The two cut sides, where the frame is narrower than the screen,
             faded into the page the way the top is. `parchment` is the colour
             behind this section. */}
-        <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-parchment to-transparent sm:block md:w-20" />
-        <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-parchment to-transparent sm:block md:w-20" />
+        <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-parchment to-transparent sm:block md:hidden" />
+        <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-parchment to-transparent sm:block md:hidden" />
       </div>
 
       <span className="sr-only">

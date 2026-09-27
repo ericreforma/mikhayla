@@ -1,5 +1,15 @@
 # Venue assets
 
+These two stills are **originals**. They live here rather than in `public/`
+because everything in this folder is rendered into `public/venue/{mobile,
+tablet,desktop}/*.webp` by `scripts/optimize-images.py` — run it after
+changing anything here, and commit what it writes. Config refers to them by
+their original names; the tier folder and the `.webp` ending are filled in
+for you.
+
+A **video** file is the exception: nothing processes it, so an MP4 goes
+straight into `public/venue/`. See the last section.
+
 ## The map — `casa-maria-poster.jpg` ✅ in place
 
 The venue's directions sheet, wired up as `VENUE_MAP_IMAGE` in
@@ -14,7 +24,8 @@ double-taps to zoom, and drags to pan.
 
 Replacing it: any aspect ratio works, portrait included. Bigger is better,
 since the whole point is zooming in on street names — 1500px on the long edge
-is plenty, and keep it under ~1 MB so it isn't slow on mobile data.
+is plenty. Don't worry about file size here; this is the original, and what
+ships is the WebP rendered from it.
 
 ## The walkthrough — `walkthrough-poster.jpg` ✅ in place
 
@@ -23,8 +34,8 @@ Short, wired up as `VENUE_VIDEO_YOUTUBE` in `app/config.ts`. YouTube hands
 each guest the quality their phone and their signal can take, which is the
 one thing a file in this folder cannot do for a clip that runs minutes.
 
-What *is* in this folder is `walkthrough-poster.jpg` — the still behind the
-play button, pointed at by `VENUE_VIDEO_POSTER`. It comes down with the rest
+What *is* here is `walkthrough-poster.jpg` — the still behind the play
+button, pointed at by `VENUE_VIDEO_POSTER`. It comes down with the rest
 of the invitation at the loading screen, so the Walkthrough tab is drawn
 from here and nothing of YouTube's is fetched until a guest taps it. Tapping
 opens the player full screen, where the music steps aside for it.
@@ -38,9 +49,10 @@ the frame in the video's own shape, and `maxresdefault.jpg` the 16:9 one.
 
 ### Serving it from here instead
 
-If the clip is ever short enough to ship with the site, drop the MP4 in this
-folder and fill in `VENUE_VIDEO` — a file there wins over the YouTube link,
-and plays in the tab itself rather than behind a tap:
+If the clip is ever short enough to ship with the site, drop the MP4 into
+`public/venue/` — not here; the optimiser only knows about pictures — and
+fill in `VENUE_VIDEO`. A file there wins over the YouTube link, and plays in
+the tab itself rather than behind a tap:
 
 ```ts
 export const VENUE_VIDEO = "/venue/casa-maria.mp4";

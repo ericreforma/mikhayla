@@ -139,8 +139,16 @@ export function DateTimeSection() {
         still={still}
       />
 
+      {/*
+        Capped past `md`. The date card below breaks out of this wrapper's
+        gutter to run edge to edge, which is right on a phone and wrong on a
+        tablet held sideways: a band the full width of a 1024px screen with a
+        column of writing down the middle of it reads as a rule across the
+        page rather than as a card. Held to this measure it stays a card, and
+        the page keeps a margin.
+      */}
       <motion.div
-        className="relative my-auto flex w-full flex-col items-center px-gutter"
+        className="relative my-auto flex w-full flex-col items-center px-gutter md:max-w-3xl"
         initial={false}
         animate={state}
         variants={GROUP}

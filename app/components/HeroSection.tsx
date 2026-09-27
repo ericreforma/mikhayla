@@ -24,7 +24,22 @@ export function HeroSection() {
   }, [isActive]);
 
   return (
-    <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8">
+    /*
+      Phone and tablet are two different pictures of the same screen.
+
+      On a phone it is one column: the words at the top, her standing at the
+      foot of the page edge to edge, the top of the photograph dissolved away
+      so the headline can sit over it.
+
+      Past `md` — an iPad held upright is 768px — that stops working. A tall
+      portrait stretched across a wide screen crops down to a forehead, and a
+      centred column of text on a 1024px-wide page is a narrow ribbon with
+      empty parchment either side of it. So the screen splits: the words take
+      the left half and read left-aligned like a printed invitation, and she
+      takes the right half full height, dissolving into the page along her
+      left edge instead of along her top.
+    */
+    <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8 md:flex-row md:items-stretch md:pt-0 md:text-left">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       <HeroPortraits active={isActive} />
@@ -59,7 +74,10 @@ export function HeroSection() {
       {/* The words, over the picture. Each piece rises a beat after the one
           above it — see `hero-rise` in globals.css for why the opening is CSS
           rather than framer-motion. */}
-      <div className="relative flex flex-1 flex-col items-center pt-[6%] sm:pt-[4%]">
+      {/* The words. Past `md` this is the left half of the screen, and its
+          contents are centred down it rather than hung from the top — see the
+          swipe cue at the foot of it, which is what used to do the spacing. */}
+      <div className="relative flex flex-1 flex-col items-center pt-[6%] sm:pt-[4%] md:w-[48%] md:max-w-[34rem] md:flex-none md:items-start md:justify-center md:pr-6 md:pt-0">
         <Crown className="hero-rise h-8 w-auto text-gold drop-shadow-sm xs:h-10 sm:h-14" />
 
         <p className="hero-rise mt-3 font-hand text-xl leading-none text-berry [animation-delay:0.1s] xs:text-2xl sm:text-3xl">
@@ -72,23 +90,30 @@ export function HeroSection() {
           small caps with "turns one" — which keeps the big line to the two
           words that are actually hers.
         */}
-        <h1 className="hero-rise mt-2 font-display text-[2.125rem] italic leading-[1.1] text-ink [animation-delay:0.2s] xs:text-[2.75rem] sm:text-6xl md:text-7xl">
+        {/* Set a size down at `md` and `lg`: the headline now has half a
+            screen rather than all of it, and at `text-7xl` "Mikhayla" alone
+            runs off the end of an iPad's column. It comes back at `xl`, where
+            there is width for the whole name on one line. */}
+        <h1 className="hero-rise mt-2 font-display text-[2.125rem] italic leading-[1.1] text-ink [animation-delay:0.2s] xs:text-[2.75rem] sm:text-6xl md:text-[3rem] lg:text-6xl xl:text-7xl">
           {BABY_FULL_NAME}
         </h1>
 
-        <p className="hero-rise mt-2.5 text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep [animation-delay:0.3s] xs:text-xs sm:mt-3 sm:text-sm sm:tracking-[0.3em]">
+        {/* The tracking comes in a little at `md`, where this line has half
+            a screen to cross rather than all of it and would otherwise break
+            with "one" alone on the second row. It opens back out at `lg`. */}
+        <p className="hero-rise mt-2.5 text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep [animation-delay:0.3s] xs:text-xs sm:mt-3 sm:text-sm sm:tracking-[0.3em] md:tracking-[0.16em] lg:tracking-[0.3em]">
           Our little princess turns one
         </p>
 
         <div
           aria-hidden
-          className="gilt-rule hero-rise mt-4 h-px w-32 [animation-delay:0.4s] xs:w-40 sm:mt-5 sm:w-56"
+          className="gilt-rule hero-rise mt-4 h-px w-32 [animation-delay:0.4s] xs:w-40 sm:mt-5 sm:w-56 md:w-44 lg:w-56"
         />
 
         {/* Full-strength ink from here down: these two sit on the photograph
             rather than on parchment, and a dimmed ink over that pink falls
             below AA. */}
-        <p className="hero-rise mx-auto mt-4 max-w-[30ch] text-balance text-[0.9375rem] leading-relaxed text-ink [animation-delay:0.5s] sm:mt-5 sm:max-w-md sm:text-lg">
+        <p className="hero-rise mx-auto mt-4 max-w-[30ch] text-balance text-[0.9375rem] leading-relaxed text-ink [animation-delay:0.5s] sm:mt-5 sm:max-w-md sm:text-lg md:mx-0 md:text-balance">
           A crown, a cake, and a ball of her very own.
         </p>
 
@@ -100,18 +125,29 @@ export function HeroSection() {
             foot of the screen, over her gown, so it carries the white halo
             from globals.css; the bob lives on the inner element because the
             outer one is still easing into place. */}
-        <div className="hero-rise relative mt-auto pt-8 [animation-delay:0.7s]">
+        {/*
+          `mt-auto` hangs this off the bottom of the screen on a phone, where
+          it stands on her gown. Past `md` the column is centred and she is no
+          longer underneath it, so the auto margin comes off and the cue simply
+          follows the line above it.
+        */}
+        <div className="hero-rise relative mt-auto pt-8 [animation-delay:0.7s] md:mt-9 md:self-start md:pt-0">
           {/* The hand rises out of the cue towards the top of the screen,
               which is the gesture itself. `bottom-full` puts it above the
               padding rather than on top of the words. */}
+          {/* Over the cue on a phone, where the cue stands at the foot of
+              the screen and there is nothing above it but her gown. Past `md`
+              the cue has moved up into the middle of a column of writing, so
+              the hand steps out to the side of it rather than landing on the
+              line above. */}
           <Hint
             gesture="swipe-up"
             active={isActive && !learned}
-            className="bottom-full left-1/2 -translate-x-1/2"
+            className="bottom-full left-1/2 -translate-x-1/2 md:bottom-auto md:left-full md:top-0 md:ml-7 md:translate-x-0 md:translate-y-0"
           />
 
           <motion.div
-            className="cue-halo flex flex-col items-center gap-1.5 text-ink sm:gap-2"
+            className="cue-halo flex flex-col items-center gap-1.5 text-ink sm:gap-2 md:items-start"
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
@@ -160,6 +196,12 @@ const SWIPE_PX = 40;
  * instead, at about the width of a phone held up to the screen — and takes a
  * shorter share of the height, which is what walks her head back down the
  * screen and out from under the words.
+ *
+ * Past `md` it stops being a band at the foot of the page at all and becomes
+ * the right-hand half of the screen, floor to ceiling — which is the one
+ * shape a tall portrait is actually happy in. The dissolve turns with it,
+ * from the top edge to the left one; see `.hero-portrait-fade` in
+ * globals.css, where the mask is written for both.
  *
  * ---------------------------------------------------------------------------
  * The turn
@@ -226,7 +268,7 @@ function HeroPortraits({ active }: { active: boolean }) {
       onPointerDown={onDown}
       onPointerUp={onUp}
       onPointerCancel={onCancel}
-      className="absolute inset-x-0 bottom-0 mx-auto h-[74%] touch-pan-y select-none sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem]"
+      className="absolute inset-x-0 bottom-0 mx-auto h-[74%] touch-pan-y select-none sm:h-[68%] sm:max-w-[34rem] md:inset-y-0 md:bottom-auto md:left-auto md:right-0 md:mx-0 md:h-full md:w-[54%] md:max-w-none"
     >
       {HERO_PORTRAITS.map((src, i) => (
         /* eslint-disable-next-line @next/next/no-img-element */
@@ -251,8 +293,8 @@ function HeroPortraits({ active }: { active: boolean }) {
         `mist` is the colour the dawn wash lands on down here, which is why
         a flat gradient disappears into it.
       */}
-      <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-mist to-transparent sm:block md:w-20" />
-      <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-mist to-transparent sm:block md:w-20" />
+      <div className="absolute inset-y-0 left-0 hidden w-14 bg-gradient-to-r from-mist to-transparent sm:block md:hidden" />
+      <div className="absolute inset-y-0 right-0 hidden w-14 bg-gradient-to-l from-mist to-transparent sm:block md:hidden" />
     </div>
   );
 }

@@ -66,6 +66,17 @@ export const CASTLE_SCENE = asset("/images/fairy-castle.png");
  */
 export const BACKGROUND_TRACK = asset("/audio/background.mp3");
 
+/**
+ * The hand that shows a guest what to do — see `Hint.tsx`.
+ *
+ * A drawing rather than a photograph, but a heavy one: it is an auto-trace,
+ * a couple of hundred paths of shading, so it is referenced as a file rather
+ * than inlined into the bundle. The file in `public/` is already cropped to
+ * the hand and a short wrist; the export it came from has a forearm that
+ * leaves the hand too small to read at the size this is used.
+ */
+export const POINTING_HAND = asset("/icons/pointing-hand.svg");
+
 export const HERO_PORTRAIT = asset("/images/mikhayla-front.png");
 
 /**

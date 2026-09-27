@@ -5,6 +5,7 @@ import {
   FINALE_PORTRAIT,
   HERO_PORTRAIT,
   MILESTONES,
+  POINTING_HAND,
   SWIMWEAR_ICON,
   VENUE_MAP_IMAGE,
   VENUE_VIDEO_POSTER,
@@ -127,6 +128,11 @@ export const PRELOAD_ASSETS: PreloadAsset[] = collect(
     image(DATE_PORTRAIT, EST.portrait),
     image(FINALE_PORTRAIT, EST.portrait),
     image(SWIMWEAR_ICON, EST.small),
+    /* The teaching hand. Wanted a couple of seconds after the curtain
+       lifts, which is sooner than anything else in this group — but it is
+       a hundred kilobytes against the group's several megabytes, so it
+       costs nothing to have it here rather than at the front. */
+    image(POINTING_HAND, EST.small),
     image(VENUE_MAP_IMAGE, EST.small),
     image(VENUE_VIDEO_POSTER, EST.small),
   ],

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MILESTONES } from "@/app/config";
 import { SlideActiveContext, useSlideIsActive } from "./SlideActive";
 import { useSnapTrack } from "./useSnapTrack";
+import { Hint } from "./Hint";
 import { TimelineIntroPanel } from "./TimelineIntroPanel";
 import { MilestonePanel } from "./MilestonePanel";
 import { TimelineMusic } from "./TimelineMusic";
@@ -150,6 +151,24 @@ export function TimelineSlide() {
    */
   const music = sectionActive && index > 0 ? MILESTONES[index - 1]?.music : undefined;
 
+  /*
+   * Whether the hand still has anything to teach.
+   *
+   * Her year is the only place on the invitation that moves sideways, and
+   * nothing about a full-screen photograph says so. So the title page gets
+   * a hand — and only the title page, and only until the guest turns one
+   * page by themselves, which is proof they have understood and the end of
+   * it for the visit.
+   *
+   * It has to survive the rewind. Leaving the section sends the rail back
+   * to the front (see above), so a flag that lived on `index` alone would
+   * forget every time and start teaching again on the way back in.
+   */
+  const [railLearned, setRailLearned] = useState(false);
+  useEffect(() => {
+    if (index > 0) setRailLearned(true);
+  }, [index]);
+
   return (
     <div className="relative h-full">
       <TimelineMusic track={music} />
@@ -170,6 +189,21 @@ export function TimelineSlide() {
           </RailPanel>
         ))}
       </div>
+
+      {/*
+        In the clear band under the title card, which is the one part of
+        this panel with nothing in it — over the card the hand lands on the
+        closing line, and over a month it would land on her face.
+
+        Sliding the way the months do, which is right to left: see
+        `hint-swipe-left` in globals.css for why that direction is the one
+        that matters.
+      */}
+      <Hint
+        gesture="swipe-left"
+        active={sectionActive && index === 0 && !railLearned}
+        className="left-1/2 top-[76%] -translate-x-1/2 -translate-y-1/2"
+      />
 
       <RailArrow direction="prev" onClick={() => goTo(index - 1)} disabled={index === 0} />
       <RailArrow

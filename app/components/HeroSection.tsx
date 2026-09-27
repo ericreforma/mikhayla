@@ -1,10 +1,28 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { BABY_FULL_NAME, HERO_PORTRAIT } from "@/app/config";
+import { Hint } from "./Hint";
 import { Crown, Sparkle } from "./Ornaments";
+import { useSlideIsActive } from "./SlideActive";
 
 export function HeroSection() {
+  /*
+   * Whether the hand still has anything to teach.
+   *
+   * The first screen is the one place a guest has to be shown that the
+   * invitation moves at all — but only once. Leaving this section is proof
+   * they can, so the moment it goes off screen the hand is retired for the
+   * visit; coming back to look at her name again should not be met by a
+   * tutorial.
+   */
+  const isActive = useSlideIsActive();
+  const [learned, setLearned] = useState(false);
+  useEffect(() => {
+    if (!isActive) setLearned(true);
+  }, [isActive]);
+
   return (
     <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
@@ -124,7 +142,16 @@ export function HeroSection() {
             foot of the screen, over her gown, so it carries the white halo
             from globals.css; the bob lives on the inner element because the
             outer one is still easing into place. */}
-        <div className="hero-rise mt-auto pt-8 [animation-delay:0.7s]">
+        <div className="hero-rise relative mt-auto pt-8 [animation-delay:0.7s]">
+          {/* The hand rises out of the cue towards the top of the screen,
+              which is the gesture itself. `bottom-full` puts it above the
+              padding rather than on top of the words. */}
+          <Hint
+            gesture="swipe-up"
+            active={isActive && !learned}
+            className="bottom-full left-1/2 -translate-x-1/2"
+          />
+
           <motion.div
             className="cue-halo flex flex-col items-center gap-1.5 text-ink sm:gap-2"
             animate={{ y: [0, 8, 0] }}

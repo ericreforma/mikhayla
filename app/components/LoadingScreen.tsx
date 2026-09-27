@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BABY_FULL_NAME } from "@/app/config";
+import { Hint } from "./Hint";
 import { Crown, Sparkle } from "./Ornaments";
 import { PRELOAD_ASSETS } from "./preloadManifest";
 import { useAssetPreload } from "./useAssetPreload";
@@ -406,7 +407,7 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
             rather than urged — with a tap target bigger than its type,
             which is what the negative margin is for.
           */}
-          <div className="mt-8 flex h-14 items-start justify-center">
+          <div className="relative mt-8 flex h-14 items-start justify-center">
             {ready ? (
               <button
                 type="button"
@@ -430,6 +431,36 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
                 Enter without waiting
               </button>
             ) : null}
+
+            {/*
+              And the hand, reaching up to press it.
+
+              After the button in the source, and that is the whole of the
+              fix it was: `hero-rise` gives the button a transform, a
+              transform makes a stacking context, and two stacking contexts
+              with nothing to separate them are painted in the order they
+              are written. The hand was drawn first and so went underneath,
+              with its fingertip disappearing under the button's edge — a
+              hand pressing *through* a button rather than on it.
+
+              It comes from below, so the words it is telling you to read
+              are never under a finger — and so the press itself reaches
+              upward, which is what `hint-tap` is about. This offset is set
+              against the top of that reach rather than the rest of it: the
+              frame that has to look right is the one where the finger is
+              on the button.
+
+              Two and a half seconds of grace first, which is long enough
+              that anybody who was going to press it unaided already has and
+              never sees a hand at all.
+            */}
+            {ready && (
+              <Hint
+                gesture="tap"
+                after={2500}
+                className="left-1/2 top-[3rem] z-10 -translate-x-1/2"
+              />
+            )}
           </div>
         </div>
       </div>

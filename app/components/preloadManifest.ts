@@ -5,6 +5,7 @@ import {
   FINALE_PORTRAIT,
   HERO_PORTRAITS,
   MILESTONES,
+  MONTH_FRAME,
   POINTING_HAND,
   SWIMWEAR_ICON,
   VENUE_MAP_IMAGE,
@@ -148,7 +149,11 @@ export const PRELOAD_ASSETS: PreloadAsset[] = collect(
     audio(BACKGROUND_TRACK, EST.bed),
   ],
 
-  /* Her year: each month's photograph, then the figure that stands on it. */
+  /* Her year: the gilt frame every month's caption is set in — one file for
+     all thirteen — then each month's photograph and the figure that stands on
+     it. */
+  [image(MONTH_FRAME, EST.photo)],
+
   MILESTONES.flatMap((m) =>
     collect(
       m.photo ? [image(m.photo, EST.photo)] : [],

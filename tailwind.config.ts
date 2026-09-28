@@ -14,6 +14,39 @@ const config: Config = {
       md: "768px",
       lg: "1024px",
       xl: "1280px",
+
+      /*
+       * The two-column layouts: the hero and the finale as a spread, a month
+       * of her year beside its caption, the long sections split in half.
+       *
+       * Width alone is the wrong test for these, which is what this exists to
+       * fix. An iPad held upright is 768px across — wide enough by that
+       * measure — but it is 1024px tall, and on a tall screen the phone's
+       * single column is simply the better page: her photograph across the
+       * foot of it, the words above, nothing cramped and nothing to scroll.
+       * Turn the same iPad sideways and it is 768px *tall*, which is where
+       * one column stops fitting and the second earns its place.
+       *
+       * So: wide enough for two columns, and short enough to want them.
+       * Every desktop window that is wider than it is tall gets them too,
+       * which is the same bargain for the same reason.
+       *
+       * Declared after the width ladder on purpose. Tailwind emits variants
+       * in the order they are written here and cannot sort a `raw` query by
+       * width, so these have to come last to win against the `md:` and `lg:`
+       * rules they are meant to override.
+       */
+      wide: { raw: "(min-width: 768px) and (orientation: landscape)" },
+      /*
+       * The other half of the same split: a tablet held upright, where the
+       * page keeps the phone's single column but has half as much again of
+       * every dimension to spend on it. Anything that wants to be *bigger* on
+       * an iPad without becoming a second column goes here.
+       */
+      tall: { raw: "(min-width: 768px) and (orientation: portrait)" },
+      /* The same, once there is desktop width to spend — type comes back up
+         to the size it is at on a phone held in one hand. */
+      "wide-lg": { raw: "(min-width: 1280px) and (orientation: landscape)" },
     },
     extend: {
       colors: {

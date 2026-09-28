@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { Milestone, ACCENT_STYLES, BABY_NAME, MILESTONES } from "@/app/config";
+import { Milestone, ACCENT_STYLES, BABY_NAME, MILESTONES, MONTH_FRAME } from "@/app/config";
 import { useSlideIsActive } from "./SlideActive";
 import { MilestoneAmbience } from "./MilestoneAmbience";
 
@@ -49,6 +49,20 @@ const PHOTO: Variants = {
   in: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: EASE } },
 };
 
+/**
+ * The caption's frame, settling back out of a breath of a push-in as the page
+ * lands — the same gesture the photograph opposite it makes, which is what
+ * makes the two read as one spread arriving rather than two things appearing.
+ *
+ * It is in the cascade rather than simply present because of what it is for:
+ * a border that is already there when the words turn up reads as part of the
+ * furniture, and the whole point of it is to belong to the caption inside it.
+ */
+const FRAME: Variants = {
+  out: { opacity: 0, scale: 0.97, transition: { duration: 0.3, ease: EASE } },
+  in: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: EASE } },
+};
+
 /** Her princess, stepping in from the edge she stands on. */
 const FIGURE: Variants = {
   out: { opacity: 0, x: -24, transition: { duration: 0.3, ease: EASE } },
@@ -81,26 +95,6 @@ function captionFade(tint: string) {
   return (
     `linear-gradient(to top, rgba(${c}, 0.97) 0%, rgba(${c}, 0.94) 22%, ` +
     `rgba(${c}, 0.78) 36%, rgba(${c}, 0.32) 50%, rgba(${c}, 0) 64%)`
-  );
-}
-
-/**
- * The same fade turned on its side, for the tablet layout below, where the
- * photograph is the right-hand half of the page rather than the whole of it
- * and the caption stands beside her instead of under her.
- *
- * The photograph reaches further left than the caption column needs it to —
- * 64% of the width against the caption's 50% — and that overlap is the whole
- * trick. A fade that began where the picture began would have nothing to
- * dissolve *over* for its first half, and flat tint would meet photograph at a
- * visible seam. Starting it well inside the picture means the two never meet
- * at a line.
- */
-function captionFadeSide(tint: string) {
-  const c = channels(tint);
-  return (
-    `linear-gradient(to right, rgba(${c}, 0.97) 0%, rgba(${c}, 0.95) 28%, ` +
-    `rgba(${c}, 0.72) 42%, rgba(${c}, 0.28) 55%, rgba(${c}, 0) 68%)`
   );
 }
 
@@ -147,7 +141,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
       */}
       {m.photo ? (
         <motion.div
-          className="absolute inset-0 md:left-auto md:w-[64%]"
+          className="absolute inset-0 wide:left-auto wide:w-[55%]"
           initial={false}
           animate={state}
           variants={reduce ? STILL_PHOTO : PHOTO}
@@ -173,17 +167,14 @@ export function MilestonePanel({ m }: { m: Milestone }) {
       )}
 
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
-      {/* One fade or the other, never both — the layout underneath them is
-          different enough that a single gradient cannot serve both. */}
+      {/* Stacked, the caption sits *on* the photograph and needs the ground
+          under it faded up out of the picture. Side by side it does not — it
+          has a half of the page to itself — so the fade is a phone's and a
+          tall tablet's only, and the seam below does that work instead. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 md:hidden"
+        className="pointer-events-none absolute inset-0 wide:hidden"
         style={{ backgroundImage: captionFade(m.tint) }}
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 hidden md:block"
-        style={{ backgroundImage: captionFadeSide(m.tint) }}
       />
 
       {/*
@@ -193,23 +184,39 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         `bottom-menu` puts her feet on the top edge of the tab bar, and `left-0`
         takes her past the page's gutter to the screen edge itself. The type
         ladder here is the title's, so the `em` height below is measured in
-        title lines and grows with it.
+        title lines and grows with it — which is how she keeps her proportion
+        to the caption she stands beside at every width, and why a tablet gets
+        her twice over: once from the `md` step below, and again from the root
+        type scale at the top of globals.css.
+
+        Keep `.pb-figure` in globals.css in step with the last rung of that
+        ladder. It is the caption's clearance over her head, and it is measured
+        in the same title lines.
       */}
       {m.character ? (
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute bottom-menu left-0 text-2xl leading-none xs:text-3xl sm:text-4xl"
+          className="pointer-events-none absolute bottom-menu left-0 z-10 text-2xl leading-none xs:text-3xl sm:text-4xl md:text-5xl wide:left-[28%]"
           initial={false}
           animate={state}
           variants={reduce ? STILL : FIGURE}
         >
+          {/*
+            Everywhere else she is sized in title lines — see the comment
+            above. On a landscape page she is sized against the page instead,
+            because there she is not a footnote in the corner any more: she
+            stands against the right-hand side of the caption's frame at a
+            little over a third of the slide's height, stepping out over the
+            photograph beside her. A share of the slide is a figure the type
+            ladder cannot express, and it is the figure that matters here.
+          */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={m.character}
             alt=""
             loading="lazy"
             decoding="async"
-            className="block h-[6.375em] w-auto drop-shadow-sm"
+            className="block h-[6.375em] w-auto drop-shadow-sm wide:h-[38vh]"
           />
         </motion.div>
       ) : null}
@@ -218,23 +225,76 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         The caption. On a phone it is hung from the foot of the page, over the
         fade, with the photograph filling everything above it.
 
-        Past `md` it becomes the left-hand half of the page and centres itself
-        down that half, reading left-aligned beside her rather than centred
-        under her. `pb-figure` is what keeps the centring clear of the princess
-        standing in the bottom corner — see globals.css.
+        On a screen wider than it is tall it becomes the left-hand half of
+        the page and centres itself down that half — still centred as a
+        setting, the way it is on a phone, just in a column of its own beside
+        her instead of a band under her, and inside a frame of its own. The
+        top padding matches the frame's own top inset, which is what gives the
+        two a shared middle to centre on.
       */}
       <div
-        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center md:w-[50%] md:justify-center md:pr-2 md:text-left${
-          m.character ? " md:pb-figure" : ""
+        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center wide:w-[45%] wide:justify-center wide:px-12 wide:pt-[11%] wide:text-center${
+          m.character ? " pl-figure" : ""
         }`}
       >
-        <motion.div className="w-full" initial={false} animate={state} variants={GROUP}>
+        {/*
+          The caption's frame.
+
+          Landscape's alone. Stacked, the caption sits over the
+          photograph itself and a frame drawn round it would be a box round a
+          picture; given a column of its own there is a shape to dress, and
+          this is the invitation it would be if it were printed — a gilt frame
+          with the month's own object at the corner of it.
+
+          The frame keeps its own proportions rather than being stretched to
+          the column: it is a painting, with a crown at the head of it and gems
+          down the sides, and a crown half again as wide as it was drawn reads
+          as a mistake. So it is sized by its height — which is the scarce
+          dimension on a landscape page — and centred in whatever width is
+          left. `--nav-bar` at the foot is what keeps it off the tab bar, which
+          the panel itself runs behind.
+
+          One picture for every month, so it is one download however far down
+          the rail a guest swipes. See `MONTH_FRAME` in config.
+        */}
+        {/*
+          Two elements, and they have to be two: the outer one is where the
+          frame *is* and the inner one is what it does on arrival. Framer
+          Motion writes its own `transform` on anything it animates, which
+          silently throws away a `-translate-x-1/2` sitting in the class list —
+          so the centring lives out here where nothing will overwrite it, and
+          the scale-and-fade lives inside.
+        */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-[6%] z-0 hidden aspect-[971/1619] -translate-x-1/2 wide:block"
+          style={{ bottom: "calc(var(--nav-bar) + 0.75rem)" }}
+        >
+          <motion.span
+            initial={false}
+            animate={state}
+            variants={reduce ? STILL : FRAME}
+            className="absolute inset-0 block"
+            style={{
+              backgroundImage: `url(${MONTH_FRAME})`,
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "100% 100%",
+            }}
+          />
+        </span>
+
+        <motion.div
+          className="relative z-20 w-full wide:mx-auto wide:max-w-[38vh]"
+          initial={false}
+          animate={state}
+          variants={GROUP}
+        >
           {/* The heading group clears the top of the figure, so it stays
               centred on the page as before. */}
-          <motion.div className="mx-auto w-full max-w-sm sm:max-w-md md:mx-0" variants={GROUP}>
+          <motion.div className="mx-auto w-full max-w-sm sm:max-w-md wide:max-w-none" variants={GROUP}>
             <motion.p
               variants={line}
-              className={`font-hand text-xl leading-none xs:text-2xl ${accent.text}`}
+              className={`font-hand text-xl leading-none xs:text-2xl wide:text-3xl ${accent.text}`}
             >
               Month {m.month}
               {m.princess ? ` · ${m.princess}` : ""}
@@ -242,14 +302,14 @@ export function MilestonePanel({ m }: { m: Milestone }) {
 
             <motion.h3
               variants={line}
-              className="mt-2 font-display text-2xl font-medium leading-snug text-ink xs:text-3xl sm:text-4xl"
+              className="mt-2 font-display text-2xl font-medium leading-snug text-ink xs:text-3xl sm:text-4xl wide:text-[2.6rem]"
             >
               {m.title}
             </motion.h3>
             <motion.div
               aria-hidden
               variants={rule}
-              className={`mx-auto mt-3 h-px w-16 sm:w-20 md:mx-0 ${accent.rule}`}
+              className={`mx-auto mt-3 h-px w-16 sm:w-20 wide:w-24 ${accent.rule}`}
             />
           </motion.div>
 
@@ -267,20 +327,24 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           */}
           <motion.div
             variants={TAIL_GROUP}
-            className={m.character ? "beside-figure mt-3 text-left md:max-w-[34ch]" : "mt-3 md:max-w-[34ch]"}
+            className={
+              m.character
+                ? "beside-figure mt-3 text-left md:mx-auto md:max-w-[32ch] wide:mx-auto wide:max-w-[30ch] wide:text-center"
+                : "mt-3 wide:mx-auto wide:max-w-[30ch]"
+            }
           >
             {/* A shade heavier than the parchment sections: the ground under it
                 is a tint rather than near-white paper. */}
             <motion.p
               variants={line}
-              className={`text-sm leading-relaxed text-ink/80 sm:text-base${m.character ? " max-w-[32ch]" : ""}`}
+              className={`text-sm leading-relaxed text-ink/80 sm:text-base wide:text-lg${m.character ? " max-w-[32ch] wide:max-w-none" : ""}`}
             >
               {m.note}
             </motion.p>
 
             <motion.p
               variants={line}
-              className="mt-4 text-[11px] uppercase tracking-[0.2em] text-ink/55 sm:mt-5"
+              className="mt-4 text-[11px] uppercase tracking-[0.2em] text-ink/55 sm:mt-5 wide:text-sm"
             >
               {m.month} / {FINAL_MONTH}
             </motion.p>

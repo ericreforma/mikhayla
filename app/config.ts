@@ -170,6 +170,27 @@ export const HERO_PORTRAITS = [
 export const DATE_PORTRAIT = picture("/images/mikhayla-fairy.png");
 
 /**
+ * The gilt frame around the caption on a month of her year.
+ *
+ * Only ever drawn on a screen wider than it is tall, where the caption has a
+ * column of its own to be framed in — see `MilestonePanel`. Stacked, the
+ * caption sits on the photograph itself and a frame round it would be a box
+ * round a picture.
+ *
+ * A picture rather than a drawn rule because of what it is: gold filigree, a
+ * crown at the top and gems down the sides, which is a painting and not
+ * something CSS has any business imitating. Transparent through the middle —
+ * it is a frame — so it is rendered with its alpha channel kept; see the
+ * `frames` group in `scripts/optimize-images.py`.
+ *
+ * Replacing it: keep the opening roughly where this one has it — clear from
+ * about a tenth in on each side and from an eighth down, which is what the
+ * caption's padding is set against — and keep it portrait, since the column it
+ * dresses is taller than it is wide.
+ */
+export const MONTH_FRAME = picture("/frames/royal-border.png");
+
+/**
  * The icon on the swimwear pass. A picture rather than one of the drawn
  * ornaments, so it keeps its own colours instead of taking the page's.
  */

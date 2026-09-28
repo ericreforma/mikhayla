@@ -86,7 +86,7 @@ function FloatingSparkle({
 
 /** The gold call to action, worn by either a button or a link — see below. */
 const RSVP_BUTTON =
-  "flex min-h-[3rem] items-center justify-center rounded-full bg-gold px-8 font-display text-base font-semibold text-night shadow-lg shadow-gold/20 transition active:scale-[0.98] hover:bg-goldSoft sm:px-9 sm:text-lg";
+  "flex min-h-[3rem] items-center justify-center rounded-full bg-gold px-8 font-display text-base font-semibold text-night shadow-lg shadow-gold/20 transition active:scale-[0.98] hover:bg-goldSoft sm:px-9 sm:text-lg wide:min-h-[3.25rem] wide:text-xl";
 
 type Pane = "video" | "map";
 
@@ -128,6 +128,107 @@ function VenueTab({
 }
 
 /**
+ * Whether there is room to stand the two venue windows side by side.
+ *
+ * A live query rather than a value read once, because this one really can
+ * change under a guest: turning a tablet over is exactly the gesture that
+ * takes a 768px screen to a 1024px one, and the answer has to change with it.
+ *
+ * It starts false and settles on the first effect, which costs one extra
+ * render on a tablet and nothing at all on a phone. There is no flash to
+ * worry about: this section is four swipes into a deck that is itself built
+ * behind a loading screen, so it has been mounted for many seconds before
+ * anybody looks at it.
+ */
+function useSideBySide() {
+  const [roomy, setRoomy] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const read = () => setRoomy(mq.matches);
+    read();
+    mq.addEventListener("change", read);
+    return () => mq.removeEventListener("change", read);
+  }, []);
+
+  return roomy;
+}
+
+/**
+ * One of the two windows onto the venue — the walkthrough, or the map.
+ *
+ * Which arrangement is in use decides what this even is, which is why it
+ * takes `sideBySide` rather than being two components.
+ *
+ * On a phone the two windows are the same window: one frame, shown one at a
+ * time, with the tabs above choosing between them. That is not a space-saving
+ * compromise so much as the only thing that fits — two 16:9 frames plus the
+ * address and the buttons push the RSVP below the fold, and the RSVP is the
+ * one thing on this page that has to be seen without a scroll.
+ *
+ * Given the width for both, the tabs go entirely and these become a pair of
+ * framed pictures each with its own name over it. A tablet has room to show
+ * the way in and where it is at the same time, and a guest should not have to
+ * discover that the second one exists.
+ *
+ * They sit side by side held upright and one above the other turned sideways,
+ * which sounds backwards and is not: laid out in two columns the whole card is
+ * already only a half-width column of a landscape page, so each window would
+ * be a quarter of the screen across. Stacked, each gets the card's full width.
+ *
+ * Stacked, though, what they are short of is height — two 16:9 frames one
+ * above the other in 768px of landscape leave the card nothing to breathe
+ * with. So there they take a shallower shape than 16:9, which is the one way
+ * two stacked windows get *bigger* on a page with height to spare and none to
+ * give: wider by nearly half, and shorter by enough to pay for it.
+ *
+ * Declared out here rather than inside the section for the same reason
+ * `VenueTab` is: nested in the render it would be a new component type on
+ * every state change, and React would throw away the iframe and reload it.
+ */
+function VenuePane({
+  id,
+  label,
+  Icon,
+  active,
+  sideBySide,
+  children,
+}: {
+  id: Pane;
+  label: string;
+  Icon: (props: { className?: string }) => JSX.Element;
+  active: boolean;
+  sideBySide: boolean;
+  children: ReactNode;
+}) {
+  if (!sideBySide) {
+    return (
+      <div
+        role="tabpanel"
+        id={`venue-pane-${id}`}
+        aria-labelledby={`venue-tab-${id}`}
+        hidden={!active}
+        className="aspect-video w-full"
+      >
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <section aria-label={label} className="min-w-0">
+      <h4 className="flex items-center justify-center gap-1.5 pb-1 font-display text-sm text-ink/75 sm:text-base wide:pb-2 wide:text-lg">
+        <Icon className="h-4 w-4 flex-none text-goldDeep sm:h-[1.1rem] sm:w-[1.1rem]" />
+        {label}
+      </h4>
+      <div className="aspect-video w-full overflow-hidden rounded-xl border border-gold/30 bg-mist wide:aspect-[13/5]">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+/**
  * What stands in for a pane whose asset hasn't been dropped in yet. It fills
  * the frame exactly, so filling in `VENUE_VIDEO` or `VENUE_MAP_EMBED` later
  * changes what is inside the window and nothing about the layout around it.
@@ -159,6 +260,7 @@ export function PartyDetailsSection() {
    * the fold on a phone, and the RSVP is the one thing on this page that has
    * to be seen without a scroll.
    */
+  const sideBySide = useSideBySide();
   const [pane, setPane] = useState<Pane>("video");
   const [videoOpen, setVideoOpen] = useState(false);
   const [mapOpen, setMapOpen] = useState(false);
@@ -171,9 +273,12 @@ export function PartyDetailsSection() {
   const [rsvpOpen, setRsvpOpen] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  /* Shown side by side the map is on screen from the start, so there is no
+     tap left to wait for — it is asked for as soon as we know that is the
+     arrangement. */
   useEffect(() => {
-    if (pane === "map") setMapAsked(true);
-  }, [pane]);
+    if (sideBySide || pane === "map") setMapAsked(true);
+  }, [sideBySide, pane]);
 
   /* Nothing plays off-screen: swiping to another section stops the
      walkthrough, and so does switching to the map. Autoplay is muted, which
@@ -181,12 +286,12 @@ export function PartyDetailsSection() {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    if (isActive && pane === "video" && !still) {
+    if (isActive && (sideBySide || pane === "video") && !still) {
       void v.play().catch(() => {});
     } else {
       v.pause();
     }
-  }, [isActive, pane, still]);
+  }, [isActive, pane, still, sideBySide]);
 
   /* The full-screen panels go with the section. Swiping away with one open
      would otherwise leave it covering whichever page you landed on. */
@@ -198,7 +303,7 @@ export function PartyDetailsSection() {
   }, [isActive]);
 
   return (
-    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-parchment px-gutter pb-nav pt-8 text-center">
+    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-parchment px-gutter pb-nav pt-8 text-center wide:pt-3">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       {/* Tucked into the corners, where the card never reaches. */}
@@ -235,30 +340,31 @@ export function PartyDetailsSection() {
       />
 
       {/*
-        One column on a phone; two past `md`, laid out as a grid rather than a
-        row.
+        One column while the screen is taller than it is wide; two once it
+        is not, laid out as a grid rather than a row.
 
         A grid because the three pieces do not read top to bottom in the same
-        order at both sizes. On a phone it is the words, then the venue, then
-        the RSVP — the card in the middle, where a thumb meets it. On a tablet
-        the card stands on the right as a single tall object and the words and
-        the RSVP share the left, which means the third piece has to jump back
-        up alongside the first. Explicit rows and columns say that in two
+        order in both. Stacked it is the words, then the venue, then the RSVP
+        — the card in the middle, where a thumb meets it. Split, the card
+        stands on the right as a single tall object and the words and the RSVP
+        share the left, which means the third piece has to jump back up
+        alongside the first. Explicit rows and columns say that in two
         classes; a flex row could not say it at all without moving the markup
-        and changing the phone's order with it.
+        and changing the stacked order with it.
 
-        The section overflowed an iPad held sideways before this — the RSVP
-        button, the one thing on the page that has to be seen, sat below the
-        fold behind a scroll nobody would guess was there.
+        Sideways is where it is needed: the section overflowed an iPad held
+        that way, and the RSVP button — the one thing on the page that has to
+        be seen — sat below the fold behind a scroll nobody would guess was
+        there. Held upright the single column fits, so it stays.
       */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg md:grid md:max-w-4xl md:grid-cols-2 md:items-center md:gap-x-9 md:gap-y-6 lg:gap-x-12"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:grid wide:max-w-4xl wide:grid-cols-2 wide:items-center wide:gap-x-9 wide:gap-y-6 wide-lg:gap-x-12"
         initial={false}
         animate={state}
         variants={GROUP}
       >
       <motion.div
-        className="flex w-full flex-col items-center md:col-start-1 md:row-start-1 md:items-start md:text-left"
+        className="flex w-full flex-col items-center wide:col-start-1 wide:row-start-1"
         variants={GROUP}
       >
         {/* The crown keeps breathing after it has arrived, so the page is
@@ -274,14 +380,14 @@ export function PartyDetailsSection() {
 
         <motion.p
           variants={line}
-          className="mt-3 font-hand text-lg text-berry xs:text-xl sm:text-2xl"
+          className="mt-3 font-hand text-lg text-berry xs:text-xl sm:text-2xl wide:text-3xl"
         >
           The royal ball
         </motion.p>
 
         <motion.h2
           variants={line}
-          className="mt-1 font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:text-4xl"
+          className="mt-1 font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:text-4xl wide:text-5xl"
         >
           Her castle for a day
         </motion.h2>
@@ -289,12 +395,12 @@ export function PartyDetailsSection() {
         <motion.div
           aria-hidden
           variants={rule}
-          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48 md:w-40 lg:w-48"
+          className="gilt-rule mt-3 h-px w-28 xs:w-36 sm:mt-4 sm:w-48 wide:w-40 wide-lg:w-48"
         />
 
         <motion.p
           variants={line}
-          className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[46ch] sm:text-base"
+          className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[46ch] sm:text-base wide:text-lg"
         >
           Every princess needs a castle. Hers has palms at the gate, a pool the colour of
           Ariel&apos;s ocean, and room for the whole kingdom.
@@ -310,9 +416,9 @@ export function PartyDetailsSection() {
 
         <motion.div
           variants={still ? STILL : CARD}
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 md:col-start-2 md:row-span-2 md:row-start-1 md:mt-0 md:self-center"
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mt-0 wide:self-center wide:p-5"
         >
-          <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl">
+          <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl wide:text-xl">
             <PalmIcon className="h-5 w-5 flex-none text-goldDeep sm:h-6 sm:w-6" />
             <span>{PARTY_LOCATION}</span>
           </p>
@@ -321,34 +427,45 @@ export function PartyDetailsSection() {
             <span className="max-w-[34ch] text-left">{PARTY_ADDRESS}</span>
           </p>
 
+          {/* Only where the two windows have to share one frame. Given room
+              for both there is nothing left to choose between, and a pair of
+              tabs that never change anything is just furniture. */}
+          {!sideBySide && (
+            <div
+              role="tablist"
+              aria-label="Look around the venue"
+              className="mx-auto mt-3 flex max-w-xs items-center gap-1 rounded-full border border-gold/30 bg-mist/60 p-1"
+            >
+              <VenueTab
+                id="video"
+                label="Walkthrough"
+                Icon={PlayIcon}
+                active={pane === "video"}
+                onSelect={setPane}
+              />
+              <VenueTab
+                id="map"
+                label="Map"
+                Icon={MapPinIcon}
+                active={pane === "map"}
+                onSelect={setPane}
+              />
+            </div>
+          )}
+
           <div
-            role="tablist"
-            aria-label="Look around the venue"
-            className="mx-auto mt-3 flex max-w-xs items-center gap-1 rounded-full border border-gold/30 bg-mist/60 p-1"
+            className={
+              sideBySide
+                ? "mt-3 grid grid-cols-2 gap-3 sm:gap-4 wide:mt-4 wide:grid-cols-1 wide:gap-5"
+                : "mt-3 overflow-hidden rounded-xl border border-gold/30 bg-mist"
+            }
           >
-            <VenueTab
+            <VenuePane
               id="video"
               label="Walkthrough"
               Icon={PlayIcon}
               active={pane === "video"}
-              onSelect={setPane}
-            />
-            <VenueTab
-              id="map"
-              label="Map"
-              Icon={MapPinIcon}
-              active={pane === "map"}
-              onSelect={setPane}
-            />
-          </div>
-
-          <div className="mt-3 overflow-hidden rounded-xl border border-gold/30 bg-mist">
-            <div
-              role="tabpanel"
-              id="venue-pane-video"
-              aria-labelledby="venue-tab-video"
-              hidden={pane !== "video"}
-              className="aspect-video w-full"
+              sideBySide={sideBySide}
             >
               {VENUE_VIDEO ? (
                 <video
@@ -430,14 +547,14 @@ export function PartyDetailsSection() {
                   note="The venue video goes here — pool, hall and all."
                 />
               )}
-            </div>
+            </VenuePane>
 
-            <div
-              role="tabpanel"
-              id="venue-pane-map"
-              aria-labelledby="venue-tab-map"
-              hidden={pane !== "map"}
-              className="aspect-video w-full"
+            <VenuePane
+              id="map"
+              label="Map"
+              Icon={MapPinIcon}
+              active={pane === "map"}
+              sideBySide={sideBySide}
             >
               {VENUE_VIDEO_EMBED ? (
         <VideoLightbox
@@ -518,7 +635,7 @@ export function PartyDetailsSection() {
                   note="The map drops in here. Directions already work — the button below opens them."
                 />
               )}
-            </div>
+            </VenuePane>
           </div>
         </motion.div>
 
@@ -527,7 +644,7 @@ export function PartyDetailsSection() {
             comes back for on the day. */}
         <motion.div
           variants={line}
-          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 md:col-start-1 md:row-start-2 md:mt-0 md:flex-wrap md:justify-start"
+          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center"
         >
           {/*
             The same button either way. With an endpoint configured it opens
@@ -553,7 +670,7 @@ export function PartyDetailsSection() {
               RSVP by {RSVP_BY}
             </a>
           )}
-          <Directions className="flex min-h-[3rem] items-center justify-center gap-2 rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition active:scale-[0.98] hover:bg-goldSoft/40 sm:px-9 sm:text-lg">
+          <Directions className="flex min-h-[3rem] items-center justify-center gap-2 rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition active:scale-[0.98] hover:bg-goldSoft/40 sm:px-9 sm:text-lg wide:min-h-[3.25rem] wide:text-xl">
             <MapPinIcon className="h-4 w-4 flex-none text-goldDeep sm:h-5 sm:w-5" />
             Get directions
           </Directions>

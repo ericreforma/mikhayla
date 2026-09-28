@@ -70,6 +70,15 @@ class Group:
     quality: int
     #: Whether the source carries transparency worth keeping (the cut-outs do).
     alpha: bool = False
+    #: Alpha below which a pixel is simply cleared, 0 to leave it alone.
+    #:
+    #: For artwork cut out of a background by hand there is often a vast, very
+    #: faint haze left round the subject — invisible against most grounds, a
+    #: dirty halo against some, and expensive against all of them, because a
+    #: fifth of the picture being *almost* transparent is a fifth of the
+    #: picture the encoder has to describe. Clearing it costs nothing that can
+    #: be seen: at an alpha of 25 a pixel is a tenth of the way to opaque.
+    fringe: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +109,17 @@ GROUPS = (
     Group("princesses", (300, 420, 560), quality=82, alpha=True),
     # The venue's stills: a poster behind a play button in a 16:9 window.
     Group("venue", (480, 720, 960), quality=80),
+    # The ornamental frame round a month's caption. Transparent through the
+    # middle — it is a frame, not a picture — so it keeps its alpha channel,
+    # and an alpha channel is most of what it costs: a mostly-empty PNG of gold
+    # filigree does not compress the way a photograph does.
+    #
+    # It only ever draws on a tablet held sideways, at about 380 CSS px across,
+    # so the tier that matters is the middle one at roughly one and a half
+    # times that. Filigree is forgiving of a little softness in a way type is
+    # not, and the difference between this and a pixel-exact 760 is eighty
+    # kilobytes for something nobody is reading.
+    Group("frames", (400, 560, 700), quality=78, alpha=True, fringe=25),
 )
 
 #: Source files that are already small and already the right format — they are
@@ -125,13 +145,22 @@ def stale(src: Path, dest: Path) -> bool:
     return not dest.exists() or dest.stat().st_mtime < src.stat().st_mtime
 
 
-def render(src: Path, dest: Path, width: int, quality: int, alpha: bool) -> int:
+def render(
+    src: Path, dest: Path, width: int, quality: int, alpha: bool, fringe: int = 0
+) -> int:
     """Writes one tier of one picture, and returns what it weighs."""
     with Image.open(src) as im:
         # An alpha group keeps its transparency; everything else is flattened
         # to RGB, which spares WebP an alpha channel it would otherwise encode
         # for a photograph that has nothing to say in it.
         im = im.convert("RGBA" if alpha else "RGB")
+
+        # The haze round a hand-cut subject — see `Group.fringe`. Done before
+        # the resize, so the faint pixels are gone rather than averaged into
+        # their neighbours on the way down.
+        if alpha and fringe:
+            band = im.getchannel("A")
+            im.putalpha(band.point(lambda v: 0 if v < fringe else v))
 
         # Never upscale — see `Group.widths`.
         target = min(width, im.width)
@@ -183,7 +212,7 @@ def main() -> int:
                     skipped += 1
                     continue
 
-                weight = render(src, dest, width, group.quality, group.alpha)
+                weight = render(src, dest, width, group.quality, group.alpha, group.fringe)
                 after += weight
                 sizes.append(f"{tier} {weight / 1024:.0f}K")
                 written += 1

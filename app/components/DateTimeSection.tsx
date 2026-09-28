@@ -102,7 +102,12 @@ export function DateTimeSection() {
   const closes = closeRaw ?? "";
 
   return (
-    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-mist pb-nav pt-8 text-center">
+    /* The gaps tighten past `md` for the same reason they do on the
+       dedication page: the root type scale makes every line taller, and on a
+       tablet turned sideways — 768px of height, less than a phone has — the
+       closing line went over the edge. The words keep their new size; the air
+       between them gives. */
+    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-mist pb-nav pt-8 text-center md:pt-4">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       {/* Tucked into the corners, where the card never reaches — even on a
@@ -140,15 +145,16 @@ export function DateTimeSection() {
       />
 
       {/*
-        Capped past `md`. The date card below breaks out of this wrapper's
-        gutter to run edge to edge, which is right on a phone and wrong on a
-        tablet held sideways: a band the full width of a 1024px screen with a
+        Capped once the screen is wider than it is tall. The date card below
+        breaks out of this wrapper's gutter to run edge to edge, which is
+        right on anything phone-shaped — an iPad held upright included — and
+        wrong on a wide one: a band the full width of a 1024px screen with a
         column of writing down the middle of it reads as a rule across the
         page rather than as a card. Held to this measure it stays a card, and
         the page keeps a margin.
       */}
       <motion.div
-        className="relative my-auto flex w-full flex-col items-center px-gutter md:max-w-3xl"
+        className="relative my-auto flex w-full flex-col items-center px-gutter wide:max-w-3xl"
         initial={false}
         animate={state}
         variants={GROUP}
@@ -178,7 +184,7 @@ export function DateTimeSection() {
         <motion.div
           aria-hidden
           variants={rule}
-          className="gilt-rule mt-4 h-px w-28 xs:w-36 sm:w-48"
+          className="gilt-rule mt-4 h-px w-28 xs:w-36 sm:w-48 md:mt-3 wide:mt-2"
         />
 
         {/*
@@ -195,12 +201,12 @@ export function DateTimeSection() {
         */}
         <motion.div
           variants={still ? STILL : CARD}
-          className="relative -mx-gutter mt-5 flex items-stretch self-stretch border-y-2 border-gold bg-white/[0.44] sm:mt-7"
+          className="relative -mx-gutter mt-5 flex items-stretch self-stretch border-y-2 border-gold bg-white/[0.44] sm:mt-7 md:mt-5 wide:mt-3"
         >
           {/* The date keeps the narrower half and centres itself in it, so it
               reads as its own panel rather than as a caption pushed against
               the left edge. */}
-          <div className="flex flex-1 flex-col justify-center py-6 pl-gutter pr-3 text-center sm:py-8 sm:pr-5">
+          <div className="flex flex-1 flex-col justify-center py-6 pl-gutter pr-3 text-center sm:py-8 sm:pr-5 wide:py-5">
             <p className="text-[11px] font-medium uppercase tracking-[0.3em] text-goldDeep sm:text-xs">
               {weekday}
             </p>
@@ -224,7 +230,7 @@ export function DateTimeSection() {
               )}
               <motion.span
                 variants={still ? STILL : NUMERAL}
-                className="relative font-display text-[3rem] font-light leading-none text-berry xs:text-6xl sm:text-7xl"
+                className="relative font-display text-[3rem] font-light leading-none text-berry xs:text-6xl sm:text-7xl wide:text-6xl"
               >
                 {day}
               </motion.span>
@@ -301,7 +307,7 @@ export function DateTimeSection() {
         */}
         <motion.div
           variants={line}
-          className="mt-4 flex max-w-full items-stretch overflow-hidden rounded-xl border border-gold/50 bg-parchment/85 shadow-sm sm:mt-5"
+          className="mt-4 flex max-w-full items-stretch overflow-hidden rounded-xl border border-gold/50 bg-parchment/85 shadow-sm sm:mt-5 md:mt-4 wide:mt-3"
         >
           <span className="flex flex-none items-center bg-goldSoft/40 px-3 sm:px-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -325,7 +331,7 @@ export function DateTimeSection() {
 
         <motion.p
           variants={line}
-          className="mt-4 max-w-[30ch] font-hand text-lg leading-snug text-berry xs:text-xl sm:mt-5 sm:max-w-none sm:text-2xl"
+          className="mt-4 max-w-[30ch] font-hand text-lg leading-snug text-berry xs:text-xl sm:mt-5 sm:max-w-none sm:text-2xl md:mt-4 wide:mt-3"
         >
           Gowns welcome. Glass slippers off at the pool gate 🌊
         </motion.p>

@@ -16,6 +16,49 @@ body {
   -webkit-text-size-adjust: 100%;
 }
 
+/* ---------------------------------------------------------------
+   One dial for the whole invitation's type
+   ---------------------------------------------------------------
+   Every size on this site is written in `rem` — the headlines, the body
+   copy, the gutters, the height of the tab bar, the princess in the corner
+   of a month. All of it is therefore a multiple of this one number, and
+   moving it moves the entire page as a set rather than leaving a tablet with
+   big headings and phone-sized paragraphs.
+
+   The phone keeps the browser's own 16px. A tablet does not: an iPad is very
+   nearly twice a phone's width and is held at arm's length rather than a
+   forearm's, so type set for the one reads as small print on the other. Held
+   upright there is height to spend as well as width, which is why portrait
+   gets the larger step of the two.
+
+   Landscape is the smaller step of the two. On a tablet turned sideways the
+   scarce dimension is height — 768px of it, less than a phone has — and type
+   set as large as portrait's would not fit however the page were arranged.
+   What buys the step it does get is the two-column layout the `wide` sections
+   use: half the height for the same words.
+
+   Nothing else in this file needs to know about any of it.
+   --------------------------------------------------------------- */
+
+@media (min-width: 768px) and (orientation: portrait) {
+  html {
+    font-size: 20px;
+  }
+}
+
+/* An iPad Pro held upright — wider again, and read from further away. */
+@media (min-width: 1024px) and (orientation: portrait) {
+  html {
+    font-size: 22px;
+  }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+  html {
+    font-size: 19px;
+  }
+}
+
 body {
   background-color: #fff8f0;
   color: #3d2b4f;
@@ -28,11 +71,52 @@ body {
   /* Height of the bottom bar, minus the safe area it pads itself with.
      Slides reserve this much room so nothing hides behind the nav. */
   --nav-h: 4.25rem;
+
+  /*
+     The bar's *real* height, hairline included — as against the roomier
+     --nav-h above, which is what the slides hold clear of it.
+
+     This is the figure anything standing *on* the bar is measured from: the
+     princess in the corner of a month, and the caption that has to clear
+     her. It is a variable rather than a number repeated in three places
+     because it is arithmetic off BottomNav's own type and padding, and the
+     two have to move together — see `.bottom-menu` below, and the comment on
+     the tab in BottomNav.tsx.
+
+     One tab's box: its padding twice, the icon's own square, the gap under
+     it, then the label, then the hairline across the top of the bar.
+  */
+  --nav-bar: calc(0.5rem * 2 + 1.5rem + 0.25rem + 9px + 1px);
+}
+
+@media (min-width: 400px) {
+  :root {
+    /* Only the label grows here. */
+    --nav-bar: calc(0.5rem * 2 + 1.5rem + 0.25rem + 10.5px + 1px);
+  }
 }
 
 @media (min-width: 640px) {
   :root {
     --nav-h: 4.75rem;
+    --nav-bar: calc(0.5rem * 2 + 1.5rem + 0.25rem + 0.75rem + 1px);
+  }
+}
+
+/*
+   A tablet gets a bar to match it.
+
+   The phone's bar is sized for a thumb on a 6-inch screen; left at that size
+   on an iPad it reads as a strip of small print along the bottom of a large
+   page, and the tabs sit well under a comfortable target for a hand holding
+   the thing at arm's length. Everything in it steps up together — padding,
+   the icon's square, the gap, the label — which is why this is one figure
+   with four terms rather than a guess.
+*/
+@media (min-width: 768px) {
+  :root {
+    --nav-h: 6.5rem;
+    --nav-bar: calc(0.75rem * 2 + 2.25rem + 0.5rem + 1rem + 1px);
   }
 }
 
@@ -167,26 +251,12 @@ body {
   /*
      Stands an absolutely-positioned element on the top edge of the bottom bar.
 
-     This is the bar's *real* height, not the roomier --nav-h the slides
-     reserve: one tab's box (0.5rem padding twice, a 1.5rem icon and a 0.25rem
-     gap = 2.75rem) plus its label, plus the hairline across the top. The label
-     is the only part that changes with width, so it is the only term that
-     moves. Keep these in step with the tab in BottomNav.
+     The bar's real height, not the roomier --nav-h the slides reserve. The
+     arithmetic lives on `--nav-bar` in `:root` — see there, and keep it in
+     step with the tab in BottomNav.
   */
   .bottom-menu {
-    bottom: calc(2.75rem + 9px + 1px + env(safe-area-inset-bottom));
-  }
-
-  @media (min-width: 400px) {
-    .bottom-menu {
-      bottom: calc(2.75rem + 10.5px + 1px + env(safe-area-inset-bottom));
-    }
-  }
-
-  @media (min-width: 640px) {
-    .bottom-menu {
-      bottom: calc(3.5rem + 1px + env(safe-area-inset-bottom));
-    }
+    bottom: calc(var(--nav-bar) + env(safe-area-inset-bottom));
   }
 
   /*
@@ -224,24 +294,6 @@ body {
     }
   }
 
-  /*
-     Keeps the tablet caption clear of the princess standing in the corner.
-
-     Past `md` a month's caption is centred down the left half of the page
-     rather than hung off the bottom of it, and the figure is still where it
-     always was — feet on the tab bar, at the screen edge. Centred in the whole
-     height the two would meet on a short window; centred in the height *above*
-     the figure, which is what this padding leaves, they cannot.
-
-     The terms are the figure's own measurements, in the same order they are
-     written in the component: its height is 6.375 title lines and the title is
-     `text-4xl` at this width, and under it sits the same offset `bottom-menu`
-     uses to stand it on the bar. The last term is breathing room.
-  */
-  .pb-figure {
-    padding-bottom: calc(6.375 * 2.25rem + 3.5rem + 1px + env(safe-area-inset-bottom) + 1rem);
-  }
-
   @media (min-width: 640px) {
     .px-gutter {
       padding-left: max(1.5rem, env(safe-area-inset-left));
@@ -255,6 +307,36 @@ body {
     .-mx-gutter {
       margin-left: calc(-1 * max(1.5rem, env(safe-area-inset-left)));
       margin-right: calc(-1 * max(1.5rem, env(safe-area-inset-right)));
+    }
+  }
+
+  /*
+     Sets the whole of a month's caption down beside the princess in the
+     corner, rather than on top of her — on a tablet held upright, which is the
+     one shape where she is half the page tall and the caption is still a band
+     under the photograph.
+
+     `.beside-figure` above does this on a phone, but only for the two lines
+     that fall inside her height: there she is a footnote about a quarter of
+     the screen tall and the title clears her easily. On a tablet she does not,
+     and the whole block has to move over.
+
+     Written as a media query rather than as a `tall:` variant on purpose, and
+     it has to stay one. The variant would be generated next to this rule,
+     which is *before* the `px-gutter` override just above — and that override
+     sets `padding-left` too, at the same specificity and later in the file, so
+     it would quietly win at every width this is meant to apply to. Baked in
+     here, after it, the order is not in question.
+
+     The figure stands at the screen edge, so this is measured from there, and
+     against the visible artwork rather than the image box — several cut-outs
+     carry a wide transparent margin. Like her height it is written in title
+     lines, so the two keep their proportion as the type scale moves: she is
+     6.375 lines tall and about 0.72 of that across at the widest.
+  */
+  @media (min-width: 768px) and (orientation: portrait) {
+    .pl-figure {
+      padding-left: calc(6.375 * 3rem * 0.72 + 1rem);
     }
   }
 }
@@ -360,15 +442,21 @@ body {
 }
 
 /*
- * Past `md` she is the right-hand half of the screen rather than a band along
- * the foot of it, so the dissolve turns through ninety degrees: it is her left
- * edge that now meets the page, and her top edge runs cleanly off it.
+ * On a screen wider than it is tall she is the right-hand half of it rather
+ * than a band along the foot, so the dissolve turns through ninety degrees:
+ * it is her left edge that now meets the page, and her top edge runs cleanly
+ * off it.
+ *
+ * The orientation test, not width alone: an iPad held upright is past 768px
+ * but keeps the single column, and a sideways mask on a photograph still
+ * standing at the foot of the page would fade the wrong edge entirely. See
+ * `wide` in tailwind.config.ts, which this has to stay in step with.
  *
  * A mask rather than a gradient overlay, here as on a phone, because what
  * shows through is the dawn wash — which is a gradient of its own, and no flat
  * colour laid over it would ever quite disappear into it.
  */
-@media (min-width: 768px) {
+@media (min-width: 768px) and (orientation: landscape) {
   .hero-portrait-fade {
     -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
     mask-image: linear-gradient(to right, transparent 0%, #000 34%);
@@ -452,10 +540,10 @@ body {
   }
 }
 
-/* And past `md` she stands in the right-hand half of the page rather than
-   under the words, so the dissolve turns onto her left edge — the same turn
-   the hero's makes, at the same width, for the same reason. */
-@media (min-width: 768px) {
+/* And where she stands in the right-hand half of the page rather than under
+   the words, the dissolve turns onto her left edge — the same turn the hero's
+   makes, on the same test, for the same reason. */
+@media (min-width: 768px) and (orientation: landscape) {
   .finale-portrait-fade {
     -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
     mask-image: linear-gradient(to right, transparent 0%, #000 34%);

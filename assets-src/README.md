@@ -49,11 +49,18 @@ widths, a different format — without touching a single path.
 | `milestones/`  | The thirteen costume shots, one per month      | 810 / 1080 / 1080                  |
 | `princesses/`  | The cut-out figures, corner of each month      | 300 / 420 / 560                    |
 | `venue/`       | The map sheet and the walkthrough still        | 480 / 720 / 960                    |
+| `frames/`      | The gilt frame round a month's caption          | 440 / 660 / 820                   |
 
 Nothing is cropped — only resized, and never upscaled past the original. The
 framing you compose is the framing that ships; the cropping is done in CSS, so
 the same file serves a phone held upright and an iPad held sideways.
 
-Transparency survives (the `princesses/` cut-outs need it); the rest is
-flattened to RGB, which spares WebP an alpha channel a photograph has no use
-for.
+Transparency survives where a folder is marked for it — the `princesses/`
+cut-outs need it, and so does `frames/`, which is a frame and therefore mostly
+hole. The rest is flattened to RGB, which spares WebP an alpha channel a
+photograph has no use for.
+
+An alpha channel is also most of what a frame costs: gold filigree on nothing
+does not compress the way a photograph does, which is why `frames/` is rendered
+smaller and a shade rougher than its pixel size would suggest. Filigree is
+forgiving of that in a way type is not.

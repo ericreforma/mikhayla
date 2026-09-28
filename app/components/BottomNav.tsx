@@ -72,10 +72,10 @@ export function BottomNav({
         className="pointer-events-none absolute inset-x-2.5 top-0 h-0"
         style={{ x: tipX }}
       >
-        <Sparkle className="-ml-[7px] -mt-[6px] h-3.5 w-3.5 text-gold drop-shadow-sm" />
+        <Sparkle className="-ml-[7px] -mt-[6px] h-3.5 w-3.5 text-gold drop-shadow-sm md:-ml-[9px] md:-mt-2 md:h-[18px] md:w-[18px]" />
       </motion.div>
 
-      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2">
+      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2 md:max-w-3xl md:px-5">
         {sections.map(({ id, label, Icon }) => {
           const isActive = id === activeSection;
           return (
@@ -85,11 +85,16 @@ export function BottomNav({
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? "true" : undefined}
                 /* min-h-[3.25rem] keeps every tab past the 44px touch target
-                   even though the icon itself is only 22px. Changing this — or
-                   the label sizes below — moves the bar's real height, which
-                   the `bottom-menu` utility in globals.css is measured
-                   against; keep the two in step. */
-                className={`relative flex min-h-[3.25rem] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors ${
+                   even though the icon itself is only 22px; past `md` the
+                   content is taller than that on its own and the floor never
+                   binds. Changing the padding, the gap, or the label sizes
+                   below moves the bar's real height, which `--nav-bar` in
+                   globals.css restates as arithmetic — keep the two in step.
+
+                   Everything past `md` is in `rem`, so it also rides the root
+                   type scale at the top of globals.css: an iPad gets a bigger
+                   bar twice over, once from these classes and once from that. */
+                className={`relative flex min-h-[3.25rem] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors md:gap-2 md:px-1 md:py-3 ${
                   isActive ? "text-berry" : "text-ink/65 hover:text-ink/85"
                 }`}
               >
@@ -105,23 +110,28 @@ export function BottomNav({
                     aria-hidden
                     layoutId="nav-stone"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    className="absolute inset-x-0.5 inset-y-1 -z-10 rounded-2xl border border-gold/50 bg-goldSoft/45 shadow-sm"
+                    className="absolute inset-x-0.5 inset-y-1 -z-10 rounded-2xl border border-gold/50 bg-goldSoft/45 shadow-sm md:inset-x-1 md:inset-y-2"
                   />
                 )}
 
-                {/* The icon keeps a 24px box of its own. It is what the
-                    `bottom-menu` utility in globals.css measures the bar's
-                    height from, and it holds the wide ones (the crown, the
-                    castle) on the same baseline as the narrow ones. */}
-                <span className="flex h-6 w-6 items-center justify-center">
-                  <Icon className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
+                {/* The icon keeps a square box of its own — 1.5rem, 2.25rem
+                    on a tablet. It is one of the terms `--nav-bar` in
+                    globals.css measures the bar's height from, and it holds
+                    the wide ones (the crown, the castle) on the same baseline
+                    as the narrow ones.
+
+                    The tablet sizes are `rem` rather than the pixel figures
+                    the phone uses, so the icon grows with the root type scale
+                    instead of staying put while its box and its label move. */}
+                <span className="flex h-6 w-6 items-center justify-center md:h-9 md:w-9">
+                  <Icon className="h-[22px] w-[22px] sm:h-6 sm:w-6 md:h-8 md:w-8" />
                 </span>
 
                 {/* nowrap + a 9px floor keeps "Her Year" on one line in six
                     tabs across a 320px screen; a wrapped label would make the
                     tabs different heights and jog the icons out of line. */}
                 <span
-                  className={`whitespace-nowrap text-[9px] leading-none tracking-wide xs:text-[10.5px] sm:text-xs ${
+                  className={`whitespace-nowrap text-[9px] leading-none tracking-wide xs:text-[10.5px] sm:text-xs md:text-base ${
                     isActive ? "font-semibold" : "font-medium"
                   }`}
                 >

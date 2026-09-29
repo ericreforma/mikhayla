@@ -149,10 +149,10 @@ export const PRELOAD_ASSETS: PreloadAsset[] = collect(
     audio(BACKGROUND_TRACK, EST.bed),
   ],
 
-  /* Her year: the gilt frame every month's caption is set in — one file for
-     all thirteen — then each month's photograph and the figure that stands on
-     it. */
-  [image(MONTH_FRAME, EST.photo)],
+  /* Her year: the four pieces of the gilt frame every month's caption is set
+     in — one set for all thirteen — then each month's photograph and the
+     figure that stands on it. */
+  Object.values(MONTH_FRAME).map((src) => image(src, EST.small)),
 
   MILESTONES.flatMap((m) =>
     collect(

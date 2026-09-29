@@ -170,25 +170,54 @@ export const HERO_PORTRAITS = [
 export const DATE_PORTRAIT = picture("/images/mikhayla-fairy.png");
 
 /**
- * The gilt frame around the caption on a month of her year.
+ * The gilt frame around the caption on a month of her year, in the four pieces
+ * the page lays out.
  *
  * Only ever drawn on a screen wider than it is tall, where the caption has a
  * column of its own to be framed in — see `MilestonePanel`. Stacked, the
  * caption sits on the photograph itself and a frame round it would be a box
  * round a picture.
  *
- * A picture rather than a drawn rule because of what it is: gold filigree, a
- * crown at the top and gems down the sides, which is a painting and not
- * something CSS has any business imitating. Transparent through the middle —
- * it is a frame — so it is rendered with its alpha channel kept; see the
- * `frames` group in `scripts/optimize-images.py`.
+ * Four pieces rather than one picture because one picture cannot fit. The
+ * drawing is square and the column is a tall rectangle, so a single image has
+ * to be stretched to fit it — and stretched filigree reads as a picture pulled
+ * out of shape, because it is. Cut up, only the two hairlines down the sides
+ * are stretched, and a straight line stretches without anybody seeing it. The
+ * crests keep their proportions.
  *
- * Replacing it: keep the opening roughly where this one has it — clear from
- * about a tenth in on each side and from an eighth down, which is what the
- * caption's padding is set against — and keep it portrait, since the column it
- * dresses is taller than it is wide.
+ * `scripts/slice-border.py` cuts them out of `assets-src/frames/royal-border.svg`
+ * and prints the figures the panel positions them with. Replacing the frame
+ * means re-running it — and drawing the replacement the same way, as two
+ * crests joined by two straight rules, since that is the construction the
+ * script looks for and the reason this fits at all.
+ *
+ * SVGs, and so untiered: a few hundred curves that weigh less than a
+ * photograph and stay sharp at any size, which is the whole reason to prefer a
+ * vector here.
  */
-export const MONTH_FRAME = picture("/frames/royal-border.png");
+export const MONTH_FRAME = {
+  top: asset("/frames/border-top.svg"),
+  bottom: asset("/frames/border-bottom.svg"),
+  ruleLeft: asset("/frames/border-rule-left.svg"),
+  ruleRight: asset("/frames/border-rule-right.svg"),
+} as const;
+
+/**
+ * The shape of those pieces, as the slicer measured them — see its output.
+ *
+ * The crests are laid across the frame at full width, so their height follows
+ * from their own proportions; the hairlines are placed by a share of that same
+ * width, which is what keeps them under the rails the crests draw at any size
+ * the frame turns out to be. Re-run the slicer and copy its figures here.
+ */
+export const MONTH_FRAME_SHAPE = {
+  /** width / height of each crest, for the box that holds it. */
+  topAspect: "1083 / 336",
+  bottomAspect: "1083 / 338",
+  /** How far in each hairline sits, and how thick it is. */
+  ruleInset: "2.091%",
+  ruleWidth: "0.336%",
+} as const;
 
 /**
  * The icon on the swimwear pass. A picture rather than one of the drawn

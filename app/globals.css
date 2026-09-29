@@ -470,6 +470,27 @@ body {
  * her. Three stops rather than one: a tight bright core to carve the
  * letterforms out, and a wider soft one to hold them together.
  */
+/*
+ * The same halo, for the foot of a month's caption on a landscape page.
+ *
+ * The princess stands in the middle of the caption's own column there and at
+ * better than a third of the slide's height, which is taller than the column
+ * has room for — so on a month with a long title the last lines of the caption
+ * fall across her. This is what keeps them readable where they do.
+ *
+ * Only where that can happen, and invisible everywhere else: a white glow
+ * behind dark ink on a pale tint shows nothing at all until there is something
+ * busier than tint behind it.
+ */
+@media (min-width: 768px) and (orientation: landscape) {
+  .caption-halo {
+    text-shadow:
+      0 0 4px rgba(255, 255, 255, 0.95),
+      0 0 10px rgba(255, 255, 255, 0.85),
+      0 1px 3px rgba(255, 255, 255, 0.9);
+  }
+}
+
 .cue-halo {
   text-shadow:
     0 0 4px rgba(255, 255, 255, 0.95),

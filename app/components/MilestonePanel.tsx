@@ -1,7 +1,14 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { Milestone, ACCENT_STYLES, BABY_NAME, MILESTONES, MONTH_FRAME } from "@/app/config";
+import {
+  Milestone,
+  ACCENT_STYLES,
+  BABY_NAME,
+  MILESTONES,
+  MONTH_FRAME,
+  MONTH_FRAME_SHAPE,
+} from "@/app/config";
 import { useSlideIsActive } from "./SlideActive";
 import { MilestoneAmbience } from "./MilestoneAmbience";
 
@@ -49,18 +56,71 @@ const PHOTO: Variants = {
   in: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: EASE } },
 };
 
-/**
- * The caption's frame, settling back out of a breath of a push-in as the page
- * lands — the same gesture the photograph opposite it makes, which is what
- * makes the two read as one spread arriving rather than two things appearing.
+/*
+ * The frame drawing itself.
  *
- * It is in the cascade rather than simply present because of what it is for:
- * a border that is already there when the words turn up reads as part of the
- * furniture, and the whole point of it is to belong to the caption inside it.
+ * Cutting the border into four was done to stop it stretching, but it pays a
+ * second time here: each piece can be uncovered along its own run, so the
+ * frame arrives the way it would be drawn rather than simply fading up.
+ *
+ * The order is a hand's. It starts at the crown in the middle of the top crest
+ * and spreads to both corners; the hairlines run down the sides after it; the
+ * bottom crest opens from its own middle last. Each overlaps the one before,
+ * so it reads as one continuous stroke rather than three separate reveals.
+ *
+ * It closes just under a second, which is a little behind the caption's own
+ * cascade and deliberately so — the words are what a guest came for and the
+ * frame is the flourish round them. Much longer and a quick swipe down the
+ * rail leaves a border still drawing itself on a page already being left.
+ *
+ * `clipPath` rather than a stroke dash, because the artwork is filled shapes —
+ * filigree, not outlines — and there is no stroke on it to pay out. An inset
+ * that opens from the middle does the same thing to the eye.
  */
-const FRAME: Variants = {
-  out: { opacity: 0, scale: 0.97, transition: { duration: 0.3, ease: EASE } },
-  in: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: EASE } },
+
+/**
+ * The frame as a whole, which draws nothing itself.
+ *
+ * It exists so the four pieces below can be driven by one flag. Framer only
+ * treats an element as a variant node — and so only hands `in` / `out` down to
+ * its children — if it has `variants` of its own; an `animate` label on a
+ * parent with none of them stops there. So this is deliberately empty rather
+ * than missing.
+ */
+const FRAME_GROUP: Variants = { out: {}, in: {} };
+
+/** The top crest, opening from the crown outwards to both corners. */
+const DRAW_CREST_TOP: Variants = {
+  out: { clipPath: "inset(0% 50% 0% 50%)", transition: { duration: 0.28, ease: EASE } },
+  in: { clipPath: "inset(0% 0% 0% 0%)", transition: { duration: 0.5, ease: EASE } },
+};
+
+/** The hairlines, running down from the corners the crest just reached. */
+const DRAW_RULE: Variants = {
+  out: { clipPath: "inset(0% 0% 100% 0%)", transition: { duration: 0.25, ease: EASE } },
+  in: {
+    clipPath: "inset(0% 0% 0% 0%)",
+    transition: { duration: 0.45, delay: 0.26, ease: EASE },
+  },
+};
+
+/** And the bottom crest, opening from its middle to close the frame. */
+const DRAW_CREST_BOTTOM: Variants = {
+  out: { clipPath: "inset(0% 50% 0% 50%)", transition: { duration: 0.28, ease: EASE } },
+  in: {
+    clipPath: "inset(0% 0% 0% 0%)",
+    transition: { duration: 0.5, delay: 0.46, ease: EASE },
+  },
+};
+
+/**
+ * The same for a visitor who has asked for less motion: the frame is simply
+ * there, faded up with everything else. A border that draws itself is a
+ * flourish, and a flourish is the first thing that setting means to switch off.
+ */
+const FRAME_STILL: Variants = {
+  out: { opacity: 0, transition: { duration: 0.2 } },
+  in: { opacity: 1, transition: { duration: 0.3 } },
 };
 
 /** Her princess, stepping in from the edge she stands on. */
@@ -194,21 +254,35 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         in the same title lines.
       */}
       {m.character ? (
-        <motion.div
+        /*
+          Two elements, and the outer one is only there to stand her in the
+          right place — Framer writes its own `transform` for the step-in
+          below and would overwrite anything positional in the class list.
+        */
+        <span
           aria-hidden
-          className="pointer-events-none absolute bottom-menu left-0 z-10 text-2xl leading-none xs:text-3xl sm:text-4xl md:text-5xl wide:left-[28%]"
-          initial={false}
-          animate={state}
-          variants={reduce ? STILL : FIGURE}
+          className="pointer-events-none absolute bottom-menu left-0 z-10 text-2xl leading-none xs:text-3xl sm:text-4xl md:text-5xl wide:left-[22.5%] wide:-translate-x-1/2"
         >
+        <motion.div initial={false} animate={state} variants={reduce ? STILL : FIGURE}>
           {/*
             Everywhere else she is sized in title lines — see the comment
             above. On a landscape page she is sized against the page instead,
             because there she is not a footnote in the corner any more: she
-            stands against the right-hand side of the caption's frame at a
-            little over a third of the slide's height, stepping out over the
-            photograph beside her. A share of the slide is a figure the type
-            ladder cannot express, and it is the figure that matters here.
+            stands better than a third of the slide tall. A share of the slide
+            is a figure the type ladder cannot express, and it is the figure
+            that matters here.
+
+            She stands in the middle of the caption's own column at that
+            height, which is a deliberate trade and worth knowing about: the
+            column is not tall enough for both her and the words at full size,
+            so the last lines of the caption fall across her. The words keep
+            the front — see the `z-20` on the caption and the `z-10` here — and
+            she reads as something standing behind them.
+
+            The two ways out, if that ever needs undoing: move her back out
+            over the photograph (`left-[28%]`, where nothing of the caption
+            reaches her), or bring her height down to about `20vh`, which is
+            what the longest month's title leaves clear beneath it.
           */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -219,6 +293,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
             className="block h-[6.375em] w-auto drop-shadow-sm wide:h-[38vh]"
           />
         </motion.div>
+        </span>
       ) : null}
 
       {/*
@@ -226,65 +301,106 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         fade, with the photograph filling everything above it.
 
         On a screen wider than it is tall it becomes the left-hand half of
-        the page and centres itself down that half — still centred as a
-        setting, the way it is on a phone, just in a column of its own beside
-        her instead of a band under her, and inside a frame of its own. The
-        top padding matches the frame's own top inset, which is what gives the
-        two a shared middle to centre on.
+        the page and sits in the upper part of a frame of its own — still
+        centred as a setting, the way it is on a phone, just in a column of its
+        own beside her instead of a band under her.
+
+        Hung from the top rather than centred in the frame, and the padding is
+        in `vw` rather than a share of the height, both for the same reason:
+        what it has to clear is the crest, and the crest is laid across the
+        frame at full width, so where its ink ends is a share of the *width* of
+        the page. Measured that way the gap under it holds from an iPad to a
+        laptop — a little over a dozen pixels on one and a little over twenty
+        on the other. Hung from the top, it also holds from month to month: a
+        four-line title grows downwards into the room the princess leaves,
+        instead of pushing its first line up under the ornament.
       */}
       <div
-        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center wide:w-[45%] wide:justify-center wide:px-12 wide:pt-[11%] wide:text-center${
+        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center wide:w-[45%] wide:justify-start wide:px-12 wide:pt-[14vw] wide:text-center${
           m.character ? " pl-figure" : ""
         }`}
       >
         {/*
-          The caption's frame.
+          The caption's frame, in its four pieces.
 
-          Landscape's alone. Stacked, the caption sits over the
-          photograph itself and a frame drawn round it would be a box round a
-          picture; given a column of its own there is a shape to dress, and
-          this is the invitation it would be if it were printed — a gilt frame
-          with the month's own object at the corner of it.
+          Landscape's alone. Stacked, the caption sits over the photograph
+          itself and a frame drawn round it would be a box round a picture;
+          given a column of its own there is a shape to dress, and this is the
+          invitation it would be if it were printed.
 
-          The frame keeps its own proportions rather than being stretched to
-          the column: it is a painting, with a crown at the head of it and gems
-          down the sides, and a crown half again as wide as it was drawn reads
-          as a mistake. So it is sized by its height — which is the scarce
-          dimension on a landscape page — and centred in whatever width is
-          left. `--nav-bar` at the foot is what keeps it off the tab bar, which
+          A column of three: the top crest, whatever height is left, the bottom
+          crest. The crests are laid across at full width and take their own
+          height from their own proportions, so neither is ever scaled unevenly
+          — which is the whole reason the drawing is cut up at all. The middle
+          band is the flexible one, and all that runs down it is two straight
+          hairlines, which stretch to any height without anybody seeing it.
+
+          The hairlines are placed by a share of the frame's *width*, not its
+          height, because that is what the crests above and below them are
+          scaled to: it is what keeps them under the rails the crests draw, at
+          whatever size the frame turns out to be. The figures come from the
+          slicer — see `MONTH_FRAME_SHAPE` in config.
+
+          Cut into four, each piece can also be uncovered along its own run as
+          the page lands, so the frame draws itself rather than fading up — see
+          the variants above.
+
+          `--nav-bar` at the foot keeps the whole thing off the tab bar, which
           the panel itself runs behind.
-
-          One picture for every month, so it is one download however far down
-          the rail a guest swipes. See `MONTH_FRAME` in config.
         */}
-        {/*
-          Two elements, and they have to be two: the outer one is where the
-          frame *is* and the inner one is what it does on arrival. Framer
-          Motion writes its own `transform` on anything it animates, which
-          silently throws away a `-translate-x-1/2` sitting in the class list —
-          so the centring lives out here where nothing will overwrite it, and
-          the scale-and-fade lives inside.
-        */}
-        <span
+        <motion.span
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-[6%] z-0 hidden aspect-[971/1619] -translate-x-1/2 wide:block"
+          initial={false}
+          animate={state}
+          variants={FRAME_GROUP}
+          className="pointer-events-none absolute inset-x-3 top-[3%] z-0 hidden flex-col wide:flex"
           style={{ bottom: "calc(var(--nav-bar) + 0.75rem)" }}
         >
+          {/* It is here to hold the four pieces in place and to hand `in` /
+              `out` down to them, each of which draws itself along its own
+              run — see `FRAME_GROUP` for why it carries empty variants. */}
           <motion.span
-            initial={false}
-            animate={state}
-            variants={reduce ? STILL : FRAME}
-            className="absolute inset-0 block"
+            variants={reduce ? FRAME_STILL : DRAW_CREST_TOP}
+            className="block w-full flex-none bg-[length:100%_100%] bg-no-repeat"
             style={{
-              backgroundImage: `url(${MONTH_FRAME})`,
-              backgroundRepeat: "no-repeat",
-              backgroundSize: "100% 100%",
+              aspectRatio: MONTH_FRAME_SHAPE.topAspect,
+              backgroundImage: `url(${MONTH_FRAME.top})`,
             }}
           />
-        </span>
+
+          <span className="relative block min-h-0 flex-1">
+            <motion.span
+              variants={reduce ? FRAME_STILL : DRAW_RULE}
+              className="absolute inset-y-0 block min-w-px bg-[length:100%_100%] bg-no-repeat"
+              style={{
+                left: MONTH_FRAME_SHAPE.ruleInset,
+                width: MONTH_FRAME_SHAPE.ruleWidth,
+                backgroundImage: `url(${MONTH_FRAME.ruleLeft})`,
+              }}
+            />
+            <motion.span
+              variants={reduce ? FRAME_STILL : DRAW_RULE}
+              className="absolute inset-y-0 block min-w-px bg-[length:100%_100%] bg-no-repeat"
+              style={{
+                right: MONTH_FRAME_SHAPE.ruleInset,
+                width: MONTH_FRAME_SHAPE.ruleWidth,
+                backgroundImage: `url(${MONTH_FRAME.ruleRight})`,
+              }}
+            />
+          </span>
+
+          <motion.span
+            variants={reduce ? FRAME_STILL : DRAW_CREST_BOTTOM}
+            className="block w-full flex-none bg-[length:100%_100%] bg-no-repeat"
+            style={{
+              aspectRatio: MONTH_FRAME_SHAPE.bottomAspect,
+              backgroundImage: `url(${MONTH_FRAME.bottom})`,
+            }}
+          />
+        </motion.span>
 
         <motion.div
-          className="relative z-20 w-full wide:mx-auto wide:max-w-[38vh]"
+          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh]"
           initial={false}
           animate={state}
           variants={GROUP}
@@ -327,9 +443,11 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           */}
           <motion.div
             variants={TAIL_GROUP}
+            /* `caption-halo` only earns its keep on the two lines that can
+               fall across the princess — the title never reaches her. */
             className={
               m.character
-                ? "beside-figure mt-3 text-left md:mx-auto md:max-w-[32ch] wide:mx-auto wide:max-w-[30ch] wide:text-center"
+                ? "beside-figure caption-halo mt-3 text-left md:mx-auto md:max-w-[32ch] wide:mx-auto wide:max-w-[30ch] wide:text-center"
                 : "mt-3 wide:mx-auto wide:max-w-[30ch]"
             }
           >

@@ -220,6 +220,29 @@ export const MONTH_FRAME_SHAPE = {
 } as const;
 
 /**
+ * The gilt upright that stands between two columns of text — see
+ * `ChristeningSection`, which is the one page split in two.
+ *
+ * A rule with a fleuron at each end, four beads a quarter of the way in and a
+ * medallion in the middle: the ornament a horizontal rule on an order of
+ * service has, stood on end. Its two shapes are lifted out of the same artwork
+ * the frame above is cut from, so it is in the same hand as the rest of the
+ * page rather than a divider that happens to be gold.
+ *
+ * One piece rather than four, unlike that frame. The frame is cut up because
+ * it has to fit a column of whatever height the page gives it; this is fitted
+ * to its box instead of stretched across it, so nothing is ever scaled
+ * unevenly and there is nothing to slice. It is drawn fourteen times longer
+ * than it is wide so that, fitted to the height of a christening column, it
+ * always comes out under the width the gap between them can spare.
+ *
+ * `scripts/build-column-separator.py` draws it. Redrawing it means re-running
+ * that — and changing its proportions means checking the width it comes out
+ * at, since the page gives it its height and it works out the rest.
+ */
+export const COLUMN_SEPARATOR = asset("/frames/column-separator.svg");
+
+/**
  * The icon on the swimwear pass. A picture rather than one of the drawn
  * ornaments, so it keeps its own colours instead of taking the page's.
  */
@@ -558,7 +581,7 @@ const MILESTONE_PAGES: Milestone[] = [
   { month: 9,  princess: "Moana",      title: "How far you'll go",             note: "You started crawling, and nothing in this house was safe again.",         tint: "#F1DADB", accent: "moana",      character: "/princesses/moana.png",     photo: "/milestones/09-moana.png",      ambience: "coconut-fall", music: "/audio/moana.MP3" },
   { month: 10, princess: "Belle",      title: "Tale as old as time",           note: "You waved bye-bye. A tiny hand, and a very big deal.",                    tint: "#F1E9DA", accent: "belle",      character: "/princesses/belle.png",     photo: "/milestones/10-belle.png",      ambience: "rose-petals",  music: "/audio/belle.MP3" },
   { month: 11, princess: "Cinderella", title: "If the shoe fits",              note: "First steps — wobbly, brave, and gone in a blink. No midnight needed.",   tint: "#E1E1EA", accent: "cinderella", character: "/princesses/cinderella.png", photo: "/milestones/11-cinderella.png", ambience: "birds",        music: "/audio/cinderella.MP3" },
-  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla",                                           photo: "/milestones/12-mikhayla.png",   ambience: "sparkle-fall", music: "/audio/mikhayla.mp3" },
+  { month: 12, princess: "Mikhayla",   title: "A crown of your own",           note: "A year ago you arrived. Now the whole kingdom comes to you.",             tint: "#F1DAEA", accent: "mikhayla", character: "/princesses/mikhayla.png",    photo: "/milestones/12-mikhayla.png",   ambience: "sparkle-fall", music: "/audio/mikhayla.mp3" },
 ];
 
 /**

@@ -284,13 +284,42 @@ export function MilestonePanel({ m }: { m: Milestone }) {
             reaches her), or bring her height down to about `20vh`, which is
             what the longest month's title leaves clear beneath it.
           */}
+          {/*
+            Sized by its height, with a ceiling on how wide that is allowed to
+            make it.
+
+            The ceiling is what the caption's clearance assumes. `.beside-figure`
+            and `.pl-figure` in globals.css set the words down beside her by a
+            fixed inset, and a fixed inset only works if no cut-out is wider
+            than it — the figures are a set of pictures, though, and a new one
+            need not be shaped like the eleven before it. Her own month's is
+            nearly square where a princess is tall and narrow, and left to its
+            own proportions it reached across the inset and the title landed on
+            her wings.
+
+            5.6em is the widest a figure can be and still sit inside that
+            clearance. Every drawn princess is narrower than it already — the
+            broadest is a shade over 5.4em — so this changes none of them; it
+            is a floor under the assumption rather than a new rule. Anything
+            wider is held to it and loses height to keep its proportions.
+
+            `object-bottom` because the box is still a full 6.375em tall when
+            the ceiling bites, and she stands on the foot of it rather than
+            floating in the middle. `object-contain` because without it a
+            capped box would simply squash her.
+
+            None of it applies once the page is landscape: there she stands in
+            the caption's own column with the words above her, not beside them,
+            so there is no inset to respect and she is free to be as wide as
+            38vh of height makes her.
+          */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={m.character}
             alt=""
             loading="lazy"
             decoding="async"
-            className="block h-[6.375em] w-auto drop-shadow-sm wide:h-[38vh]"
+            className="block h-[6.375em] w-auto max-w-[5.6em] object-contain object-bottom drop-shadow-sm wide:h-[38vh] wide:max-w-none"
           />
         </motion.div>
         </span>

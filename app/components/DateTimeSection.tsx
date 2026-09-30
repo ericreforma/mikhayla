@@ -102,11 +102,29 @@ export function DateTimeSection() {
   const closes = closeRaw ?? "";
 
   return (
-    /* The gaps tighten past `md` for the same reason they do on the
-       dedication page: the root type scale makes every line taller, and on a
-       tablet turned sideways — 768px of height, less than a phone has — the
-       closing line went over the edge. The words keep their new size; the air
-       between them gives. */
+    /*
+      The air between these rows is set per shape of screen, because how much
+      there is to spend varies enormously and the page is a stack of seven
+      things either way.
+
+      Measured, with the column against the height left after the padding:
+      a phone has around 220px going spare, a tablet held upright 150px, a
+      desktop window 130px — and a tablet turned sideways has two. That last
+      one is the whole reason the gaps were ever tight: 768px of height, less
+      than a phone has, and the closing line went over the edge. So `wide:`
+      keeps the close rhythm it has always had, and everything else opens up:
+      `tall:` for the upright tablet, `wide-lg:` once there is desktop height,
+      and the unprefixed values for the phone.
+
+      That leaves `md:` doing nothing but feeding a screen that is neither —
+      it is overridden by `tall:` or `wide:` on anything 768px or wider. It
+      stays because the ladder reads wrong without it.
+
+      The numbers are worth re-measuring rather than nudging: the smallest
+      screen each tier has to hold is the one that binds, and for `wide-lg:`
+      that is a 1280x800 laptop with 34px to give, not the 1440x900 window it
+      is tempting to check.
+    */
     <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-mist pb-nav pt-8 text-center md:pt-4">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
@@ -170,13 +188,13 @@ export function DateTimeSection() {
           </motion.div>
         </motion.div>
 
-        <motion.p variants={line} className="mt-3 font-hand text-lg text-berry xs:text-xl sm:text-2xl">
+        <motion.p variants={line} className="mt-4 font-hand text-lg text-berry xs:text-xl sm:mt-5 sm:text-2xl tall:mt-6 wide:mt-3 wide-lg:mt-4">
           Save the date
         </motion.p>
 
         <motion.h2
           variants={line}
-          className="mt-1 font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:text-4xl"
+          className="mt-2 font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:text-4xl tall:mt-3 wide:mt-1"
         >
           A royal splash
         </motion.h2>
@@ -184,7 +202,7 @@ export function DateTimeSection() {
         <motion.div
           aria-hidden
           variants={rule}
-          className="gilt-rule mt-4 h-px w-28 xs:w-36 sm:w-48 md:mt-3 wide:mt-2"
+          className="gilt-rule mt-6 h-px w-28 xs:w-36 sm:mt-7 sm:w-48 md:mt-3 tall:mt-7 wide:mt-2 wide-lg:mt-3"
         />
 
         {/*
@@ -201,7 +219,7 @@ export function DateTimeSection() {
         */}
         <motion.div
           variants={still ? STILL : CARD}
-          className="relative -mx-gutter mt-5 flex items-stretch self-stretch border-y-2 border-gold bg-white/[0.44] sm:mt-7 md:mt-5 wide:mt-3"
+          className="relative -mx-gutter mt-7 flex items-stretch self-stretch border-y-2 border-gold bg-white/[0.44] sm:mt-9 md:mt-5 tall:mt-9 wide:mt-3 wide-lg:mt-4"
         >
           {/* The date keeps the narrower half and centres itself in it, so it
               reads as its own panel rather than as a caption pushed against
@@ -307,7 +325,7 @@ export function DateTimeSection() {
         */}
         <motion.div
           variants={line}
-          className="mt-4 flex max-w-full items-stretch overflow-hidden rounded-xl border border-gold/50 bg-parchment/85 shadow-sm sm:mt-5 md:mt-4 wide:mt-3"
+          className="mt-6 flex max-w-full items-stretch overflow-hidden rounded-xl border border-gold/50 bg-parchment/85 shadow-sm sm:mt-7 md:mt-4 tall:mt-7 wide:mt-3 wide-lg:mt-4"
         >
           <span className="flex flex-none items-center bg-goldSoft/40 px-3 sm:px-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -331,7 +349,7 @@ export function DateTimeSection() {
 
         <motion.p
           variants={line}
-          className="mt-4 max-w-[30ch] font-hand text-lg leading-snug text-berry xs:text-xl sm:mt-5 sm:max-w-none sm:text-2xl md:mt-4 wide:mt-3"
+          className="mt-6 max-w-[30ch] font-hand text-lg leading-snug text-berry xs:text-xl sm:mt-7 sm:max-w-none sm:text-2xl md:mt-4 tall:mt-7 wide:mt-3 wide-lg:mt-4"
         >
           Gowns welcome. Glass slippers off at the pool gate 🌊
         </motion.p>

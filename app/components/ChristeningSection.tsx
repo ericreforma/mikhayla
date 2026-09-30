@@ -1,7 +1,13 @@
 "use client";
 
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { BABY_NAME, PASTOR_NAME, GODMOTHERS, GODFATHERS } from "@/app/config";
+import {
+  BABY_NAME,
+  PASTOR_NAME,
+  GODMOTHERS,
+  GODFATHERS,
+  COLUMN_SEPARATOR,
+} from "@/app/config";
 import { Sparkle, CrossIcon } from "./Ornaments";
 import { useSlideIsActive } from "./SlideActive";
 
@@ -22,6 +28,16 @@ const LINE: Variants = {
 const RULE: Variants = {
   out: { opacity: 0, scaleX: 0, transition: { duration: 0.25, ease: EASE } },
   in: { opacity: 1, scaleX: 1, transition: { duration: 0.55, ease: EASE } },
+};
+
+/**
+ * The upright between the two columns, drawn out from its middle — the same
+ * gesture as a hairline, turned on its side. Slower, because it is longer, and
+ * last, because it is the thing that says the two columns are one plate.
+ */
+const UPRIGHT: Variants = {
+  out: { opacity: 0, scaleY: 0, transition: { duration: 0.3, ease: EASE } },
+  in: { opacity: 1, scaleY: 1, transition: { duration: 0.7, delay: 0.1, ease: EASE } },
 };
 
 const CARD: Variants = {
@@ -184,7 +200,7 @@ export function ChristeningSection() {
         sequence the single column always had.
       */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:max-w-4xl wide:flex-row wide:items-center wide:gap-10 wide-lg:gap-14"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:max-w-4xl wide:flex-row wide:items-center wide:gap-5 wide-lg:gap-7"
         initial={false}
         animate={state}
         variants={GROUP}
@@ -240,6 +256,43 @@ export function ChristeningSection() {
 
       </motion.div>
 
+      {/*
+        The gilt upright down the middle, and only once there is a middle for
+        it to be down: stacked, the two wrappers are one column with a seam,
+        and a rule across that seam would cut the page in half rather than
+        divide it.
+
+        It costs the columns no width, which is the whole reason it is built
+        this way. The wrapper is a flex item of no width at all and the drawing
+        hangs off the middle of it, so what the upright stands in is the gap
+        that was already there — it just has something in it now. A wrapper
+        with real width would be paid for by the left column, which cannot take
+        it: that column is what sets this page's height, its paragraph is one
+        word off a sixth line, and the right one is already down to the width
+        its twelve names need and will not shrink to make room.
+
+        Hence the halved gaps. There are two of them now rather than one, on
+        either side of a wrapper with nothing between them, so half each leaves
+        the columns exactly the width they had.
+
+        `contain` is what keeps the filigree square: the box is stretched to
+        the taller column and the drawing fitted inside it at its own
+        proportions, so it runs the full height of the plate and works out its
+        own width from that — around forty pixels, comfortably inside the gap.
+        `w-14` is a ceiling on that, for a column tall enough to want more.
+      */}
+      <div aria-hidden className="relative hidden w-0 flex-none self-stretch wide:block">
+        {/* The half-width shift is `x` rather than a `-translate-x-1/2` class
+            because the variants animate `scaleY`, and Motion composes the whole
+            of `transform` itself — a Tailwind translate on the same element
+            would be written over the moment the animation ran. */}
+        <motion.div
+          variants={still ? STILL : UPRIGHT}
+          className="absolute inset-y-0 left-1/2 w-14 bg-contain bg-center bg-no-repeat"
+          style={{ x: "-50%", backgroundImage: `url(${COLUMN_SEPARATOR})` }}
+        />
+      </div>
+
       {/* The plate of names, and who reads them out — its own column once
           there is width to spare and height to save. */}
       <motion.div
@@ -247,10 +300,17 @@ export function ChristeningSection() {
         variants={GROUP}
       >
         {/* The dedication verse, set apart the way a verse is on the order of
-            service — a gilt upright rather than quote marks. */}
+            service — by its own setting and the air around it rather than by
+            quote marks. It had a gilt upright down its left side, which went
+            when the columns got one of their own: two of them a few inches
+            apart read as a stray mark rather than a device. The indent went
+            with it, since it was only ever there to clear it.
+
+            The margin under it is what now holds it off the plate of names,
+            which sits flush to it in two columns — see its `wide:mt-0`. */}
         <motion.figure
           variants={line}
-          className="mt-4 border-l-2 border-gold/50 pl-3 text-left sm:mt-5 sm:pl-4 md:mt-3 wide:mx-auto wide:mt-5 wide:pl-5"
+          className="mb-5 mt-4 text-left sm:mt-5 md:mt-3 wide:mx-auto wide:mt-5"
         >
           <blockquote className="max-w-[36ch] font-display text-sm italic leading-relaxed text-royal sm:max-w-[44ch] sm:text-base wide:text-lg wide:leading-loose">
             &ldquo;For this child I prayed, and the Lord has granted me what I asked of Him.&rdquo;

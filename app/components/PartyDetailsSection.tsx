@@ -15,6 +15,7 @@ import {
   VENUE_VIDEO_VERTICAL,
   VENUE_MAP_IMAGE,
   VENUE_MAP_EMBED,
+  COLUMN_SEPARATOR,
 } from "@/app/config";
 import { Crown, Sparkle, MapPinIcon, PlayIcon, PalmIcon, ExpandIcon } from "./Ornaments";
 import { ImageLightbox } from "./ImageLightbox";
@@ -43,6 +44,17 @@ const LINE: Variants = {
 const RULE: Variants = {
   out: { opacity: 0, scaleX: 0, transition: { duration: 0.25, ease: EASE } },
   in: { opacity: 1, scaleX: 1, transition: { duration: 0.55, ease: EASE } },
+};
+
+/**
+ * The gilt upright between the two columns, drawn out from its middle — the
+ * same gesture as a hairline, turned on its side, and the same one the
+ * dedication page uses. Slower, because it is longer, and last, because it is
+ * the thing that says the two halves are one plate.
+ */
+const UPRIGHT: Variants = {
+  out: { opacity: 0, scaleY: 0, transition: { duration: 0.3, ease: EASE } },
+  in: { opacity: 1, scaleY: 1, transition: { duration: 0.7, delay: 0.1, ease: EASE } },
 };
 
 const CARD: Variants = {
@@ -303,19 +315,28 @@ export function PartyDetailsSection() {
   }, [isActive]);
 
   return (
-    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-parchment px-gutter pb-nav pt-8 text-center wide:pt-3">
+    /* The gutter comes off once the page splits, so the two columns can be a
+       true half of the window each and the rule between them lands on its
+       centre line — the same arrangement as the dedication page. Each column
+       carries its own padding, and its contents are capped and centred inside
+       that, so nothing runs to the screen edge. */
+    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-parchment px-gutter pb-nav pt-8 text-center wide:px-0 wide:pt-3">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
-      {/* Tucked into the corners, where the card never reaches. */}
+      {/* Tucked into the corners, where the card never reaches — and pulled
+          further into them once it does. The venue card is centred in a half of
+          the window now rather than held inside a 4xl box, so on a wide screen
+          its top corner had grown out under the right-hand sparkle. These are
+          decoration; nothing of them may land on the card's own gilt edge. */}
       <FloatingSparkle
-        className="left-[4%] top-[6%] text-gold sm:left-[9%] sm:top-[11%]"
+        className="left-[4%] top-[6%] text-gold sm:left-[9%] sm:top-[11%] wide:left-[3%] wide:top-[7%]"
         size="h-5 w-5 xs:h-6 xs:w-6 sm:h-8 sm:w-8"
         drift={20}
         duration={6.5}
         still={still}
       />
       <FloatingSparkle
-        className="right-[5%] top-[9%] text-roseDeep sm:right-[10%] sm:top-[14%]"
+        className="right-[5%] top-[9%] text-roseDeep sm:right-[10%] sm:top-[14%] wide:right-[3%] wide:top-[7%]"
         size="h-4 w-4 xs:h-5 xs:w-5 sm:h-7 sm:w-7"
         drift={-18}
         duration={5.5}
@@ -323,7 +344,7 @@ export function PartyDetailsSection() {
         still={still}
       />
       <FloatingSparkle
-        className="bottom-[8%] left-[5%] text-roseDeep sm:bottom-[13%] sm:left-[12%]"
+        className="bottom-[8%] left-[5%] text-roseDeep sm:bottom-[13%] sm:left-[12%] wide:bottom-[6%] wide:left-[3%]"
         size="h-4 w-4 xs:h-5 xs:w-5 sm:h-7 sm:w-7"
         drift={16}
         duration={6}
@@ -331,7 +352,7 @@ export function PartyDetailsSection() {
         still={still}
       />
       <FloatingSparkle
-        className="bottom-[6%] right-[5%] text-gold sm:bottom-[11%] sm:right-[11%]"
+        className="bottom-[6%] right-[5%] text-gold sm:bottom-[11%] sm:right-[11%] wide:bottom-[6%] wide:right-[3%]"
         size="h-5 w-5 xs:h-6 xs:w-6 sm:h-8 sm:w-8"
         drift={-20}
         duration={7}
@@ -358,13 +379,44 @@ export function PartyDetailsSection() {
         there. Held upright the single column fits, so it stays.
       */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:grid wide:max-w-4xl wide:grid-cols-2 wide:items-center wide:gap-x-9 wide:gap-y-6 wide-lg:gap-x-12"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:grid wide:max-w-none wide:grid-cols-2 wide:items-center wide:gap-x-0 wide:gap-y-6"
         initial={false}
         animate={state}
         variants={GROUP}
       >
+      {/*
+        The gilt upright down the middle, and only once there is a middle for it
+        to be down: stacked, the two halves are one column with a seam, and a
+        rule across that seam would cut the page in half rather than divide it.
+
+        Positioned rather than placed in a track, which is the one difference
+        from the dedication page's. That section lays its columns out with flex
+        and can afford a wrapper of no width between them; a two-track grid has
+        no such slot, and giving the rule a track of its own would take the
+        width out of the halves and stop them being halves. Hung off the
+        container's centre line instead, it costs the tracks nothing and lands
+        exactly on the boundary between them.
+
+        `contain` keeps the filigree square: the box is stretched to the taller
+        column and the drawing fitted inside it at its own proportions, so it
+        runs the full height of the plate and works out its own width from
+        that. `w-14` is a ceiling on that, for a column tall enough to want
+        more — and it is what the columns' padding is set to clear.
+      */}
+      <div aria-hidden className="pointer-events-none absolute inset-y-0 left-1/2 hidden w-14 -translate-x-1/2 wide:block">
+        {/* The half-width shift is on the wrapper rather than here, because the
+            variants animate `scaleY` and Motion composes the whole of
+            `transform` itself — a Tailwind translate on this element would be
+            written over the moment the animation ran. */}
+        <motion.div
+          variants={still ? STILL : UPRIGHT}
+          className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+          style={{ backgroundImage: `url(${COLUMN_SEPARATOR})` }}
+        />
+      </div>
+
       <motion.div
-        className="flex w-full flex-col items-center wide:col-start-1 wide:row-start-1"
+        className="flex w-full flex-col items-center wide:col-start-1 wide:row-start-1 wide:px-10 wide-lg:px-14"
         variants={GROUP}
       >
         {/* The crown keeps breathing after it has arrived, so the page is
@@ -400,7 +452,7 @@ export function PartyDetailsSection() {
 
         <motion.p
           variants={line}
-          className="mt-3 max-w-[34ch] text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[46ch] sm:text-base wide:text-lg"
+          className="mt-3 max-w-[34ch] text-pretty text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[46ch] sm:text-base wide:text-lg"
         >
           Every princess needs a castle. Hers has palms at the gate, a pool the colour of
           Ariel&apos;s ocean, and room for the whole kingdom.
@@ -416,7 +468,18 @@ export function PartyDetailsSection() {
 
         <motion.div
           variants={still ? STILL : CARD}
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mt-0 wide:self-center wide:p-5"
+          /* Capped and centred once the column is a half of the window rather
+             than a share of a 4xl box: left at `w-full` the card would stretch
+             to the best part of a thousand pixels, and the walkthrough inside
+             it with it.
+
+             `md` and not the `lg` the dedication's plate gets, and the reason
+             is height rather than taste. This card holds two aspect-ratio
+             boxes stacked — the walkthrough and the map — so every pixel of
+             width it gains it gains twice over in height. At `lg` the section
+             ran 48px past the foot of the shortest desktop window the layout
+             supports; this is the widest it can be and still land inside it. */
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mx-auto wide:mt-0 wide:max-w-md wide:self-center wide:p-5"
         >
           <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl wide:text-xl">
             <PalmIcon className="h-5 w-5 flex-none text-goldDeep sm:h-6 sm:w-6" />
@@ -644,7 +707,7 @@ export function PartyDetailsSection() {
             comes back for on the day. */}
         <motion.div
           variants={line}
-          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center"
+          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center wide:px-10 wide-lg:px-14"
         >
           {/*
             The same button either way. With an endpoint configured it opens

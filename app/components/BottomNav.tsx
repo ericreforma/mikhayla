@@ -22,6 +22,31 @@ export type NavSection = {
  * like an unmarked stretch between two tabs — and a sparkle rides its
  * leading edge, which is the part that reads at a glance while the rest of
  * the line is behind a thumb.
+ *
+ * ---------------------------------------------------------------------------
+ * On a desktop it is a menu instead
+ * ---------------------------------------------------------------------------
+ * Everything above describes a bar built for a thumb: at the foot of the
+ * screen because that is where the thumb is, wide-tabbed and tall because a
+ * finger is imprecise, with the label stacked under the icon because a tab
+ * that wide would otherwise be mostly empty.
+ *
+ * None of those reasons survive a mouse. So from `wide-lg` the bar goes to the
+ * top of the window, the label comes round beside its icon, the tabs stop
+ * sharing the width out equally and take only what they need, and the whole
+ * band shrinks to a menu's height. It is the same component and the same
+ * tiara — the gilt line, the stone, the sparkle — turned the other way up.
+ *
+ * "The other way up" is meant literally, and it is most of the work below: the
+ * three decorations that ride the bar's *content-facing* edge are written
+ * `top-0` for a bar at the foot, and each is flipped to `bottom-0` for one at
+ * the head. The name stays `BottomNav` because that is what it is on every
+ * screen anyone will actually hold.
+ *
+ * The clearance it needs from the slides is not here. It is `--nav-at-foot` in
+ * globals.css, which moves that clearance from the foot of a slide to its head
+ * in one place, and `--nav-bar` beside it, which restates this bar's height as
+ * arithmetic — keep the padding and the icon box below in step with it.
  */
 export function BottomNav({
   sections,
@@ -44,7 +69,10 @@ export function BottomNav({
   return (
     <nav
       aria-label="Invitation sections"
-      className="pb-safe absolute inset-x-0 bottom-0 z-50 border-t border-gold/25 bg-gradient-to-b from-parchment/95 to-mist/95 backdrop-blur-md"
+      /* The wash is reversed along with the bar, so the parchment end of it is
+         always the end that meets the page and the mist end is the one against
+         the edge of the screen. */
+      className="pb-safe absolute inset-x-0 bottom-0 z-50 border-t border-gold/25 bg-gradient-to-b from-parchment/95 to-mist/95 backdrop-blur-md wide-lg:bottom-auto wide-lg:top-0 wide-lg:border-b wide-lg:border-t-0 wide-lg:bg-gradient-to-t"
     >
       {/* Two lines on the top edge, one over the other: a gilt wash that
           fades out towards the corners the way every other rule on the site
@@ -55,46 +83,69 @@ export function BottomNav({
           is the same gold as the progress line laid over it, and the two
           become one continuous bar — which reads as a full deck however
           little of it you have seen. */}
+      {/* All three of these ride the edge the page is on — the top of a bar at
+          the foot of the screen, the bottom of one at the head of it — so each
+          is flipped at `wide-lg`. */}
       <div
         aria-hidden
-        className="gilt-rule pointer-events-none absolute inset-x-0 top-0 h-px opacity-50"
+        className="gilt-rule pointer-events-none absolute inset-x-0 top-0 h-px opacity-50 wide-lg:bottom-0 wide-lg:top-auto"
       />
 
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left bg-gold"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[2px] origin-left bg-gold wide-lg:bottom-0 wide-lg:top-auto"
         style={{ scaleX: progress }}
       />
       {/* Held a few pixels in from each end, so at either extreme of the deck
           the sparkle sits on the bar rather than half off the corner of it. */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute inset-x-2.5 top-0 h-0"
+        className="pointer-events-none absolute inset-x-2.5 top-0 h-0 wide-lg:bottom-0 wide-lg:top-auto"
         style={{ x: tipX }}
       >
-        <Sparkle className="-ml-[7px] -mt-[6px] h-3.5 w-3.5 text-gold drop-shadow-sm md:-ml-[9px] md:-mt-2 md:h-[18px] md:w-[18px]" />
+        {/* The negative margin is half the sparkle, which is what centres it on
+            the line it rides. It hangs off whichever edge that is, so the pull
+            upwards is cancelled and replaced by one downwards on a desktop —
+            where the sparkle also comes back down to its phone size, the bar
+            being a menu's height rather than a thumb's. */}
+        <Sparkle className="-ml-[7px] -mt-[6px] h-3.5 w-3.5 text-gold drop-shadow-sm pad:-ml-[9px] pad:-mt-2 pad:h-[18px] pad:w-[18px] wide-lg:-mb-[7px] wide-lg:-ml-[7px] wide-lg:mt-0 wide-lg:h-3.5 wide-lg:w-3.5" />
       </motion.div>
 
-      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2 md:max-w-3xl md:px-5">
+      {/* Handed out equally across the width while the tabs are targets for a
+          thumb — six of them, each as wide as a sixth of the screen, so none is
+          harder to hit than its neighbour. A menu has no such duty: the tabs
+          take the width their own words need and the row sits centred, which is
+          what stops "Date" from being set in a box three times its size. */}
+      <ul className="mx-auto flex max-w-lg items-stretch justify-between px-2 pad:max-w-3xl pad:px-5 wide-lg:max-w-none wide-lg:justify-center wide-lg:gap-0.5 wide-lg:px-4">
         {sections.map(({ id, label, Icon }) => {
           const isActive = id === activeSection;
           return (
-            <li key={id} className="min-w-0 flex-1">
+            <li key={id} className="min-w-0 flex-1 wide-lg:flex-none">
               <button
                 type="button"
                 onClick={() => onSelect(id)}
                 aria-current={isActive ? "true" : undefined}
                 /* min-h-[3.25rem] keeps every tab past the 44px touch target
-                   even though the icon itself is only 22px; past `md` the
+                   even though the icon itself is only 22px; past `pad` the
                    content is taller than that on its own and the floor never
                    binds. Changing the padding, the gap, or the label sizes
                    below moves the bar's real height, which `--nav-bar` in
                    globals.css restates as arithmetic — keep the two in step.
 
-                   Everything past `md` is in `rem`, so it also rides the root
+                   Everything past `pad` is in `rem`, so it also rides the root
                    type scale at the top of globals.css: an iPad gets a bigger
-                   bar twice over, once from these classes and once from that. */
-                className={`relative flex min-h-[3.25rem] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors md:gap-2 md:px-1 md:py-3 ${
+                   bar twice over, once from these classes and once from that.
+                   `pad` rather than `md` throughout, so a phone turned
+                   sideways — 932px wide and 430px tall — keeps the phone's bar
+                   instead of being handed a tablet's.
+
+                   The touch floor comes off on a desktop along with the stack:
+                   a pointer needs no 44px, and left in place that one figure
+                   would hold the menu at half again the height it is asking
+                   for. What sets the height there is the icon's box and the
+                   padding around it, which is exactly what `--nav-bar` adds up
+                   in its desktop branch. */
+                className={`relative flex min-h-[3.25rem] w-full flex-col items-center justify-center gap-1 px-0.5 py-2 transition-colors pad:gap-2 pad:px-1 pad:py-3 wide-lg:min-h-0 wide-lg:flex-row wide-lg:gap-2 wide-lg:px-3.5 wide-lg:py-2 ${
                   isActive ? "text-berry" : "text-ink/65 hover:text-ink/85"
                 }`}
               >
@@ -110,7 +161,7 @@ export function BottomNav({
                     aria-hidden
                     layoutId="nav-stone"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                    className="absolute inset-x-0.5 inset-y-1 -z-10 rounded-2xl border border-gold/50 bg-goldSoft/45 shadow-sm md:inset-x-1 md:inset-y-2"
+                    className="absolute inset-x-0.5 inset-y-1 -z-10 rounded-2xl border border-gold/50 bg-goldSoft/45 shadow-sm pad:inset-x-1 pad:inset-y-2 wide-lg:inset-x-0 wide-lg:inset-y-1 wide-lg:rounded-full"
                   />
                 )}
 
@@ -122,16 +173,21 @@ export function BottomNav({
 
                     The tablet sizes are `rem` rather than the pixel figures
                     the phone uses, so the icon grows with the root type scale
-                    instead of staying put while its box and its label move. */}
-                <span className="flex h-6 w-6 items-center justify-center md:h-9 md:w-9">
-                  <Icon className="h-[22px] w-[22px] sm:h-6 sm:w-6 md:h-8 md:w-8" />
+                    instead of staying put while its box and its label move.
+
+                    Back to a phone's square on a desktop, and that square is
+                    what the bar is measured at there: `--nav-bar` reads 1.5rem
+                    from this line. A tablet's 2.25rem is a target you aim a
+                    hand at; this is an icon you read beside a word. */}
+                <span className="flex h-6 w-6 items-center justify-center pad:h-9 pad:w-9 wide-lg:h-6 wide-lg:w-6">
+                  <Icon className="h-[22px] w-[22px] sm:h-6 sm:w-6 pad:h-8 pad:w-8 wide-lg:h-5 wide-lg:w-5" />
                 </span>
 
                 {/* nowrap + a 9px floor keeps "Her Year" on one line in six
                     tabs across a 320px screen; a wrapped label would make the
                     tabs different heights and jog the icons out of line. */}
                 <span
-                  className={`whitespace-nowrap text-[9px] leading-none tracking-wide xs:text-[10.5px] sm:text-xs md:text-base ${
+                  className={`whitespace-nowrap text-[9px] leading-none tracking-wide xs:text-[10.5px] sm:text-xs pad:text-base wide-lg:text-sm ${
                     isActive ? "font-semibold" : "font-medium"
                   }`}
                 >

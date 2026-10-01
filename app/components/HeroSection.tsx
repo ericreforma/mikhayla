@@ -82,10 +82,29 @@ That holds on an iPad held upright too: 768px across and 1024px
           and its contents are centred down that half rather than hung from
           the top — see the swipe cue at the foot of it, which is what does
           the spacing everywhere else. */}
-      <div className="relative flex flex-1 flex-col items-center pt-[6%] sm:pt-[4%] wide:w-[48%] wide:max-w-[34rem] wide:flex-none wide:justify-center wide:px-4 wide:pt-0">
-        <Crown className="hero-rise h-8 w-auto text-gold drop-shadow-sm xs:h-10 sm:h-14" />
+      {/*
+        The cap comes off on a desktop, and that is the one thing this screen
+        needs to become one.
 
-        <p className="hero-rise mt-3 font-hand text-xl leading-none text-berry [animation-delay:0.1s] xs:text-2xl sm:text-3xl">
+        34rem is a little over the width of the left half of an iPad turned
+        sideways, so on a tablet it is a backstop that never fires. On a
+        monitor it fires hard: the column stops at 34rem while her photograph
+        still starts at 46% of a much wider screen, which leaves the words
+        huddled against the left edge with a hand's breadth of empty parchment
+        between them and her.
+
+        Let out, it takes the whole width and holds itself off her with a right
+        padding of exactly her width — `--hero-portrait` in globals.css, the
+        same figure the picture itself is set to. A percentage would not do
+        here: she is now as wide as the window is tall, which is a different
+        fraction of every screen, and the words are centred in what is left, so
+        a column that guessed at it would sit them off centre by whatever it
+        got wrong.
+      */}
+      <div className="relative flex flex-1 flex-col items-center pt-[6%] sm:pt-[4%] wide:w-[48%] wide:max-w-[34rem] wide:flex-none wide:justify-center wide:px-4 wide:pt-0 wide-lg:w-full wide-lg:max-w-none wide-lg:pr-[var(--hero-portrait)]">
+        <Crown className="hero-rise h-8 w-auto text-gold drop-shadow-sm xs:h-10 sm:h-14 wide-lg:h-11" />
+
+        <p className="hero-rise mt-3 font-hand text-xl leading-none text-berry [animation-delay:0.1s] xs:text-2xl sm:text-3xl wide-lg:mt-2 wide-lg:text-2xl">
           By royal invitation
         </p>
 
@@ -95,11 +114,14 @@ That holds on an iPad held upright too: 768px across and 1024px
           small caps with "turns one" — which keeps the big line to the two
           words that are actually hers.
         */}
-        {/* A size down wherever the headline has half a screen rather than
-            all of it: at `text-7xl` "Mikhayla" alone runs off the end of a
-            split column. It comes back once there is desktop width for the
-            whole name on one line. */}
-        <h1 className="hero-rise mt-2 font-display text-[2.125rem] italic leading-[1.1] text-ink [animation-delay:0.2s] xs:text-[2.75rem] sm:text-6xl md:text-7xl wide:text-[3rem] wide-lg:text-7xl">
+        {/* A size down wherever the headline has half a screen rather than all
+            of it: at `text-7xl` "Mikhayla" alone runs off the end of a split
+            column. A desktop takes half a step back up rather than the whole
+            one — enough that the line is not a tablet's, and small enough that
+            her two names sit on one, which at `text-7xl` they only managed
+            past about 1800px. A headline that breaks on some monitors and not
+            others is a worse first screen than one set a size down. */}
+        <h1 className="hero-rise mt-2 font-display text-[2.125rem] italic leading-[1.1] text-ink [animation-delay:0.2s] xs:text-[2.75rem] sm:text-6xl md:text-7xl wide:text-[3rem] wide-lg:text-[3.5rem]">
           {BABY_FULL_NAME}
         </h1>
 
@@ -112,13 +134,13 @@ That holds on an iPad held upright too: 768px across and 1024px
 
         <div
           aria-hidden
-          className="gilt-rule hero-rise mt-4 h-px w-32 [animation-delay:0.4s] xs:w-40 sm:mt-5 sm:w-56 wide:w-44 wide-lg:w-56"
+          className="gilt-rule hero-rise mt-4 h-px w-32 [animation-delay:0.4s] xs:w-40 sm:mt-5 sm:w-56 wide:w-44 wide-lg:mt-4 wide-lg:w-44"
         />
 
         {/* Full-strength ink from here down: these two sit on the photograph
             rather than on parchment, and a dimmed ink over that pink falls
             below AA. */}
-        <p className="hero-rise mx-auto mt-4 max-w-[30ch] text-balance text-[0.9375rem] leading-relaxed text-ink [animation-delay:0.5s] sm:mt-5 sm:max-w-md sm:text-lg">
+        <p className="hero-rise mx-auto mt-4 max-w-[30ch] text-balance text-[0.9375rem] leading-relaxed text-ink [animation-delay:0.5s] sm:mt-5 sm:max-w-md sm:text-lg wide-lg:mt-4 wide-lg:text-base">
           A crown, a cake, and a ball of her very own.
         </p>
 
@@ -156,7 +178,7 @@ That holds on an iPad held upright too: 768px across and 1024px
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
-            <span className="text-xs uppercase tracking-widest sm:text-sm">Swipe up to begin</span>
+            <span className="text-xs uppercase tracking-widest sm:text-sm wide-lg:text-xs">Swipe up to begin</span>
             <span aria-hidden>↓</span>
           </motion.div>
         </div>
@@ -279,7 +301,7 @@ function HeroPortraits({ active }: { active: boolean }) {
       onPointerDown={onDown}
       onPointerUp={onUp}
       onPointerCancel={onCancel}
-      className="absolute inset-x-0 bottom-0 mx-auto h-[74%] touch-pan-y select-none sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem] tall:h-[78%] tall:max-w-none wide:inset-y-0 wide:bottom-auto wide:left-auto wide:right-0 wide:mx-0 wide:h-full wide:w-[54%] wide:max-w-none"
+      className="absolute inset-x-0 bottom-0 mx-auto h-[74%] touch-pan-y select-none sm:h-[68%] sm:max-w-[34rem] md:max-w-[38rem] tall:h-[78%] tall:max-w-none wide:inset-y-0 wide:bottom-auto wide:left-auto wide:right-0 wide:mx-0 wide:h-full wide:w-[54%] wide:max-w-none wide-lg:w-[var(--hero-portrait)]"
     >
       {HERO_PORTRAITS.map((src, i) => (
         /* eslint-disable-next-line @next/next/no-img-element */

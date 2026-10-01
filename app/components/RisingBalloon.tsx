@@ -14,6 +14,12 @@ import { motion, useTransform, useSpring, type MotionValue } from "framer-motion
  * It stops at 72% so it never drifts down behind the bottom bar, and is sized
  * down on phones so it stays decorative instead of sitting on the content it
  * floats past.
+ *
+ * Its travel is measured against the wrapper below rather than the window,
+ * which is what keeps the arrival readable once the bar moves to the top of
+ * the screen on a desktop: 3% of the window would put the balloon behind the
+ * menu at the one moment it is meant to be seen. Inset by the bar's height,
+ * the same 3% lands just under it.
  */
 export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
   const rawTop = useTransform(progress, [0, 1], ["72%", "3%"]);
@@ -21,9 +27,18 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
   const rotate = useTransform(progress, [0, 1], [-6, 6]);
 
   return (
+    /* The run the balloon climbs. It is the whole deck everywhere the bar is
+       at the foot of the screen, and the deck less the menu once the bar is at
+       the head of it — `--nav-at-foot` in globals.css is the switch, and the
+       percentages above are read against whichever this turns out to be. */
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 z-30"
+      style={{ top: "calc(var(--nav-bar) * (1 - var(--nav-at-foot)))" }}
+    >
     <motion.div
       aria-hidden
-      className="pointer-events-none absolute right-1 z-30 animate-balloon-sway xs:right-2 sm:right-8 md:right-16"
+      className="pointer-events-none absolute right-1 animate-balloon-sway xs:right-2 sm:right-8 md:right-16"
       style={{ top }}
     >
       <motion.svg
@@ -64,5 +79,6 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
         <circle cx="36" cy="93" r="2.4" fill="#D4AF37" opacity="0.8" />
       </motion.svg>
     </motion.div>
+    </div>
   );
 }

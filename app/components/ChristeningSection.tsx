@@ -138,7 +138,12 @@ export function ChristeningSection() {
       air between the blocks rather than the size of the words in them: a page
       set larger and spaced tighter still reads as larger.
     */
-    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-royalWhite px-gutter pb-nav pt-8 text-center md:pt-4">
+    /* The gutter comes off once the page splits, so the two columns can be a
+       true half of the window each and the rule between them lands on its
+       centre line. Nothing runs to the screen edge as a result: each column
+       carries its own padding and its contents are capped and centred well
+       inside that. */
+    <div className="relative flex min-h-full flex-col items-center overflow-hidden bg-royalWhite px-gutter pb-nav pt-8 text-center md:pt-4 wide:px-0">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       <FloatingSparkle
@@ -174,14 +179,21 @@ export function ChristeningSection() {
       />
 
       {/*
-        One column while the screen is taller than it is wide, two once it
-        is not — and past that, two *unequal* ones.
+        One column while the screen is taller than it is wide, two once it is
+        not — and those two are a half of the window each.
 
-        What sets this page's height is the left column, so the width and the
-        contents are both shared out to even the two up. The left gets a tenth
-        more width, which takes its paragraph from six lines to five; and the
-        verse moves across to head the right column, where a plate of twelve
-        short names was leaving a third of the page empty under it.
+        They were briefly unequal, the left taking a tenth more width to pull
+        its paragraph from six lines to five. Even halves are the better
+        trade: the rule between them lands on the centre line of the screen,
+        which is where a printed order of service would put it, and the two
+        sides read as one plate rather than as a column and a sidebar. What
+        the left column loses in width it takes back in measure, since neither
+        side now fills its half — the contents are capped and centred inside
+        it, which is what keeps the line length readable when a half of a
+        monitor is near a thousand pixels across.
+
+        The verse still moves across to head the right column, where a plate of
+        twelve short names was leaving a third of the page empty under it.
 
         Moving the verse costs the single column nothing. Stacked, the wrappers
         come out in order and their contents with them, so the reading order on
@@ -200,13 +212,13 @@ export function ChristeningSection() {
         sequence the single column always had.
       */}
       <motion.div
-        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:max-w-4xl wide:flex-row wide:items-center wide:gap-5 wide-lg:gap-7"
+        className="relative my-auto flex w-full max-w-md flex-col items-center sm:max-w-lg wide:max-w-none wide:flex-row wide:items-center wide:gap-0"
         initial={false}
         animate={state}
         variants={GROUP}
       >
       <motion.div
-        className="flex w-full flex-col items-center wide:flex-[1.12]"
+        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-10 wide-lg:px-14"
         variants={GROUP}
       >
         {/* A cross in a gilt ring, with a halo behind it that breathes — the
@@ -234,7 +246,7 @@ export function ChristeningSection() {
 
         <motion.h2
           variants={line}
-          className="mt-1 max-w-[18ch] font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:max-w-none sm:text-4xl wide:mt-2 wide:text-5xl"
+          className="mt-1 max-w-[18ch] text-balance font-display text-2xl italic leading-snug text-ink xs:text-3xl sm:max-w-none sm:text-4xl wide:mt-2 wide:text-5xl"
         >
           Dedicated to the King of kings
         </motion.h2>
@@ -247,7 +259,7 @@ export function ChristeningSection() {
 
         <motion.p
           variants={line}
-          className="mt-3 max-w-[36ch] text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[48ch] sm:text-base md:mt-2 wide:mt-4 wide:text-lg wide:leading-loose"
+          className="mt-3 max-w-[36ch] text-pretty text-sm leading-relaxed text-ink/70 sm:mt-4 sm:max-w-[48ch] sm:text-base md:mt-2 wide:mt-4 wide:text-lg wide:leading-loose"
         >
           Before the gowns and the crowns, she was already His. On the same day we crown our
           little princess, we give her back to the One who gave her to us — and welcome{" "}
@@ -263,17 +275,16 @@ export function ChristeningSection() {
         divide it.
 
         It costs the columns no width, which is the whole reason it is built
-        this way. The wrapper is a flex item of no width at all and the drawing
-        hangs off the middle of it, so what the upright stands in is the gap
-        that was already there — it just has something in it now. A wrapper
-        with real width would be paid for by the left column, which cannot take
-        it: that column is what sets this page's height, its paragraph is one
-        word off a sixth line, and the right one is already down to the width
-        its twelve names need and will not shrink to make room.
+        this way, and now also the reason the halves come out exact. The
+        wrapper is a flex item of no width at all and the drawing hangs off the
+        middle of it, so two columns of `w-1/2` with this between them add up
+        to exactly the window and the drawing stands on the seam — which is the
+        centre line of the screen. A wrapper with real width would push them
+        off it, and the two halves would no longer be halves.
 
-        Hence the halved gaps. There are two of them now rather than one, on
-        either side of a wrapper with nothing between them, so half each leaves
-        the columns exactly the width they had.
+        There is no gap on either side of it for the same reason: the clearance
+        the drawing needs is the columns' own padding, which they need anyway
+        to keep their contents off the seam. A gap would come out of the halves.
 
         `contain` is what keeps the filigree square: the box is stretched to
         the taller column and the drawing fitted inside it at its own
@@ -296,7 +307,7 @@ export function ChristeningSection() {
       {/* The plate of names, and who reads them out — its own column once
           there is width to spare and height to save. */}
       <motion.div
-        className="flex w-full flex-col items-center wide:flex-[0.88]"
+        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-10 wide-lg:px-14"
         variants={GROUP}
       >
         {/* The dedication verse, set apart the way a verse is on the order of
@@ -323,7 +334,11 @@ export function ChristeningSection() {
         {/* The people standing up with her. */}
         <motion.div
           variants={still ? STILL : CARD}
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5 md:mt-3 md:py-4 wide:mt-0 wide:px-8 wide:py-5"
+          /* Capped once the column is a half of the window rather than a share
+             of a 4xl box. Left at `w-full` the plate would stretch to the best
+             part of a thousand pixels to hold twelve short names, with the two
+             lists drifting apart to the far edges of it. */
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5 md:mt-3 md:py-4 wide:mt-0 wide:max-w-lg wide:px-8 wide:py-5"
         >
           <p className="font-hand text-base text-berry xs:text-lg sm:text-xl wide:text-2xl">
             Standing with her

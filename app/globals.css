@@ -40,22 +40,148 @@ body {
    Nothing else in this file needs to know about any of it.
    --------------------------------------------------------------- */
 
-@media (min-width: 768px) and (orientation: portrait) {
+/* ---------------------------------------------------------------
+   Every rung below names a width AND a height, and that is the whole
+   discipline of this ladder.
+
+   Width on its own cannot tell these screens apart, and the places it quietly
+   got them wrong are the reason for the rewrite. A phone held sideways is
+   932px across — wider than an iPad is tall — so a width-only rung handed it
+   an iPad's type. An iPad Pro 13" held sideways is 1376 x 1032, larger than
+   most laptops, so a width-only rung handed it a desktop's. Each rung here is
+   therefore a box: this wide and this tall, which is a description of a device
+   rather than of a number.
+
+   The rungs cascade, and the order is the ladder. A 1376 x 1032 iPad matches
+   all three landscape rungs; the last one it matches is the one that wins, so
+   they are written smallest first and nothing uses a max- bound. Adding a rung
+   means putting it in size order, not just anywhere.
+
+   The devices each rung is drawn for, in the order they appear:
+
+     portrait   768 x 1024   iPad, iPad Air, iPad Pro 11"   (820, 834 wide)
+                1032 x 1376  iPad Pro 13"
+     landscape  1024 x 768   iPad
+                1180 x 820   iPad Air  /  1194 x 834  iPad Pro 11"
+                1366 x 1024  iPad Pro 12.9"  /  1376 x 1032  iPad Pro 13"
+                then the two desktop rungs, which add a pointer test as well
+                — see `wide-lg` in tailwind.config.ts.
+
+   Anything smaller in either direction — every phone, either way up — falls
+   through to the browser's own 16px, which is the phone design.
+   --------------------------------------------------------------- */
+
+@media (min-width: 768px) and (min-height: 1000px) and (orientation: portrait) {
   html {
     font-size: 20px;
   }
 }
 
 /* An iPad Pro held upright — wider again, and read from further away. */
-@media (min-width: 1024px) and (orientation: portrait) {
+@media (min-width: 1000px) and (min-height: 1300px) and (orientation: portrait) {
   html {
     font-size: 22px;
   }
 }
 
-@media (min-width: 768px) and (orientation: landscape) {
+/*
+   An iPad held sideways: 1024 x 768, and 768 of height is the least this
+   layout ever has to work in.
+
+   Set smaller than the tablet's portrait rungs, and smaller now than it was.
+   The dedication is the longest page in the deck and at 19px it needed 771px
+   of window to lay out in — three more than this screen has, so it was
+   finishing just below the fold and asking to be scrolled. At 17px it needs
+   689 and has 768, which is the first time that page has had room to spare
+   here. The step down is small enough that nothing else on the page reads as
+   cramped; what it buys is a section that ends where the screen does.
+*/
+@media (min-width: 1000px) and (min-height: 700px) and (orientation: landscape) {
+  html {
+    font-size: 17px;
+  }
+}
+
+/* An iPad Air or an iPad Pro 11" sideways — 820 and 834 of height. */
+@media (min-width: 1120px) and (min-height: 800px) and (orientation: landscape) {
+  html {
+    font-size: 18px;
+  }
+}
+
+/* The big iPads sideways — 1024 and 1032 of height, a third as much again as
+   the 768 the landscape layout was first drawn against, and the step the type
+   can take because of it. */
+@media (min-width: 1300px) and (min-height: 980px) and (orientation: landscape) {
   html {
     font-size: 19px;
+  }
+}
+
+/*
+   And the same again, twice, once the landscape window is a desktop's.
+
+   A desktop inherits the tablet's layout wholesale — every two-column split
+   on this site turns on `wide`, which a desktop window satisfies by being
+   wider than it is tall — so what is left to do here is not to rearrange
+   anything but to let it grow. Left at 19px the invitation renders on a
+   1920px monitor exactly as it does on an iPad turned sideways: correct, and
+   marooned in the middle of a screen five times the area.
+
+   The steps are small, and deliberately smaller than the width would suggest.
+   A 1920px window is nearly twice an iPad's across but is read from much the
+   same distance, so type scaled to the width would end up shouting. What the
+   extra width really buys is room for the columns themselves, which take it
+   through the `rem` caps they are already written in — this one dial moves
+   those too.
+
+   Each rung asks for its height as well as its width, and that is the part
+   worth keeping. In landscape the scarce dimension is height, not width: the
+   dedication is the longest page in the deck, and it is the one that decides
+   how large the rest of the invitation is allowed to be set. A 1600px window
+   dragged down to a letterbox is still a short page, and a short page wants
+   the iPad's type however wide it happens to be.
+
+   So the heights in those definitions are that page's, measured rather than
+   guessed: set at 20px it needs 732px of window, and at 22px it needs 804px.
+   The gates are 760 and 830, which leaves a little under thirty pixels in hand
+   for a font that loads a shade taller than the one it was measured against.
+
+   Those figures were re-measured once already, and the reason is worth keeping
+   because it will happen again. They were first taken while the tab bar was
+   still a 6.5rem band across the foot of the desktop layout. Moving it to the
+   top turned it into a 2.5rem menu and handed the page back about four rem of
+   height — so the old gates of 840 and 920 were roughly a hundred pixels too
+   high, and a browser maximised on a 1440x900 laptop, whose viewport is nearer
+   790 once the tab and address bars are taken off, fell straight through them
+   back to the tablet layout. A gate set against a page is only as good as the
+   chrome that page was measured under. Change either, and measure again.
+
+   And measure against the *viewport*, never the screen. The two differ by the
+   height of the browser's own furniture, which is the whole of the gap that
+   bug lived in.
+
+   Neither rung is written here. `screen(wide-lg)` and `screen(wide-xl)` below
+   are Tailwind resolving the one definition of each from the `screens` block
+   in tailwind.config.ts, which is also what the `wide-lg:` classes in the
+   sections compile against — so the scale and the variants cannot drift apart,
+   because there is nothing to drift. Go there to change when a desktop starts;
+   come back here only to change how large it is then set.
+
+   And note what is in those definitions besides a width: a desktop is not a
+   size on this site, it is a pointing device. An iPad Pro 13" turned sideways
+   is larger than most laptops and must still be set as a tablet.
+   --------------------------------------------------------------- */
+
+@media screen(wide-lg) {
+  html {
+    font-size: 20px;
+  }
+}
+
+@media screen(wide-xl) {
+  html {
+    font-size: 22px;
   }
 }
 
@@ -87,6 +213,26 @@ body {
      it, then the label, then the hairline across the top of the bar.
   */
   --nav-bar: calc(0.5rem * 2 + 1.5rem + 0.25rem + 9px + 1px);
+
+  /*
+     Which end of the screen the bar is at: 1 for the foot, 0 for the head.
+
+     On a phone and a tablet it is a thumb's bar across the bottom. On a
+     desktop there is no thumb and no reason for it to be there, so it moves
+     to the top and becomes an ordinary menu — see BottomNav.
+
+     Four different things have to clear it and they are scattered across the
+     stylesheet: the padding a slide leaves at its foot, the roomier padding
+     the timeline leaves, the princess who stands on the bar's top edge, and
+     the frame around a month's caption. Rather than restate the desktop query
+     at each of them, each multiplies its own figure by this, so a value of 0
+     takes the foot clearance away everywhere at once and the one rule below
+     hands it to the head instead.
+
+     It is a plain number, not a length, which is what lets `calc` use it as a
+     switch — `calc(1 - var(--nav-at-foot))` is the other half of it.
+  */
+  --nav-at-foot: 1;
 }
 
 @media (min-width: 400px) {
@@ -112,11 +258,52 @@ body {
    the thing at arm's length. Everything in it steps up together — padding,
    the icon's square, the gap, the label — which is why this is one figure
    with four terms rather than a guess.
+
+   `pad` and not `md`, and the difference is worth a line. `md` is a width,
+   and a phone held sideways is 932px of it — so this bar, all 6.5rem of it,
+   was being given to a window 430px tall, where it ate very nearly a third of
+   the screen. `pad` asks for 700px of height as well, which no phone has in
+   either direction and every iPad has in both. See it in tailwind.config.ts,
+   where it is defined once; the `pad:` classes in BottomNav are the other
+   half of this and resolve to the same query.
 */
-@media (min-width: 768px) {
+@media screen(pad) {
   :root {
     --nav-h: 6.5rem;
     --nav-bar: calc(0.75rem * 2 + 2.25rem + 0.5rem + 1rem + 1px);
+  }
+}
+
+/*
+   A desktop gets an ordinary menu instead.
+
+   Everything above is a *thumb's* bar: a wide band at the foot of the screen
+   with the label stacked under the icon, sized so a hand holding a tablet can
+   hit a tab without looking. A mouse needs none of that. So on a desktop the
+   bar moves to the top of the window, the label comes round beside the icon
+   rather than under it, and the whole thing shrinks to the height a menu is
+   normally given — see the `wide-lg:` classes in BottomNav, which are the
+   other half of this.
+
+   Which makes the arithmetic shorter as well as smaller: laid out in a row
+   there is no gap and no label stacked below to account for, so the bar is
+   its padding twice, the icon's square, and the hairline. `--nav-h` keeps a
+   little over that, as it does at every other size, for the slack a slide
+   leaves beyond the bar itself.
+
+   This is the rule that most depends on `wide-lg` asking about the pointer
+   rather than only about the size, and it is worth saying why. A bar moved to
+   the top of a tablet is not a smaller bar — it is a bar a thumb can no longer
+   reach, on the one device held in two hands. Every other desktop change here
+   is a matter of taste; this one would be a fault. If `wide-lg` is ever
+   loosened, loosen it with that in mind.
+*/
+@media screen(wide-lg) {
+  :root {
+    --nav-h: 3.25rem;
+    --nav-bar: calc(0.5rem * 2 + 1.5rem + 1px);
+    /* To the head of the screen, and out of the foot of every slide. */
+    --nav-at-foot: 0;
   }
 }
 
@@ -162,6 +349,24 @@ body {
   flex: 0 0 100%;
   height: 100%;
   width: 100%;
+  /*
+     The head of the slide, given over to the menu on a desktop and to nothing
+     at all anywhere else — `--nav-at-foot` is 1 until the bar moves up there,
+     and this is its complement.
+
+     Every section holds itself clear of the bar through `.pb-nav` or
+     `.pb-rail` above, and both of those go to nothing on a desktop; this is
+     where the clearance they gave up reappears. Doing it once here rather than
+     as a top padding on each of the six sections is what keeps their own
+     paddings — `pt-8`, `md:pt-4`, `wide:pt-0` — saying what they have always
+     said, with no desktop exception threaded through any of them.
+
+     It is the bar's *real* height rather than the roomier `--nav-h`, and
+     exactly that: a slide's background starts where this padding ends, so
+     anything more would show as a strip of bare page above it that the bar is
+     not wide enough to cover.
+  */
+  padding-top: calc(var(--nav-bar) * (1 - var(--nav-at-foot)));
   scroll-snap-align: start;
   /* One section per flick, however hard the flick. */
   scroll-snap-stop: always;
@@ -237,15 +442,25 @@ body {
     padding-bottom: env(safe-area-inset-bottom);
   }
 
-  /* Room for the bottom bar, on top of whatever padding the slide asks for. */
+  /* Room for the tab bar, on top of whatever padding the slide asks for.
+
+     `--nav-at-foot` is what makes this a no-op on a desktop, where the bar has
+     gone to the top of the window and a slide has nothing to clear down here
+     — see the variable in `:root`, and `.deck-slide` below, which is where
+     that clearance goes instead. The half-rem of slack stays either way; it is
+     the section's own breathing room, not the bar's. */
   .pb-nav {
-    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 0.5rem);
+    padding-bottom: calc(
+      var(--nav-h) * var(--nav-at-foot) + env(safe-area-inset-bottom) + 0.5rem
+    );
   }
 
   /* Same, plus a hand's breadth more: the timeline's pages sit a little
      higher than the other sections so the corner figure has room to stand. */
   .pb-rail {
-    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 2.5rem);
+    padding-bottom: calc(
+      var(--nav-h) * var(--nav-at-foot) + env(safe-area-inset-bottom) + 2.5rem
+    );
   }
 
   /*
@@ -254,9 +469,13 @@ body {
      The bar's real height, not the roomier --nav-h the slides reserve. The
      arithmetic lives on `--nav-bar` in `:root` — see there, and keep it in
      step with the tab in BottomNav.
+
+     On a desktop there is no bar down here to stand on, and the multiplier
+     takes the offset away: whatever this carries stands on the floor of the
+     slide instead, which is where the bar used to put it.
   */
   .bottom-menu {
-    bottom: calc(var(--nav-bar) + env(safe-area-inset-bottom));
+    bottom: calc(var(--nav-bar) * var(--nav-at-foot) + env(safe-area-inset-bottom));
   }
 
   /*
@@ -350,6 +569,32 @@ body {
   background-image: radial-gradient(#7e6212 0.5px, transparent 0.5px);
   background-size: 14px 14px;
   opacity: 0.06;
+}
+
+/*
+   How wide her photograph stands on a desktop.
+
+   Everywhere else the hero's portrait is given a share of the screen and
+   cropped to fill it, which is the right trade when the box is roughly her
+   shape already. A desktop window is not: the right-hand half of a 16:9 screen
+   is about as wide as it is tall, and a 1414x2000 portrait poured into that
+   loses a third of its height — she arrives cropped to a face, which is the
+   one thing the first screen cannot afford.
+
+   So on a desktop the box is her shape instead, and the crop goes away by
+   construction: full height, and a width worked out from it at the
+   photograph's own proportions. `object-cover` then has nothing to cut.
+
+   It is a variable because two things need the same figure and must not drift
+   — the box itself, and the right-hand padding that holds the words clear of
+   it, which is what centres them in the space she leaves rather than in the
+   whole screen. 0.707 is 1414/2000; `--nav-bar` comes off the height because
+   the menu is above the slide, not over it.
+*/
+@media screen(wide-lg) {
+  :root {
+    --hero-portrait: calc((100vh - var(--nav-bar)) * 0.707);
+  }
 }
 
 /* Soft dawn wash behind the hero — parchment melting into blush. */

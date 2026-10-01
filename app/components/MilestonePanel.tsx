@@ -261,7 +261,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         */
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-menu left-0 z-10 text-2xl leading-none xs:text-3xl sm:text-4xl md:text-5xl wide:left-[22.5%] wide:-translate-x-1/2"
+          className="pointer-events-none absolute bottom-menu left-0 z-10 text-2xl leading-none xs:text-3xl sm:text-4xl md:text-5xl wide:left-auto wide:right-[58%] wide:translate-x-0"
         >
         <motion.div initial={false} animate={state} variants={reduce ? STILL : FIGURE}>
           {/*
@@ -272,17 +272,28 @@ export function MilestonePanel({ m }: { m: Milestone }) {
             is a figure the type ladder cannot express, and it is the figure
             that matters here.
 
-            She stands in the middle of the caption's own column at that
-            height, which is a deliberate trade and worth knowing about: the
-            column is not tall enough for both her and the words at full size,
-            so the last lines of the caption fall across her. The words keep
-            the front — see the `z-20` on the caption and the `z-10` here — and
-            she reads as something standing behind them.
+            And she stands in the *corner* of the caption's column rather than
+            the middle of it, hard against the inside of the frame's right-hand
+            rule.
 
-            The two ways out, if that ever needs undoing: move her back out
-            over the photograph (`left-[28%]`, where nothing of the caption
-            reaches her), or bring her height down to about `20vh`, which is
-            what the longest month's title leaves clear beneath it.
+            The middle is where she used to be, and it only ever worked on a
+            tall enough window. The caption is a narrow block centred in its
+            column, so a figure centred in the same column is directly behind
+            it: on a 4:3 tablet there was room for her to clear the words, but
+            on a laptop window — 1164 by 533 is the one that showed it — the
+            title and the note landed squarely across her face. She was always
+            behind them (see the `z-20` on the caption against the `z-10`
+            here), so nothing was unreadable; it simply looked like a mistake.
+
+            In the corner there is no overlap to manage at any height. The
+            caption keeps the middle of the column, she keeps the corner, and
+            the two stop competing for the same few inches.
+
+            `right` rather than `left`, so what she is pinned to is the edge she
+            stands beside: 58% from the right puts her inside the 45% column
+            with a margin clear of the rule the frame draws down it. Measured
+            from the other side she would drift off that edge as the panel
+            resized, which is the whole thing this is trying to hold still.
           */}
           {/*
             Sized by its height, with a ceiling on how wide that is allowed to
@@ -375,7 +386,10 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           the variants above.
 
           `--nav-bar` at the foot keeps the whole thing off the tab bar, which
-          the panel itself runs behind.
+          the panel itself runs behind — multiplied by `--nav-at-foot`, so on a
+          desktop, where the bar has gone to the top of the window, the frame
+          runs down to the foot of the panel instead of stopping short of a bar
+          that is no longer there.
         */}
         <motion.span
           aria-hidden
@@ -383,7 +397,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           animate={state}
           variants={FRAME_GROUP}
           className="pointer-events-none absolute inset-x-3 top-[3%] z-0 hidden flex-col wide:flex"
-          style={{ bottom: "calc(var(--nav-bar) + 0.75rem)" }}
+          style={{ bottom: "calc(var(--nav-bar) * var(--nav-at-foot) + 0.75rem)" }}
         >
           {/* It is here to hold the four pieces in place and to hand `in` /
               `out` down to them, each of which draws itself along its own
@@ -428,8 +442,25 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           />
         </motion.span>
 
+        {/*
+          The caption's own measure, and on a desktop it is measured off a
+          different edge.
+
+          `46vh` is the page's height, which on a tablet turned sideways is a
+          fair stand-in for the width of the column this sits in: 4:3 makes
+          46vh about three quarters of the 45% the column gets, which is the
+          proportion the setting was drawn at. A monitor is not 4:3. At 16:9
+          the same 46vh is barely half the column, so the words pull into a
+          narrow ribbon down the middle of a frame drawn for something twice
+          as wide, and the page reads as a tablet's caption that has lost its
+          way rather than as a desktop's.
+
+          So past `wide-lg` the cap is taken off the width instead — the thing
+          it was always standing in for. 34vw is three quarters of the column
+          at any shape of screen, which is the proportion, held directly.
+        */}
         <motion.div
-          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh]"
+          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh] wide-lg:max-w-[34vw]"
           initial={false}
           animate={state}
           variants={GROUP}

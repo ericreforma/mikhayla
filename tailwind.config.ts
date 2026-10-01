@@ -36,6 +36,28 @@ const config: Config = {
        * width, so these have to come last to win against the `md:` and `lg:`
        * rules they are meant to override.
        */
+      /*
+       * A tablet, by both of its dimensions — either way up.
+       *
+       * This is the "held at arm's length in two hands" test, and it exists
+       * because `md` is not it. `md` asks only how wide the screen is, and a
+       * phone turned sideways is 932px across: wide enough to pass, while
+       * being 430px tall. Everything sized for a tablet off `md` was therefore
+       * being handed to a landscape phone as well — most visibly the tab bar,
+       * which at 6.5rem took very nearly a third of the height of the window
+       * it was sitting in.
+       *
+       * Asking for height as well as width is what tells the two apart, and
+       * 700px is the figure: comfortably under the 768 of the shortest iPad
+       * held sideways, and comfortably over the 430 of the tallest phone.
+       *
+       * Keep this in step with the `--nav-h` / `--nav-bar` block in
+       * globals.css, which is read from here by name; the bar's arithmetic
+       * there and the padding, icon box and label in BottomNav are two
+       * statements of one height and have to move together.
+       */
+      pad: { raw: "(min-width: 768px) and (min-height: 700px)" },
+
       wide: { raw: "(min-width: 768px) and (orientation: landscape)" },
       /*
        * The other half of the same split: a tablet held upright, where the
@@ -44,9 +66,54 @@ const config: Config = {
        * an iPad without becoming a second column goes here.
        */
       tall: { raw: "(min-width: 768px) and (orientation: portrait)" },
-      /* The same, once there is desktop width to spend — type comes back up
-         to the size it is at on a phone held in one hand. */
-      "wide-lg": { raw: "(min-width: 1280px) and (orientation: landscape)" },
+      /*
+       * ---------------------------------------------------------------
+       * A desktop — and the one test that is actually about desktops
+       * ---------------------------------------------------------------
+       * A desktop is not a third layout. It is the `wide` one above, which it
+       * satisfies by being wider than it is tall, grown into the room it has;
+       * the root type scale in globals.css does nearly all of that growing on
+       * its own, because every size on this site is a multiple of it. These
+       * two rungs are for the handful of places where a pure scale is not
+       * enough — a cap that made sense against an iPad's width and strands a
+       * column in the middle of a monitor, a stack whose pieces only shared a
+       * left edge because they happened to be the same width, and the tab bar,
+       * which stops being a bar at the foot of the screen and becomes a menu
+       * at the top of it.
+       *
+       * That last one is why the size test alone was wrong, and it was wrong
+       * in a way worth writing down. An iPad Pro 13" held sideways is 1376 by
+       * 1032: wider than a great many laptops and taller than most of them. No
+       * reading of width and height will ever separate it from a desktop,
+       * because by those measures it *is* one — and it was duly getting the
+       * desktop's top menu, which is the one thing a tablet must not have. The
+       * bottom bar exists for a thumb. Whether there is a thumb is not a
+       * question about how big the screen is.
+       *
+       * So the real question gets asked directly: `hover: hover` and
+       * `pointer: fine` are true of a mouse or a trackpad and false of a
+       * finger, on any size of glass. A touchscreen all-in-one gets the bar at
+       * the foot, which is right — it is operated by a finger. A small laptop
+       * window gets the menu, which is also right.
+       *
+       * The width floor is kept as a second lock rather than the only one. At
+       * 1440 it sits comfortably above that iPad's 1376, so the tablet layout
+       * holds on the real device *and* in a desktop browser window dragged
+       * down to its size — which is how this gets checked day to day, and
+       * where a pointer test on its own would quietly report a desktop.
+       *
+       * Height is still asked for, and for the reason it always was: see the
+       * comment over the type scale in globals.css, where the dedication page
+       * sets the figures. Both rungs are consumed from there by name through
+       * `@media screen(...)`, so this is the only place either is written.
+       */
+      "wide-lg": {
+        raw: "(min-width: 1440px) and (min-height: 760px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
+      },
+      /* The second rung of the same scale, where the page is set larger again. */
+      "wide-xl": {
+        raw: "(min-width: 1600px) and (min-height: 830px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
+      },
     },
     extend: {
       colors: {

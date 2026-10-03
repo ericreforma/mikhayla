@@ -147,7 +147,7 @@ export default function Page() {
   if (where.state === "gated") {
     return (
       <main>
-        <OpenInBrowser app={where.app} exit={where.exit} />
+        <OpenInBrowser exit={where.exit} />
       </main>
     );
   }

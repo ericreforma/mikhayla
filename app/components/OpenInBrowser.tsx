@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 import { BABY_FULL_NAME } from "@/app/config";
-import { rememberStay, type Exit, type InAppName } from "./inAppBrowser";
-import { CheckIcon, Crown, Sparkle } from "./Ornaments";
+import type { Exit } from "./inAppBrowser";
+import { Crown, Sparkle } from "./Ornaments";
 
 /**
  * The one screen a guest sees before the invitation when they arrive inside
- * a chat app's browser: a request to open it properly, and the shortest road
- * out that their phone actually has.
+ * a chat app's browser: a request, in the invitation's own voice, to come in
+ * by the front door instead.
  *
  * ---------------------------------------------------------------------------
  * Why it is a door and not a banner
@@ -16,66 +16,39 @@ import { CheckIcon, Crown, Sparkle } from "./Ornaments";
  * A dismissible strip along the top would be read by nobody. This is the
  * single moment the ask can be made — before the castle, before fifteen
  * megabytes of her photographs and her songs have been pulled down a
- * connection the guest is about to abandon — so it is made once, plainly,
- * with the whole screen, and then never again (see `rememberStay`).
+ * connection the guest is about to abandon — so it is made once, with the
+ * whole screen.
  *
  * ---------------------------------------------------------------------------
- * Why there is always a way through it
+ * Why nothing here says "browser"
  * ---------------------------------------------------------------------------
- * The quiet line at the foot is not a hedge. On an iPhone there is no API
- * that opens Safari — none, at any price — so the only instruction that can
- * be given is one the guest has to carry out by hand, and a guest who will
- * not follow it would otherwise be left holding a locked door instead of a
- * birthday invitation. On Android the Chrome button genuinely works, but when
- * it does not — no Chrome installed, or Meta tightening the webview again —
- * its fallback quietly reloads this very page, which from the guest's side is
- * indistinguishable from a button that did nothing at all.
+ * The guests are family, and half of them will not know what a webview is or
+ * why a link behaves differently in a chat thread. So the page does not
+ * explain itself: it says they have come to a side door and points at the
+ * grand one, which is the same instruction wearing clothes that match the
+ * rest of the invitation.
  *
- * Both roads end somewhere a guest could be stuck, so neither is allowed to
- * be the only one. The invitation itself degrades honestly in a webview — the
- * fullscreen request simply no-ops, see `fullscreen.ts` — so letting someone
- * through costs them the immersion and nothing else.
+ * The only plain words left are the ones a guest has to find with their
+ * thumb — the dots, and the name of the thing to tap in the menu. Those stay
+ * literal on purpose. A royal flourish in the middle of a two-step
+ * instruction is a flourish that stops the instruction working.
+ *
+ * ---------------------------------------------------------------------------
+ * There is deliberately no way through
+ * ---------------------------------------------------------------------------
+ * No "continue anyway", no address to copy. This is a hard gate, chosen
+ * knowingly: every guest either arrives in a real browser or does not arrive.
+ *
+ * What that costs is worth writing down, because it falls on the guests least
+ * able to work around it. On Android the button below is a genuine one-tap
+ * fix, but when it fails — no Chrome installed, or Meta tightening the
+ * webview again — its fallback quietly reloads this very page, which from the
+ * guest's side is a button that did nothing. On an iPhone there is no API
+ * that opens Safari at all, so the numbered steps are the whole of the route.
+ * In both cases the menu hint is the last road in, which is why it is on
+ * screen rather than tucked away.
  */
-export function OpenInBrowser({ app, exit }: { app: InAppName; exit: Exit }) {
-  const [copied, setCopied] = useState(false);
-  /*
-   * The escape is held back for a breath on Android.
-   *
-   * Not to trap anyone — three seconds is nothing — but because the Chrome
-   * button is a real one-tap fix there, and an equally present "no thanks"
-   * beside it invites the shrug instead of the tap. On an iPhone the ask is
-   * four manual steps and the escape is there from the first frame, which is
-   * the honest weighting of the two.
-   */
-  const [escapable, setEscapable] = useState(exit.kind !== "android");
-
-  useEffect(() => {
-    if (escapable) return;
-    const t = window.setTimeout(() => setEscapable(true), 3000);
-    return () => window.clearTimeout(t);
-  }, [escapable]);
-
-  const url = typeof window === "undefined" ? "" : window.location.href;
-
-  const copy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
-    } catch {
-      /* Blocked, or no clipboard at all. The address is on screen below and
-         can be held and copied by hand, which is why it is shown. */
-    }
-  }, [url]);
-
-  const stay = useCallback(() => {
-    rememberStay();
-    /* A reload rather than a state flag, so the invitation begins from its
-       own first frame — the curtain, the castle, the hero in order — instead
-       of mounting halfway into a sequence that assumes it started clean. */
-    window.location.reload();
-  }, []);
-
+export function OpenInBrowser({ exit }: { exit: Exit }) {
   return (
     <div
       role="dialog"
@@ -114,7 +87,7 @@ export function OpenInBrowser({ app, exit }: { app: InAppName; exit: Exit }) {
         </span>
       </div>
 
-      <div className="relative flex w-full max-w-[26rem] flex-col items-center text-center">
+      <div className="relative flex w-full max-w-[24rem] flex-col items-center text-center">
         <div className="relative aspect-[32/23] h-11 xs:h-12 sm:h-14">
           <div
             aria-hidden
@@ -124,7 +97,7 @@ export function OpenInBrowser({ app, exit }: { app: InAppName; exit: Exit }) {
         </div>
 
         <p className="mt-4 font-hand text-xl leading-none text-berry xs:text-2xl">
-          By royal invitation
+          By royal decree
         </p>
 
         <h1
@@ -137,78 +110,25 @@ export function OpenInBrowser({ app, exit }: { app: InAppName; exit: Exit }) {
         <div aria-hidden className="gilt-rule mt-4 h-px w-32 xs:w-40" />
 
         <p className="mt-5 text-[0.9375rem] leading-relaxed text-ink/80">
-          {/* Named, because "your in-app browser" means nothing to a guest and
-              "Messenger" is the thing they can see around the page. */}
-          You&rsquo;re viewing this inside {app}, which can&rsquo;t show the
-          invitation the way it was made.
+          You have arrived at a side door, and the Princess receives her guests
+          at the grand entrance. Step through, and her invitation will unfold
+          in all its splendour.
         </p>
 
-        <Instructions exit={exit} />
-
-        {/* The address, always visible and always selectable. It is the floor
-            under every other route here: a guest who cannot tap, cannot copy,
-            and cannot find the menu can still read it to someone. */}
-        <div className="mt-6 w-full">
-          <label
-            htmlFor="oib-url"
-            className="block text-[0.6875rem] uppercase tracking-[0.2em] text-goldDeep"
-          >
-            Or go to
-          </label>
-          <div className="mt-2 flex items-stretch gap-2">
-            <input
-              id="oib-url"
-              readOnly
-              value={url}
-              onFocus={(e) => e.currentTarget.select()}
-              className="min-w-0 flex-1 rounded-l-full rounded-r-full border border-gold/40 bg-parchment/60 px-4 py-2.5 text-center text-xs text-ink/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60"
-            />
-            <button
-              type="button"
-              onClick={copy}
-              className="flex shrink-0 items-center gap-1.5 rounded-full border border-gold/60 bg-parchment/70 px-4 text-sm text-ink transition hover:bg-goldSoft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60 active:scale-[0.98]"
-            >
-              {copied ? <CheckIcon className="h-4 w-4 text-goldDeep" /> : null}
-              {copied ? "Copied" : "Copy"}
-            </button>
-          </div>
-          {/* Announced rather than only coloured, since the icon swap alone
-              tells a screen reader nothing. */}
-          <span role="status" aria-live="polite" className="sr-only">
-            {copied ? "Link copied" : ""}
-          </span>
-        </div>
-
-        {/*
-          The way through, kept deliberately quiet — a line of text, not a
-          second button competing with the one above it. Reserved space so
-          the composition does not jump when it arrives on Android.
-        */}
-        <div className="mt-7 flex h-6 items-center">
-          {escapable && (
-            <button
-              type="button"
-              onClick={stay}
-              className="hero-rise text-xs text-ink/45 underline decoration-gold/40 underline-offset-4 transition hover:text-ink/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60 focus-visible:ring-offset-2"
-            >
-              Continue here anyway
-            </button>
-          )}
-        </div>
+        <Entrance exit={exit} />
       </div>
     </div>
   );
 }
 
 /**
- * What to actually do, which is a different thing on each phone.
+ * The way to the grand entrance, which is a different road on each phone.
  *
- * Android gets a button that works. Everyone else gets the steps, written for
- * the menu they are looking at rather than in the abstract — the overflow
- * control is at the top right in Messenger on iOS, and the wording below
- * matches what is printed in it.
+ * Android gets a door that truly opens. Everyone else gets the two steps,
+ * written for the menu they are looking at — plainly, because this is the
+ * part a thumb has to follow.
  */
-function Instructions({ exit }: { exit: Exit }) {
+function Entrance({ exit }: { exit: Exit }) {
   if (exit.kind === "android") {
     return (
       <>
@@ -219,10 +139,10 @@ function Instructions({ exit }: { exit: Exit }) {
           autoFocus
           className="hero-rise mt-6 flex min-h-[3rem] w-full items-center justify-center rounded-full border border-gold/60 bg-parchment/70 px-8 font-display text-base text-ink shadow-sm transition hover:bg-goldSoft/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-goldDeep/60 focus-visible:ring-offset-2 focus-visible:ring-offset-mist active:scale-[0.98] sm:text-lg"
         >
-          Open in Chrome
+          Open the grand doors
         </a>
-        <p className="mt-3 text-xs leading-relaxed text-ink/55">
-          If nothing happens, tap the menu at the top right and choose
+        <p className="mt-3.5 text-xs leading-relaxed text-ink/55">
+          Should they not stir, tap the <Dots /> above and choose
           &ldquo;Open in browser&rdquo;.
         </p>
       </>
@@ -231,22 +151,53 @@ function Instructions({ exit }: { exit: Exit }) {
 
   const steps =
     exit.kind === "ios"
-      ? ["Tap the ••• menu, top right", "Choose “Open in Safari”"]
-      : ["Open your browser’s menu", "Choose “Open in browser”"];
+      ? [
+          <>
+            Tap the <Dots /> in the corner above
+          </>,
+          <>Choose &ldquo;Open in Safari&rdquo;</>,
+        ]
+      : [
+          <>
+            Tap the <Dots /> in the corner above
+          </>,
+          <>Choose &ldquo;Open in browser&rdquo;</>,
+        ];
 
   return (
-    <ol className="mt-6 w-full space-y-2.5 text-left">
-      {steps.map((step, i) => (
-        <li key={step} className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/50 bg-parchment/70 font-display text-sm text-goldDeep"
-          >
-            {i + 1}
-          </span>
-          <span className="text-[0.9375rem] leading-snug text-ink/85">{step}</span>
-        </li>
-      ))}
-    </ol>
+    <>
+      <p className="mt-6 font-hand text-lg leading-none text-berry">
+        Two steps to the ball
+      </p>
+      <ol className="mt-4 w-full space-y-3 text-left">
+        {steps.map((step, i) => (
+          <li key={i} className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-gold/50 bg-parchment/70 font-display text-sm text-goldDeep"
+            >
+              {i + 1}
+            </span>
+            <span className="text-[0.9375rem] leading-snug text-ink/85">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
+/**
+ * The overflow dots, as a shape rather than three full stops.
+ *
+ * Typed as text they set as an ellipsis — tight, baseline-sitting, nothing
+ * like the control a guest is hunting for. These are spaced and centred, and
+ * read to a screen reader as the word instead.
+ */
+function Dots() {
+  return (
+    <span className="whitespace-nowrap font-semibold tracking-[0.18em] text-ink/80">
+      <span aria-hidden>•••</span>
+      <span className="sr-only">three dots</span>
+    </span>
   );
 }

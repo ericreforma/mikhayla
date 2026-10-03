@@ -36,10 +36,7 @@ import { useEffect, useState } from "react";
  * for. Everything here fails open.
  */
 
-/** Where a refusal is remembered. Session, not local: it expires with the tab. */
-const STAY_KEY = "mikhayla:stay-in-app";
-
-/** Which app, for the sentence the gate puts on screen. */
+/** Which app was found. Not shown to a guest — see `OpenInBrowser`. */
 export type InAppName = "Messenger" | "Facebook" | "Instagram" | "Viber" | "Line" | "TikTok";
 
 /**
@@ -149,17 +146,8 @@ export function useInAppBrowser(): Verdict {
   const [verdict, setVerdict] = useState<Verdict>({ state: "unknown" });
 
   useEffect(() => {
-    /* A guest who chose to stay is not asked twice, not even through a
-       reload — the gate is a request, and it has already been refused. */
-    let stayed = false;
-    try {
-      stayed = sessionStorage.getItem(STAY_KEY) === "1";
-    } catch {
-      /* Storage walled off. Ask again; it is only a question. */
-    }
-
     const ua = navigator.userAgent;
-    const hit = stayed || isInstalled() ? undefined : APPS.find((a) => a.re.test(ua));
+    const hit = isInstalled() ? undefined : APPS.find((a) => a.re.test(ua));
     if (!hit) {
       setVerdict({ state: "clear" });
       return;
@@ -175,13 +163,4 @@ export function useInAppBrowser(): Verdict {
   }, []);
 
   return verdict;
-}
-
-/** Remember that this guest would rather stay where they are. */
-export function rememberStay(): void {
-  try {
-    sessionStorage.setItem(STAY_KEY, "1");
-  } catch {
-    /* Private mode, or storage turned off. The gate simply asks again. */
-  }
 }

@@ -14,6 +14,8 @@ import { DateTimeSection } from "@/app/components/DateTimeSection";
 import { PartyDetailsSection } from "@/app/components/PartyDetailsSection";
 import { FinaleSection } from "@/app/components/FinaleSection";
 import { LeaveGuard } from "@/app/components/LeaveGuard";
+import { useInAppBrowser } from "@/app/components/inAppBrowser";
+import { OpenInBrowser } from "@/app/components/OpenInBrowser";
 import { useBackgroundFetch } from "@/app/components/useAssetPreload";
 import { DEFERRED_ASSETS } from "@/app/components/preloadManifest";
 import {
@@ -105,6 +107,14 @@ export default function Page() {
   const started = intro || open;
 
   /*
+   * Whether a guest is in a real browser or inside a chat app's webview.
+   *
+   * Asked up here, above the preload, because the answer decides whether the
+   * download should begin at all — see the gate below.
+   */
+  const where = useInAppBrowser();
+
+  /*
    * Her twelve months' songs, fetched quietly from the moment the castle goes
    * up — fifteen megabytes that used to sit in front of the door and now ride
    * along behind it. See `preloadManifest.ts` for the split.
@@ -115,6 +125,32 @@ export default function Page() {
    * asking for it.
    */
   useBackgroundFetch(DEFERRED_ASSETS, started);
+
+  /*
+   * Before the curtain, one question: where is this being read?
+   *
+   * Both branches below return *instead of* the invitation rather than over
+   * the top of it, and that is the point of putting them here. `LoadingScreen`
+   * starts pulling her photographs the instant it mounts, so anything that
+   * renders it has already spent the guest's data — on a connection that, in a
+   * webview, is about to be walked away from. Not mounting it is the only way
+   * to not spend it.
+   *
+   * `unknown` is the single frame before the effect in `useInAppBrowser` has
+   * run. It paints the same dawn every other screen stands on, so the wait
+   * reads as the page's own ground rather than a flash of white.
+   */
+  if (where.state === "unknown") {
+    return <main className="royal-dawn fixed inset-0" aria-busy="true" />;
+  }
+
+  if (where.state === "gated") {
+    return (
+      <main>
+        <OpenInBrowser app={where.app} exit={where.exit} />
+      </main>
+    );
+  }
 
   return (
     <main>

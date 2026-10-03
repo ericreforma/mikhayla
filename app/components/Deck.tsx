@@ -5,6 +5,8 @@ import { BottomNav, type NavSection } from "./BottomNav";
 import { RisingBalloon } from "./RisingBalloon";
 import { SlideActiveContext } from "./SlideActive";
 import { useSnapTrack } from "./useSnapTrack";
+import { enterFullscreen, exitFullscreen, isFullscreen } from "./fullscreen";
+import { PrincessPattern } from "./PrincessPattern";
 
 export type DeckSlide = {
   key: string;
@@ -12,6 +14,15 @@ export type DeckSlide = {
   section: string;
   /** Announced to screen readers as "section N of M: <label>". */
   label: string;
+  /**
+   * This section is read in a window rather than full screen — see the
+   * effects below.
+   *
+   * One slide sets it: the finale, which *is* the way out. Arriving there
+   * hands the screen back; every other section takes it. There is no button
+   * anywhere, because the section is the button.
+   */
+  windowed?: boolean;
   node: ReactNode;
 };
 
@@ -93,6 +104,95 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
 
   const activeSection = slides[index]?.section ?? sections[0]?.id;
 
+  /*
+   * The screen follows the section.
+   *
+   * Every section but one is the invitation and is read full screen — which is
+   * what the press on "Open the gates" buys. The finale is the way out, and
+   * arriving there hands the screen back by itself. There is no close button
+   * anywhere on the site; swiping to the last page *is* closing it, and
+   * swiping back up re-opens it.
+   *
+   * ---------------------------------------------------------------------
+   * Why an effect is allowed to ask
+   * ---------------------------------------------------------------------
+   * A browser grants fullscreen on *transient activation*, which outlives the
+   * handler by around five seconds. The deck's travel is half a second, so by
+   * the time this runs, the swipe or tab tap that moved the deck is over and
+   * still well inside that window.
+   *
+   * It is a window, though, and a mouse wheel does not open one — wheel is not
+   * an activation trigger in any browser, by design. A guest who is out of
+   * fullscreen and *scrolls* between sections will not get it back from here;
+   * the listener below is what catches them.
+   *
+   * Both calls are no-ops when the screen is already in the state being asked
+   * for, so this costs nothing on the ordinary path.
+   */
+  const windowed = Boolean(slides[index]?.windowed);
+
+  const landed = useRef(false);
+  useEffect(() => {
+    /* The deck mounts on the hero, behind the castle's light, and the screen
+       was taken by the press that opened the gates. Asking again here would be
+       a request with no gesture behind it. */
+    if (!landed.current) {
+      landed.current = true;
+      return;
+    }
+    if (windowed) exitFullscreen();
+    else enterFullscreen();
+  }, [windowed, index]);
+
+  /*
+   * Getting the screen back after something else took it away.
+   *
+   * Fullscreen is not ours to keep. A phone that locks, a tab switched away
+   * from, a laptop lid closed — every one of them drops the page out of
+   * fullscreen, and the guest comes back to an invitation reading in a window
+   * with nothing having navigated, so the effect above never runs. That was
+   * the bug: the screen went off, and the invitation never recovered.
+   *
+   * A gesture is the only thing that can fix it, because a gesture is the only
+   * thing a browser will grant fullscreen to — `visibilitychange` fires with
+   * no activation behind it and is refused. So the next deliberate press
+   * anywhere on the page puts it back.
+   *
+   * A click and a key, deliberately, and not a pointerdown or a swipe: going
+   * fullscreen resizes the viewport, and the deck re-parks itself on a resize
+   * (see `realign` in useSnapTrack). Doing that *during* a swipe would fight
+   * the swipe. A completed tap cannot be mid-gesture, and a swipe that moves
+   * between sections is already covered by the effect above.
+   *
+   * Not on the finale: that page is meant to be windowed, and a tap on it must
+   * not undo the exit it just performed. And not from a tap on the tab bar
+   * either — that is a navigation whose destination decides the answer, so it
+   * is left to the effect above rather than guessed at here. Without that, a
+   * tap on the Finale tab would flash into fullscreen and straight back out.
+   *
+   * Escape is excluded. It is the browser's own way out of fullscreen, and a
+   * handler that re-entered on the very key that left would make it useless.
+   * It would be refused anyway — Escape grants no activation — but saying so
+   * here is clearer than relying on that.
+   */
+  useEffect(() => {
+    if (windowed) return;
+
+    const restore = (e: Event) => {
+      if (e instanceof KeyboardEvent && e.key === "Escape") return;
+      const target = e.target as Element | null;
+      if (target?.closest?.("nav")) return;
+      if (!isFullscreen()) enterFullscreen();
+    };
+
+    window.addEventListener("click", restore);
+    window.addEventListener("keydown", restore);
+    return () => {
+      window.removeEventListener("click", restore);
+      window.removeEventListener("keydown", restore);
+    };
+  }, [windowed]);
+
   /* Up/down keys drive the deck. Left/right belong to the timeline rail, so
      they're deliberately left alone here. */
   useEffect(() => {
@@ -147,7 +247,16 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
   }, [goTo, trackRef, indexRef]);
 
   return (
-    <div className="fixed inset-0 overflow-hidden">
+    <div className="fixed inset-0 overflow-hidden bg-parchment">
+      {/*
+        The backdrop, behind and either side of the invitation. It is only ever
+        seen on a window wider than the stage — see `.stage` in globals.css —
+        and it is the story title page's own wallpaper, so the margins belong
+        to the same book.
+      */}
+      <PrincessPattern />
+
+      <div className="stage">
       <RisingBalloon progress={progress} />
 
       <div
@@ -173,6 +282,7 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
         progress={progress}
         onSelect={(id) => goTo(sectionStart.get(id) ?? 0)}
       />
+      </div>
     </div>
   );
 }

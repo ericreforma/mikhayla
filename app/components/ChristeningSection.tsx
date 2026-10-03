@@ -218,7 +218,7 @@ export function ChristeningSection() {
         variants={GROUP}
       >
       <motion.div
-        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-10 wide-lg:px-14"
+        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-[calc(var(--stage-w)*0.05)]"
         variants={GROUP}
       >
         {/* A cross in a gilt ring, with a halo behind it that breathes — the
@@ -307,7 +307,7 @@ export function ChristeningSection() {
       {/* The plate of names, and who reads them out — its own column once
           there is width to spare and height to save. */}
       <motion.div
-        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-10 wide-lg:px-14"
+        className="flex w-full flex-col items-center wide:w-1/2 wide:flex-none wide:px-[calc(var(--stage-w)*0.05)]"
         variants={GROUP}
       >
         {/* The dedication verse, set apart the way a verse is on the order of
@@ -338,12 +338,12 @@ export function ChristeningSection() {
              of a 4xl box. Left at `w-full` the plate would stretch to the best
              part of a thousand pixels to hold twelve short names, with the two
              lists drifting apart to the far edges of it. */
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5 md:mt-3 md:py-4 wide:mt-0 wide:max-w-lg wide:px-8 wide:py-5"
+          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 px-4 py-4 shadow-sm sm:mt-5 sm:px-7 sm:py-5 md:mt-3 md:py-4 wide:mt-0 wide:max-w-lg wide:px-[calc(var(--stage-w)*0.028)] wide:py-5"
         >
           <p className="font-hand text-base text-berry xs:text-lg sm:text-xl wide:text-2xl">
             Standing with her
           </p>
-          <div className="mt-3 flex items-start gap-3 sm:mt-4 sm:gap-6 md:mt-2 wide:mt-5 wide:gap-8">
+          <div className="mt-3 flex items-start gap-3 sm:mt-4 sm:gap-6 md:mt-2 wide:mt-5 wide:gap-[calc(var(--stage-w)*0.028)]">
             <GodparentColumn title="Godmothers" names={GODMOTHERS} />
             {/* A gilt upright between the columns instead of a gap, so the two
                 lists read as one plate rather than two stray stacks. */}

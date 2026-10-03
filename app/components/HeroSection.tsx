@@ -23,6 +23,7 @@ export function HeroSection() {
     if (!isActive) setLearned(true);
   }, [isActive]);
 
+
   return (
     /*
       Phone and tablet are two different pictures of the same screen.

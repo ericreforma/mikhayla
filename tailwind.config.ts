@@ -96,22 +96,47 @@ const config: Config = {
        * the foot, which is right — it is operated by a finger. A small laptop
        * window gets the menu, which is also right.
        *
-       * The width floor is kept as a second lock rather than the only one. At
-       * 1440 it sits comfortably above that iPad's 1376, so the tablet layout
-       * holds on the real device *and* in a desktop browser window dragged
-       * down to its size — which is how this gets checked day to day, and
-       * where a pointer test on its own would quietly report a desktop.
+       * The size floors are a second lock rather than the only one, and they
+       * are set low: a desktop window is a desktop however small it has been
+       * dragged, and the pointer test has already answered the question that
+       * matters. 1100 x 500 is roughly the smallest window the top menu's six
+       * tabs still lay out in a row, which is the real floor — below it the
+       * tablet's bottom bar is the better bar, and the layout falls back to it.
        *
-       * Height is still asked for, and for the reason it always was: see the
-       * comment over the type scale in globals.css, where the dedication page
-       * sets the figures. Both rungs are consumed from there by name through
-       * `@media screen(...)`, so this is the only place either is written.
+       * The figure that drove this down was a real one: a 1920x1080 screen at
+       * 150% scaling is a 1280x720 window, and a browser's own furniture takes
+       * that to about 1164 x 532. That is a desktop by every test that counts
+       * and was being served the tablet layout, because the floors were set
+       * against laptop screens rather than against the windows people have
+       * open on them.
+       *
+       * -----------------------------------------------------------------
+       * Layout and type are deliberately NOT the same rung
+       * -----------------------------------------------------------------
+       * This one switches the *layout*: the menu moves to the head of the
+       * screen, the hero's portrait stops being cropped, the two long sections
+       * take a half of the window each. None of that costs height — the menu
+       * is less than half the bar it replaces — so it is right at any size.
+       *
+       * Making the page *bigger* is a different question, and it is a question
+       * about height, because height is what the dedication page runs out of.
+       * So the two type steps below have their own rungs and their own floors,
+       * well above this one. A short desktop window gets the desktop layout at
+       * the browser's own 16px; height is what buys the larger settings.
+       *
+       * All three are consumed from globals.css by name through
+       * `@media screen(...)`, so this is the only place any of them is written.
        */
       "wide-lg": {
+        raw: "(min-width: 1100px) and (min-height: 500px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
+      },
+      /* Desktop with the height to be set a step larger — see the dedication
+         page's measured figures over the type scale in globals.css. */
+      "wide-xl": {
         raw: "(min-width: 1440px) and (min-height: 760px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
       },
-      /* The second rung of the same scale, where the page is set larger again. */
-      "wide-xl": {
+      /* And a full-height monitor, a step larger again. */
+      "wide-2xl": {
         raw: "(min-width: 1600px) and (min-height: 830px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
       },
     },

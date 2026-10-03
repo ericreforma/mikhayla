@@ -36,11 +36,36 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
       className="pointer-events-none absolute inset-0 z-30"
       style={{ top: "calc(var(--nav-bar) * (1 - var(--nav-at-foot)))" }}
     >
+    {/*
+      And it can be batted about.
+      ----------------------------------------------------------------------
+      A balloon that only ever drifts is scenery; one that moves when a finger
+      pushes it is a toy, and this page is for a one-year-old's guests. Drag it
+      anywhere and let go — it springs back to the string, because where it
+      hangs is not decoration: it is how far through the invitation you are,
+      and a balloon left in a corner would be a broken gauge.
+
+      `touch-none` hands the gesture to the drag rather than to the deck, so a
+      finger that lands on the balloon moves the balloon instead of turning the
+      page. It is a small target and deliberately so — everywhere else on the
+      screen still swipes.
+
+      The sway moves to a wrapper of its own. It is a CSS animation on
+      `transform`, and dragging is Motion writing `transform` on the element it
+      drags; on one element the two would overwrite each other and the balloon
+      would jump between them.
+    */}
     <motion.div
       aria-hidden
-      className="pointer-events-none absolute right-1 animate-balloon-sway xs:right-2 sm:right-8 md:right-16"
+      className="pointer-events-auto absolute right-1 cursor-grab touch-none active:cursor-grabbing xs:right-2 sm:right-8 md:right-16"
       style={{ top }}
+      drag
+      dragSnapToOrigin
+      dragMomentum={false}
+      whileDrag={{ scale: 1.06 }}
+      transition={{ type: "spring", stiffness: 300, damping: 22 }}
     >
+      <div className="animate-balloon-sway">
       <motion.svg
         viewBox="0 0 72 128"
         style={{ rotate }}
@@ -78,6 +103,7 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
         <polygon points="30,90 42,90 36,100" fill="#D98BAB" />
         <circle cx="36" cy="93" r="2.4" fill="#D4AF37" opacity="0.8" />
       </motion.svg>
+      </div>
     </motion.div>
     </div>
   );

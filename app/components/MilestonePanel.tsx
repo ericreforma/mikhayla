@@ -299,14 +299,11 @@ export function MilestonePanel({ m }: { m: Milestone }) {
             Sized by its height, with a ceiling on how wide that is allowed to
             make it.
 
-            The ceiling is what the caption's clearance assumes. `.beside-figure`
-            and `.pl-figure` in globals.css set the words down beside her by a
-            fixed inset, and a fixed inset only works if no cut-out is wider
-            than it — the figures are a set of pictures, though, and a new one
-            need not be shaped like the eleven before it. Her own month's is
-            nearly square where a princess is tall and narrow, and left to its
-            own proportions it reached across the inset and the title landed on
-            her wings.
+            The ceiling is what keeps her out of the caption's way. The figures
+            are a set of pictures and a new one need not be shaped like the
+            eleven before it: her own month's is nearly square where a princess
+            is tall and narrow, and left to its own proportions it grew wide
+            enough to reach across the column and put the title on her wings.
 
             5.6em is the widest a figure can be and still sit inside that
             clearance. Every drawn princess is narrower than it already — the
@@ -356,9 +353,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
         instead of pushing its first line up under the ornament.
       */}
       <div
-        className={`relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center wide:w-[45%] wide:justify-start wide:px-12 wide:pt-[14vw] wide:text-center${
-          m.character ? " pl-figure" : ""
-        }`}
+        className="relative flex h-full flex-col justify-end px-gutter pb-rail pt-8 text-center wide:w-[45%] wide:justify-start wide:px-12 wide:pt-[calc(var(--stage-w)*0.14)] wide:text-center"
       >
         {/*
           The caption's frame, in its four pieces.
@@ -460,7 +455,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           at any shape of screen, which is the proportion, held directly.
         */}
         <motion.div
-          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh] wide-lg:max-w-[34vw]"
+          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh] wide-lg:max-w-[calc(var(--stage-w)*0.34)]"
           initial={false}
           animate={state}
           variants={GROUP}
@@ -490,32 +485,28 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           </motion.div>
 
           {/*
-            The note and the counter are the two lines that fall inside the
-            figure's height, so they set down to the right of it and read from
-            its edge rather than from the middle of the page. `beside-figure`
-            is measured from the same screen edge the figure stands on, which
-            is what keeps the gap between them even as the page resizes.
+            The note and the counter are the two lines that can fall inside the
+            figure's height. They used to be set down beside her — left-aligned
+            and pushed clear by a fixed inset — which left the caption reading
+            as two different settings stacked: a centred title over a column of
+            left-hung small print. Everything is centred now, and the halo below
+            is what carries the two lines across her where they meet.
 
-            Month zero has no gown and so no figure. With nothing to sit beside
-            it keeps the centred setting the rest of the caption uses, and with
-            the whole width to itself it is left uncapped rather than held to
-            the 32-character measure the other months read at.
+            Month zero has no gown and so no figure, and needs no halo.
           */}
           <motion.div
             variants={TAIL_GROUP}
             /* `caption-halo` only earns its keep on the two lines that can
                fall across the princess — the title never reaches her. */
-            className={
-              m.character
-                ? "beside-figure caption-halo mt-3 text-left md:mx-auto md:max-w-[32ch] wide:mx-auto wide:max-w-[30ch] wide:text-center"
-                : "mt-3 wide:mx-auto wide:max-w-[30ch]"
-            }
+            className={`mx-auto mt-3 max-w-[32ch] wide:max-w-[30ch]${
+              m.character ? " caption-halo" : ""
+            }`}
           >
             {/* A shade heavier than the parchment sections: the ground under it
                 is a tint rather than near-white paper. */}
             <motion.p
               variants={line}
-              className={`text-sm leading-relaxed text-ink/80 sm:text-base wide:text-lg${m.character ? " max-w-[32ch] wide:max-w-none" : ""}`}
+              className="text-sm leading-relaxed text-ink/80 sm:text-base wide:text-lg"
             >
               {m.note}
             </motion.p>

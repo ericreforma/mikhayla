@@ -50,7 +50,16 @@ const SLIDES: DeckSlide[] = [
   { key: "blessing", section: "blessing", label: "Her dedication", node: <ChristeningSection /> },
   { key: "date", section: "date", label: "Save the date", node: <DateTimeSection /> },
   { key: "rsvp", section: "rsvp", label: "The royal ball", node: <PartyDetailsSection /> },
-  { key: "finale", section: "finale", label: "Happily ever after", node: <FinaleSection /> },
+  /* The way out. Arriving here hands the screen back; every other section
+     takes it. See `windowed` on DeckSlide — there is no close button on the
+     site, because this page is one. */
+  {
+    key: "finale",
+    section: "finale",
+    label: "Happily ever after",
+    windowed: true,
+    node: <FinaleSection />,
+  },
 ];
 
 export default function Page() {

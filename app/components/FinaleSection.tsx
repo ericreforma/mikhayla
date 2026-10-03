@@ -24,32 +24,22 @@ export function FinaleSection() {
       room to hear it. Both turn on the same `wide` test; an iPad held upright
       keeps the single column on both.
     */
-    <div className="relative flex min-h-full flex-col overflow-hidden pt-6 text-center sm:pt-8 wide:flex-row wide:items-stretch wide:pt-0 wide:text-left">
+    <div className="relative flex min-h-full flex-col overflow-hidden bg-parchment pt-6 text-center sm:pt-8 wide:flex-row wide:items-stretch wide:pt-0">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
       {/* The words. `pb-nav` only where the two stand side by side: stacked,
           this column sits above her picture, which is meant to run on behind
           the tab bar, so nothing here has to clear it. Beside it, it does. */}
       {/*
-        Hung from a left edge on a desktop, rather than centred and happening
-        to look like it.
+        Centred down the column, the way the hero is.
 
-        This column reads left-aligned from `wide` up — that is what
-        `wide:text-left` on the panel says — but the blocks carrying those
-        lines are still centred in it, and on a tablet the two agree only by
-        luck: the column is narrow enough that the name and the paragraph both
-        very nearly fill it, so centring them puts their left edges within a
-        few pixels of each other. Give the same column a monitor's width and
-        the luck runs out. The paragraph, uncapped, still spans the whole of
-        it while the name is a third of it centred, and the block comes apart
-        into three ragged starts.
-
-        So on a desktop the centring comes off and the edge is real. The two
-        `mx-auto`s below have to come off with it — an auto margin beats
-        `align-items` in flexbox, and either one left in place would quietly
-        go on centring its own line against the rest.
+        It read left-aligned for a while, on the argument that an invitation is
+        printed that way — but the hero is the other half of this pair and has
+        always been centred, and two covers that disagree about their own axis
+        read as a mistake rather than as a choice. Centred, the crown sits over
+        the name on both, which is the rhyme the two screens are for.
       */}
-      <div className="relative flex flex-col items-center px-gutter wide:w-[46%] wide:flex-none wide:justify-center wide:px-8 wide:pb-nav wide-lg:items-start">
+      <div className="relative flex flex-col items-center px-gutter wide:w-[46%] wide:flex-none wide:justify-center wide:px-8 wide:pb-nav">
         <Crown className="h-9 w-auto text-gold drop-shadow-sm sm:h-12" />
 
         {/*
@@ -71,7 +61,7 @@ export function FinaleSection() {
             rather than five words and an orphan. Past `sm` there is room for
             all of it on one line, which is where the hero's own subtitle
             sits, so the width comes off. */}
-        <p className="mx-auto mt-2.5 max-w-[30ch] text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep xs:text-xs sm:mt-3 sm:max-w-none sm:text-sm sm:tracking-[0.3em] wide:tracking-[0.18em] wide-lg:mx-0 wide-lg:tracking-[0.3em]">
+        <p className="mx-auto mt-2.5 max-w-[30ch] text-balance text-[0.6875rem] uppercase tracking-[0.28em] text-goldDeep xs:text-xs sm:mt-3 sm:max-w-none sm:text-sm sm:tracking-[0.3em] wide:tracking-[0.18em] wide-lg:tracking-[0.3em]">
           One whole year of our little princess
         </p>
 
@@ -81,13 +71,14 @@ export function FinaleSection() {
             and the cap would only ever fight it; across the half of a monitor
             it would run to eighty and read as a page of prose rather than as
             the last line of an invitation. */}
-        <p className="mx-auto mt-4 max-w-[34ch] text-sm leading-relaxed text-ink/75 sm:mt-5 sm:max-w-md sm:text-base wide:max-w-none wide:text-lg wide-lg:mx-0 wide-lg:max-w-[40ch]">
+        <p className="mx-auto mt-4 max-w-[34ch] text-sm leading-relaxed text-ink/75 sm:mt-5 sm:max-w-md sm:text-base wide:max-w-none wide:text-lg wide-lg:max-w-[40ch]">
           Thank you for being part of her first year — every gown, every giggle, every tiny
           milestone. We can&apos;t wait to celebrate this one with you.
         </p>
         <p className="mt-5 font-hand text-xl text-berry xs:text-2xl sm:mt-6 wide:text-2xl">
           And they all lived happily ever after&nbsp;👑
         </p>
+
       </div>
 
       {/*

@@ -416,7 +416,7 @@ export function PartyDetailsSection() {
       </div>
 
       <motion.div
-        className="flex w-full flex-col items-center wide:col-start-1 wide:row-start-1 wide:px-10 wide-lg:px-14"
+        className="flex w-full flex-col items-center wide:col-start-1 wide:row-start-1 wide:px-[calc(var(--stage-w)*0.05)]"
         variants={GROUP}
       >
         {/* The crown keeps breathing after it has arrived, so the page is
@@ -707,7 +707,7 @@ export function PartyDetailsSection() {
             comes back for on the day. */}
         <motion.div
           variants={line}
-          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center wide:px-10 wide-lg:px-14"
+          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center wide:px-[calc(var(--stage-w)*0.05)]"
         >
           {/*
             The same button either way. With an endpoint configured it opens

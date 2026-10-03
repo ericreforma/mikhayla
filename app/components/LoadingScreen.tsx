@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { BABY_FULL_NAME } from "@/app/config";
 import { Hint } from "./Hint";
+import { enterFullscreen } from "./fullscreen";
 import { Crown, Sparkle } from "./Ornaments";
 import { PRELOAD_ASSETS } from "./preloadManifest";
 import { useAssetPreload } from "./useAssetPreload";
@@ -183,8 +184,18 @@ export function LoadingScreen({ onReady }: { onReady: () => void }) {
    *
    * It is the same gesture that unlocks the players — see BackgroundMusic —
    * so nothing here has to know about the music at all.
+   *
+   * And it is the gesture that takes the screen, for a third version of the
+   * same reason: a browser grants fullscreen only inside the call stack of a
+   * real press, so this is the only moment on the whole site where it can be
+   * asked for. It is asked for first, before the state change, so nothing can
+   * come between the press and the request — see `enterFullscreen`, which
+   * fails quietly wherever the answer is no, an iPhone included.
    */
-  const knock = useCallback(() => setEntered(true), []);
+  const knock = useCallback(() => {
+    enterFullscreen();
+    setEntered(true);
+  }, []);
 
   /*
    * The reveal, in the order it has to happen.

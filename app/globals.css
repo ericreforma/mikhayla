@@ -65,7 +65,11 @@ body {
                 1180 x 820   iPad Air  /  1194 x 834  iPad Pro 11"
                 1366 x 1024  iPad Pro 12.9"  /  1376 x 1032  iPad Pro 13"
                 then the two desktop rungs, which add a pointer test as well
-                — see `wide-lg` in tailwind.config.ts.
+                — `wide-xl` and `wide-2xl` in tailwind.config.ts. Note those
+                names: the rung that turns the desktop *layout* on is the one
+                below them, `wide-lg`, and it sets no type at all. See the
+                block over those two rungs for why the two are not the same
+                moment.
 
    Anything smaller in either direction — every phone, either way up — falls
    through to the browser's own 16px, which is the phone design.
@@ -143,9 +147,17 @@ body {
    the iPad's type however wide it happens to be.
 
    So the heights in those definitions are that page's, measured rather than
-   guessed: set at 20px it needs 732px of window, and at 22px it needs 804px.
-   The gates are 760 and 830, which leaves a little under thirty pixels in hand
-   for a font that loads a shade taller than the one it was measured against.
+   guessed. 760 and 830 were taken when these rungs set 20px and 22px, where
+   that page needed 732 and 804 — the gates were the next round figure above
+   its own requirement, with barely thirty pixels in hand.
+
+   They are now generous rather than tight, because the type below came down to
+   17 and 19 and the page shrank with it. They have deliberately been left
+   where they are: nothing is gained by letting a larger setting start in a
+   shorter window, and these are the heights at which a desktop window stops
+   feeling cramped regardless of what the dedication page needs. If the type
+   ever goes back up, these are the numbers it has to be measured against
+   again.
 
    Those figures were re-measured once already, and the reason is worth keeping
    because it will happen again. They were first taken while the tab bar was
@@ -161,27 +173,73 @@ body {
    height of the browser's own furniture, which is the whole of the gap that
    bug lived in.
 
-   Neither rung is written here. `screen(wide-lg)` and `screen(wide-xl)` below
-   are Tailwind resolving the one definition of each from the `screens` block
-   in tailwind.config.ts, which is also what the `wide-lg:` classes in the
-   sections compile against — so the scale and the variants cannot drift apart,
-   because there is nothing to drift. Go there to change when a desktop starts;
-   come back here only to change how large it is then set.
+   Note which rungs these are. They are `wide-xl` and `wide-2xl`, not the
+   `wide-lg` that switches the desktop *layout* — on this site a desktop starts
+   well before it is set any larger than a phone.
+
+   That split is the point. The layout change costs no height at all: the menu
+   that moves to the head of the screen is less than half the bar it replaces,
+   so a desktop window gains room by becoming one. Setting the page larger
+   spends height, and height is the one thing the dedication page has none of
+   to spare. So a short desktop window — a 1920x1080 screen at 150% scaling is
+   a 1164x532 viewport once the browser's own furniture is off, and that is a
+   very ordinary machine — gets the desktop layout at the browser's own 16px,
+   and the two steps below wait until there is height to carry them.
+
+   Neither rung is written here. `screen(...)` is Tailwind resolving the one
+   definition of each from the `screens` block in tailwind.config.ts, which is
+   also what the `wide-lg:` classes in the sections compile against — so the
+   scale and the variants cannot drift apart, because there is nothing to
+   drift. Go there to change when each starts; come back here only to change
+   how large the page is then set.
 
    And note what is in those definitions besides a width: a desktop is not a
    size on this site, it is a pointing device. An iPad Pro 13" turned sideways
    is larger than most laptops and must still be set as a tablet.
    --------------------------------------------------------------- */
 
+/*
+   A desktop is set *smaller* than a tablet, and smaller than a phone at the
+   bottom of its range. That is not a mistake, and it is worth saying why,
+   because every other rung on this ladder goes the other way.
+
+   The ladder above grows because of how a device is held. A phone is a
+   forearm away, an iPad an arm's length, so the iPad gets larger type to
+   arrive at the same apparent size. A desktop breaks that chain: it is read
+   from further away again, but it is also the one screen whose operating
+   system has already scaled everything for the distance. A 1920x1080 panel at
+   150% is reporting a 1280x720 window precisely so that a CSS pixel lands at a
+   comfortable size — scaling it a second time in here is doing the same job
+   twice, and the invitation ends up shouting.
+
+   So these three undo the tablet's step rather than extending it: 14, 17, 19
+   against a tablet's 17 to 22. They still ramp, because a 1920 window really
+   can carry more than a 1164 one, but the whole tier now sits a little under
+   the browser's own 16px rather than well over it.
+
+   14 at the bottom is also what makes the shortest desktop window *work*
+   rather than merely look right. On a 1164x532 viewport the dedication, the
+   date and the ball all ran past the foot of the screen at 16px and had to be
+   scrolled inside; at 15px two of the three still did; at 14px all three land
+   with room in hand. That is the figure measured, not chosen — see the note
+   above about measuring against the viewport.
+*/
+
 @media screen(wide-lg) {
   html {
-    font-size: 20px;
+    font-size: 14px;
   }
 }
 
 @media screen(wide-xl) {
   html {
-    font-size: 22px;
+    font-size: 17px;
+  }
+}
+
+@media screen(wide-2xl) {
+  html {
+    font-size: 19px;
   }
 }
 
@@ -316,6 +374,99 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The stage: the invitation is never wider than a tablet
+   ---------------------------------------------------------------
+   Every page of this deck was drawn against a tablet held sideways — two
+   columns, a portrait beside the words, a frame around a caption. Those
+   proportions stop working long before the screen does. A 1920x1080 monitor is
+   16:9 and a browser window on a scaled laptop can be far worse: 1164 by 532 is
+   better than two to one, and at that shape the hero is a strip of type with an
+   acre of parchment beside it.
+
+   So the invitation stops widening at 4:3 — an iPad's own ratio — and what is
+   left either side is backdrop rather than page. It is the same wallpaper the
+   story's title page uses, drifting at the same speed, so the margins read as
+   the book the invitation is printed in rather than as bars.
+
+   `--stage-w` is the width that produces, and it exists because `vw` cannot be
+   trusted once this bites. A `14vw` padding inside the stage would be measured
+   against the whole window — nearly half again the stage's own width on a
+   letterboxed screen. Anything sizing itself against the page's width reads
+   this instead. Height is never cropped, so `vh` stays `vh`.
+
+   Written as `min()` rather than a media query so there is no breakpoint to
+   cross: below 4:3 the first term wins and the stage is simply the window.
+   --------------------------------------------------------------- */
+
+:root {
+  --stage-ratio: 4 / 3;
+  --stage-w: min(100vw, calc(100dvh * (var(--stage-ratio))));
+  /* How thick the gilt edge down each side of the page is. */
+  --stage-edge: 10px;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  /*
+     The border is added to the width rather than taken out of it. Everything
+     inside is measured against `--stage-w` — the month's frame, its caption's
+     cap, the columns on the two long pages — and `box-sizing: border-box`
+     would have quietly shaved the gilt edge off all of them, which on a short
+     window is the difference between a title on three lines and four. The
+     binding sits outside the page, which is also where a real one sits.
+  */
+  width: calc(var(--stage-w) + 2 * var(--stage-edge));
+  /* `inset: 0` pins both edges; an auto margin either side then centres what
+     is narrower than the window, which is what puts the margins in. */
+  margin-inline: auto;
+  overflow: hidden;
+
+  /*
+     The gilt edge, and only down the sides.
+
+     Top and bottom the invitation runs to the screen, so a border there would
+     be a line across the window rather than the edge of a page. The sides are
+     the only two edges the backdrop actually meets, and a band of gold is what
+     turns that meeting into a bound edge instead of a crop.
+
+     The gradient is the same move the gilt rules make everywhere else on the
+     site — deeper gold in the middle of the run, paler at the ends — so the
+     edge reads as leaf rather than as a painted stripe.
+
+     The shadow is thrown outwards onto the wallpaper, which is the whole point
+     of it: it is what lifts the page off the pattern and stops the two reading
+     as one flat surface. Soft and wide rather than tight and dark; this is a
+     page resting on a page, not a card floating over a table.
+  */
+  border-left: var(--stage-edge) solid transparent;
+  border-right: var(--stage-edge) solid transparent;
+  border-image: linear-gradient(
+      to bottom,
+      #e8cf86 0%,
+      #d4af37 18%,
+      #b8912a 50%,
+      #d4af37 82%,
+      #e8cf86 100%
+    )
+    1 stretch;
+  box-shadow:
+    0 0 2.5rem rgba(62, 40, 20, 0.28),
+    0 0 7rem rgba(62, 40, 20, 0.16);
+}
+
+/* No edge to draw when the stage is the whole window — there is no backdrop
+   beside it for a border to separate it from, and a gold band down both sides
+   of a phone would simply eat eight pixels of the page. */
+@media (max-aspect-ratio: 4 / 3) {
+  .stage {
+    border-left-width: 0;
+    border-right-width: 0;
+    box-shadow: none;
   }
 }
 
@@ -478,41 +629,6 @@ body {
     bottom: calc(var(--nav-bar) * var(--nav-at-foot) + env(safe-area-inset-bottom));
   }
 
-  /*
-     Sets text down beside the corner figure instead of underneath it.
-
-     The figure stands at the screen edge, not at the gutter, so this inset is
-     measured from that same edge less the gutter the text already carries —
-     which is what keeps the two side by side as the page resizes. The value is
-     set against the visible artwork rather than the image box, since several
-     cut-outs carry a wide transparent margin; it grows with the type ladder
-     because the figure is sized in title lines.
-
-     Past `md` the caption is centred far clear of the figure and the inset
-     comes off again.
-  */
-  .beside-figure {
-    padding-left: 6.5rem; /* tuned by eye against the widest cut-out */
-  }
-
-  @media (min-width: 400px) {
-    .beside-figure {
-      padding-left: 8.375rem; /* the same, stepped up with the type ladder */
-    }
-  }
-
-  @media (min-width: 640px) {
-    .beside-figure {
-      padding-left: 10rem; /* likewise */
-    }
-  }
-
-  @media (min-width: 768px) {
-    .beside-figure {
-      padding-left: 0;
-    }
-  }
-
   @media (min-width: 640px) {
     .px-gutter {
       padding-left: max(1.5rem, env(safe-area-inset-left));
@@ -529,35 +645,6 @@ body {
     }
   }
 
-  /*
-     Sets the whole of a month's caption down beside the princess in the
-     corner, rather than on top of her — on a tablet held upright, which is the
-     one shape where she is half the page tall and the caption is still a band
-     under the photograph.
-
-     `.beside-figure` above does this on a phone, but only for the two lines
-     that fall inside her height: there she is a footnote about a quarter of
-     the screen tall and the title clears her easily. On a tablet she does not,
-     and the whole block has to move over.
-
-     Written as a media query rather than as a `tall:` variant on purpose, and
-     it has to stay one. The variant would be generated next to this rule,
-     which is *before* the `px-gutter` override just above — and that override
-     sets `padding-left` too, at the same specificity and later in the file, so
-     it would quietly win at every width this is meant to apply to. Baked in
-     here, after it, the order is not in question.
-
-     The figure stands at the screen edge, so this is measured from there, and
-     against the visible artwork rather than the image box — several cut-outs
-     carry a wide transparent margin. Like her height it is written in title
-     lines, so the two keep their proportion as the type scale moves: she is
-     6.375 lines tall and about 0.72 of that across at the widest.
-  */
-  @media (min-width: 768px) and (orientation: portrait) {
-    .pl-figure {
-      padding-left: calc(6.375 * 3rem * 0.72 + 1rem);
-    }
-  }
 }
 
 /* ---------------------------------------------------------------

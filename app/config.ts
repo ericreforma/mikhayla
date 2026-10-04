@@ -257,8 +257,44 @@ export const FINALE_PORTRAIT = picture("/images/mikhayla-cake.png");
 export const SWIMWEAR_ICON = asset("/icons/swimwear.png");
 export const PARTY_DATE = "Saturday, October 17, 2026";
 export const PARTY_TIME = "10:00 AM – 2:00 PM";
-export const PARTY_LOCATION = "Casa Maria Resort and Events Place";
-export const PARTY_ADDRESS = "San Mateo St., Poblacion, City of San Jose del Monte, Bulacan";
+/**
+ * The venue, in its two halves.
+ *
+ * Split because the card sets them as two lines of different size — the name
+ * large, what it is beneath it in small caps — and because the old single
+ * string had to wrap to fit a phone, which is where the layout came apart:
+ * the icon beside it was centred against a block that was sometimes one line
+ * tall and sometimes two, so it moved whenever the name did.
+ *
+ * Two lines by construction cannot do that. `PARTY_LOCATION` is still the
+ * whole thing and is still what the maps are searched for and what the
+ * buttons are labelled with — built from the halves rather than typed again,
+ * so the two can never drift apart.
+ */
+export const PARTY_VENUE_NAME = "Casa Maria";
+export const PARTY_VENUE_KIND = "Resort and Events Place";
+export const PARTY_LOCATION = `${PARTY_VENUE_NAME} ${PARTY_VENUE_KIND}`;
+/**
+ * The address, broken where a reader would break it rather than wherever the
+ * box happens to run out.
+ *
+ * Street and barangay on one line, then the city and province — which is how
+ * it would be written on an envelope, and how somebody reading it aloud to a
+ * driver would say it. Left to wrap on its own it split mid-phrase, "City of
+ * San Jose" on one line and "del Monte, Bulacan" on the next, which reads as
+ * two places rather than one.
+ *
+ * The comma between the lines is not in the data: it belongs to the join, and
+ * the card puts it back at the end of every line but the last. That way
+ * `PARTY_ADDRESS` — the single string the maps are searched for — is built
+ * from these and cannot drift from what is on screen.
+ */
+export const PARTY_ADDRESS_LINES = [
+  "San Mateo St., Poblacion",
+  "City of San Jose del Monte, Bulacan",
+] as const;
+
+export const PARTY_ADDRESS = PARTY_ADDRESS_LINES.join(", ");
 export const RSVP_EMAIL = "rsvp@example.com";
 export const RSVP_BY = "October 10";
 

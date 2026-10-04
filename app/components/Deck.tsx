@@ -137,6 +137,45 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
   const [cueSuppressed, setCueSuppressed] = useState(false);
 
   /*
+   * Whether the section on screen is taller than the screen.
+   *
+   * The arrow floats at a fixed height above the bar, and a section reserves
+   * `--nav-h` plus a little at its foot — which is some thirty pixels less
+   * than the arrow's top edge. On a window tall enough for the whole section
+   * that gap is empty and the arrow sits in it. On a short one the section
+   * runs right through it, and the chevron came down in the middle of the
+   * godparents' plate.
+   *
+   * Giving every section another thirty-odd pixels of bottom padding would
+   * fix it and cost height on the pages that have least to spare — see the
+   * measured figures over the dedication's type scale in globals.css. So the
+   * arrow stands down instead, which is also the more honest reading of it:
+   * it means "there is nothing more of this one", and while a section can
+   * still be scrolled that is not true. The bar at the foot is how a guest
+   * leaves a section they have not finished, and it is always there.
+   *
+   * Observed rather than measured once, because the height moves under us:
+   * the venue card swaps a map for a walkthrough, a dialog opens, a tablet is
+   * turned over.
+   */
+  const [sectionScrolls, setSectionScrolls] = useState(false);
+  useEffect(() => {
+    const track = trackRef.current;
+    const slide = track?.children[index] as HTMLElement | undefined;
+    if (!slide) return;
+
+    const check = () => setSectionScrolls(slide.scrollHeight > slide.clientHeight + 2);
+    check();
+
+    const ro = new ResizeObserver(check);
+    ro.observe(slide);
+    /* The section's own box is the window; it is the content inside that
+       grows, so that is what has to be watched as well. */
+    if (slide.firstElementChild) ro.observe(slide.firstElementChild);
+    return () => ro.disconnect();
+  }, [index, trackRef]);
+
+  /*
    * The screen follows the section.
    *
    * Every section but one is the invitation and is read full screen — which is
@@ -341,8 +380,13 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
         `cueSuppressed` is the one section that answers back: her year holds
         the arrow until the rail reaches its last month, because until then
         the way on is sideways. See `ScrollCueSuppress`.
+
+        `sectionScrolls` holds it back wherever the section itself is still
+        unread — see above.
       */}
-      {index < count - 1 && !cueSuppressed && <ScrollCue onSelect={() => goTo(index + 1)} />}
+      {index < count - 1 && !cueSuppressed && !sectionScrolls && (
+        <ScrollCue onSelect={() => goTo(index + 1)} />
+      )}
 
       <BottomNav
         sections={sections}

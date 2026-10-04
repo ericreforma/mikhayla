@@ -5,7 +5,10 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import {
   BABY_NAME,
   PARTY_LOCATION,
+  PARTY_VENUE_NAME,
+  PARTY_VENUE_KIND,
   PARTY_ADDRESS,
+  PARTY_ADDRESS_LINES,
   RSVP_EMAIL,
   RSVP_BY,
   RSVP_ENDPOINT,
@@ -17,7 +20,7 @@ import {
   VENUE_MAP_EMBED,
   COLUMN_SEPARATOR,
 } from "@/app/config";
-import { Crown, Sparkle, MapPinIcon, PlayIcon, PalmIcon, ExpandIcon } from "./Ornaments";
+import { Crown, Sparkle, MapPinIcon, PlayIcon, ExpandIcon } from "./Ornaments";
 import { ImageLightbox } from "./ImageLightbox";
 import { MapLightbox } from "./MapLightbox";
 import { VideoLightbox } from "./VideoLightbox";
@@ -481,13 +484,41 @@ export function PartyDetailsSection() {
              supports; this is the widest it can be and still land inside it. */
           className="order-2 mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 md:order-none wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mx-auto wide:mt-0 wide:max-w-md wide:self-center wide:p-5"
         >
-          <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl wide:text-xl">
-            <PalmIcon className="h-5 w-5 flex-none text-goldDeep sm:h-6 sm:w-6" />
-            <span>{PARTY_LOCATION}</span>
+          {/*
+            The venue as a name and then a description, rather than one long
+            string left to wrap where it likes.
+
+            The bug this fixes: "Casa Maria Resort and Events Place" is too
+            long for a phone, so it broke to two lines — and the palm beside
+            it was vertically centred against a block whose height therefore
+            changed with the window. The icon slid up and down the card, and
+            the second line hung under it in a hanging indent nobody asked
+            for. Both icons are gone now, from here and from the address: in
+            a card already titled by its own border they were decoration that
+            was costing the words their width.
+
+            Two lines by construction, so there is no wrap left to go wrong —
+            and the split says something the single line could not, which is
+            which two words are the name. `PARTY_LOCATION` still exists as
+            the whole string; the maps and the button labels use it.
+          */}
+          <p className="text-center font-display text-2xl leading-[1.15] text-ink xs:text-[1.75rem] sm:text-[2rem] wide:text-[1.75rem]">
+            {PARTY_VENUE_NAME}
           </p>
-          <p className="mt-1.5 flex items-start justify-center gap-2 text-xs leading-relaxed text-ink/70 sm:text-sm">
-            <MapPinIcon className="mt-px h-4 w-4 flex-none text-goldDeep" />
-            <span className="max-w-[34ch] text-left">{PARTY_ADDRESS}</span>
+          <p className="mt-1 text-center text-[0.625rem] uppercase leading-snug tracking-[0.2em] text-goldDeep xs:text-[0.6875rem] sm:text-xs sm:tracking-[0.22em]">
+            {PARTY_VENUE_KIND}
+          </p>
+          {/* One line per line of the address — see `PARTY_ADDRESS_LINES`.
+              No measure cap here any more: the breaks are chosen now, so a
+              `max-w` could only undo one of them by wrapping a line it was
+              never going to fit. */}
+          <p className="mt-2 text-center text-xs leading-relaxed text-ink/70 sm:text-sm">
+            {PARTY_ADDRESS_LINES.map((line, i) => (
+              <span key={line} className="block">
+                {line}
+                {i < PARTY_ADDRESS_LINES.length - 1 ? "," : ""}
+              </span>
+            ))}
           </p>
 
           {/* Only where the two windows have to share one frame. Given room

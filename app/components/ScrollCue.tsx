@@ -3,8 +3,8 @@
 import { motion, useReducedMotion } from "framer-motion";
 
 /**
- * The way on to the next section: a chevron in a gilt disc at the foot of
- * the page, which bobs, and which can be pressed.
+ * The way on to the next section: a chevron at the foot of the page, which
+ * bobs, and which can be pressed.
  *
  * ---------------------------------------------------------------------------
  * Why it is a button and not a sign
@@ -15,16 +15,18 @@ import { motion, useReducedMotion } from "framer-motion";
  * a gesture you can deduce, and an arrow that only *describes* one is no help
  * to somebody who has never made it.
  *
- * So it is the same control the timeline rail uses to turn her months — the
- * same disc, the same border, the same chevron — and it does the same kind of
- * thing. A guest who swipes never needs it. A guest who does not can press it
- * and the invitation still opens for them, one page at a time.
+ * So it is the chevron the timeline rail uses to turn her months, and it does
+ * the same kind of thing: a guest who swipes never needs it, and a guest who
+ * does not can press it and still see the whole invitation, a page at a time.
  *
- * Looking like the rail's arrows is the point rather than a coincidence. They
- * are the only other controls of this shape on the site, they are already
- * understood by anyone who has reached her year, and a thing that looks like
- * a button must *be* one — which is the whole reason this is not simply the
- * old arrow wearing a circle.
+ * Borrowing that drawing is the point rather than a coincidence — it is the
+ * only other control of its kind on the site, and anyone who has reached her
+ * year has already used it. What it does *not* borrow is the rail's disc. The
+ * ring earns its keep over a photograph with a month either side of it; at
+ * the foot of a parchment page it was a box drawn around nothing.
+ *
+ * It is still a real button, and that is not negotiable: it looks like a way
+ * onward, so it has to be one.
  *
  * ---------------------------------------------------------------------------
  * Why the deck renders it
@@ -67,12 +69,31 @@ export function ScrollCue({ onSelect }: { onSelect: () => void }) {
         type="button"
         onClick={onSelect}
         aria-label="Go to the next section"
-        /* Deliberately the rail arrow's own class list — see RailArrow in
-           TimelineSlide. If one of them is restyled the other has to follow,
-           because half the value here is that a guest has seen it before. */
-        className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-parchment/80 text-ink/60 shadow-sm backdrop-blur transition hover:bg-parchment hover:text-ink active:scale-95 sm:h-11 sm:w-11"
+        /*
+           The rail's chevron without the rail's disc.
+
+           The disc is what makes that control look pressable where it sits —
+           in the middle of a photograph, with a month either side of it. Down
+           here the chevron has parchment behind it and nothing competing, and
+           the ring only drew a box around empty space at the foot of every
+           page. The drawing is identical; what has gone is the furniture.
+
+           The press area has not shrunk with it. The button keeps the disc's
+           footprint as padding, so the target is still the full 44px a thumb
+           needs even though there is now nothing drawn around it.
+        */
+        className="pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full text-ink/60 transition hover:text-ink active:scale-90"
       >
-        <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none">
+        <svg
+          viewBox="0 0 24 24"
+          aria-hidden
+          fill="none"
+          /* The halo the cue used to carry as text. With the disc gone the
+             chevron sits straight on whatever is behind it, and on the hero
+             that is her gown — ink on pink, with nothing between the two.
+             A drop-shadow is the `cue-halo` idea for a drawn line. */
+          className="h-6 w-6 drop-shadow-[0_0_3px_rgba(255,255,255,0.95)]"
+        >
           {/* The rail's chevron, turned a quarter to point down the deck. */}
           <path
             d="M5 9.5 L12 16.5 L19 9.5"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BottomNav, type NavSection } from "./BottomNav";
 import { RisingBalloon } from "./RisingBalloon";
 import { SlideActiveContext } from "./SlideActive";
@@ -8,6 +8,7 @@ import { useSnapTrack } from "./useSnapTrack";
 import { enterFullscreen, exitFullscreen, isFullscreen } from "./fullscreen";
 import { PrincessPattern } from "./PrincessPattern";
 import { ScrollCue } from "./ScrollCue";
+import { ScrollCueSuppressContext } from "./ScrollCueSuppress";
 
 /**
  * How long the screen waits, after the deck has been sent somewhere, before
@@ -126,6 +127,14 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
   }, [slides]);
 
   const activeSection = slides[index]?.section ?? sections[0]?.id;
+
+  /*
+   * Whether the section on screen has asked for the onward arrow to wait.
+   *
+   * Only her year does, and only while the rail still has months to its right
+   * — see `ScrollCueSuppress`. Held here because the arrow is mounted here.
+   */
+  const [cueSuppressed, setCueSuppressed] = useState(false);
 
   /*
    * The screen follows the section.
@@ -302,15 +311,19 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
         aria-roledescription="carousel"
         aria-label="Mikhayla's first birthday invitation"
       >
-        {slides.map((slide, i) => (
-          <SlideFrame
-            key={slide.key}
-            slide={slide}
-            isActive={i === index}
-            position={i + 1}
-            total={count}
-          />
-        ))}
+        {/* The setter is React's own and never changes identity, so handing
+            it down directly costs the sections nothing in re-renders. */}
+        <ScrollCueSuppressContext.Provider value={setCueSuppressed}>
+          {slides.map((slide, i) => (
+            <SlideFrame
+              key={slide.key}
+              slide={slide}
+              isActive={i === index}
+              position={i + 1}
+              total={count}
+            />
+          ))}
+        </ScrollCueSuppressContext.Provider>
       </div>
 
       {/*
@@ -324,8 +337,12 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
         The finale needs no exception of its own. It is the last slide, so the
         test excludes it by construction — better than naming it, because the
         rule is then the honest one and stays right if the deck is reordered.
+
+        `cueSuppressed` is the one section that answers back: her year holds
+        the arrow until the rail reaches its last month, because until then
+        the way on is sideways. See `ScrollCueSuppress`.
       */}
-      {index < count - 1 && <ScrollCue onSelect={() => goTo(index + 1)} />}
+      {index < count - 1 && !cueSuppressed && <ScrollCue onSelect={() => goTo(index + 1)} />}
 
       <BottomNav
         sections={sections}

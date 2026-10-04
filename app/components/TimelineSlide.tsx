@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { MILESTONES } from "@/app/config";
 import { SlideActiveContext, useSlideIsActive } from "./SlideActive";
 import { useSnapTrack } from "./useSnapTrack";
+import { useSuppressScrollCue } from "./ScrollCueSuppress";
 import { Hint } from "./Hint";
 import { TimelineIntroPanel } from "./TimelineIntroPanel";
 import { MilestonePanel } from "./MilestonePanel";
@@ -142,6 +143,22 @@ export function TimelineSlide() {
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
   }, [sectionActive, goTo, railRef, indexRef]);
+
+  /*
+   * Hold the deck's onward arrow back for the whole of her year but the end
+   * of it.
+   *
+   * On the title page and on every month but the last, the next thing is the
+   * next month — sideways — and an arrow pointing down under her photograph
+   * is pointing away from the page being read. On the last month there is
+   * nothing further to the right, so down becomes the only way on and the
+   * arrow comes back to say so.
+   *
+   * `sectionActive` is half the condition because this runs whether or not
+   * her year is on screen: off it, this section has no opinion about an arrow
+   * belonging to some other one.
+   */
+  useSuppressScrollCue(sectionActive && index < PANEL_COUNT - 1);
 
   /*
    * The song of the month on screen — and nothing at all for the title page,

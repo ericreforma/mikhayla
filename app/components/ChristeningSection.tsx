@@ -312,16 +312,25 @@ export function ChristeningSection() {
       >
         {/* The dedication verse, set apart the way a verse is on the order of
             service — by its own setting and the air around it rather than by
-            quote marks. It had a gilt upright down its left side, which went
-            when the columns got one of their own: two of them a few inches
-            apart read as a stray mark rather than a device. The indent went
-            with it, since it was only ever there to clear it.
+            quote marks, and on a phone by a gilt upright down its left side.
 
-            The margin under it is what now holds it off the plate of names,
-            which sits flush to it in two columns — see its `wide:mt-0`. */}
+            The upright comes off at `wide`, and only there, because that is
+            the one place the page grows a rule of its own — the filigree
+            between the two columns, which is `hidden` until exactly that
+            query. Two gilt lines a few inches apart read as a stray mark
+            rather than a device.
+
+            Everywhere else, phones and a tablet held upright alike, the page
+            is a single column with no second line anywhere on it, and the
+            verse is the one thing asking to be set apart. So it keeps its
+            upright. The indent goes with the border either way — it is only
+            ever there to clear it.
+
+            The margin under it is what holds it off the plate of names, which
+            sits flush to it in two columns — see its `wide:mt-0`. */}
         <motion.figure
           variants={line}
-          className="mb-5 mt-4 text-left sm:mt-5 md:mt-3 wide:mx-auto wide:mt-5"
+          className="mb-5 mt-4 border-l-2 border-gold/50 pl-3 text-left sm:mt-5 sm:pl-4 md:mt-3 wide:mx-auto wide:mt-5 wide:border-l-0 wide:pl-0"
         >
           <blockquote className="max-w-[36ch] font-display text-sm italic leading-relaxed text-royal sm:max-w-[44ch] sm:text-base wide:text-lg wide:leading-loose">
             &ldquo;For this child I prayed, and the Lord has granted me what I asked of Him.&rdquo;

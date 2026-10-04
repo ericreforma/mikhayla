@@ -41,7 +41,22 @@ export type HintGesture = "tap" | "swipe-up" | "swipe-left";
  */
 const BEAT_MS: Record<HintGesture, number> = {
   tap: 1250,
-  "swipe-up": 1700,
+  /*
+   * The longest of the three, and the one that earns it.
+   *
+   * It is the first gesture a guest is asked for and the one that moves the
+   * whole invitation, so it is worth reading properly: a long, slow run over
+   * a long travel, with the line behind it (`.hint-trail`) given time to be
+   * drawn and then fade.
+   *
+   * Slower than looks right in isolation, and that is the point. The guests
+   * this hand exists for are the ones who have never been taught that a page
+   * can be pushed — the great aunts, the grandparents. A gesture they have no
+   * name for has to be legible at a glance they were not expecting to take,
+   * and at 1700ms the hand had arrived before anyone had finished noticing it
+   * set off.
+   */
+  "swipe-up": 2900,
   "swipe-left": 1700,
 };
 
@@ -125,7 +140,7 @@ export function Hint({
       <div
         className={`flex items-center justify-center ${
           gesture === "swipe-up"
-            ? "flex-col gap-7"
+            ? "flex-col gap-16"
             : gesture === "swipe-left"
               ? "flex-row gap-7"
               : ""
@@ -163,7 +178,10 @@ export function Hint({
           simply replace the first.
         */}
         <span
-          className="block"
+          /* `relative` so the trail below can be pinned to the fingertip's
+             column. It is this element and not the one inside it, because
+             this one is the hand's *resting* box — the inner one is moving. */
+          className="relative block"
           style={{
             transform:
               gesture === "swipe-left"
@@ -171,6 +189,11 @@ export function Hint({
                 : `translateX(${((0.5 - TIP.x) * 100).toFixed(1)}%)`,
           }}
         >
+          {/* The line the finger leaves behind it. Only on the swipe up:
+              see `.hint-trail` in globals.css, whose geometry is that one
+              gesture's travel written out. */}
+          {gesture === "swipe-up" && !reduce && <span className="hint-trail" />}
+
           <span className={`relative block ${run}`}>
             {/* The ring a finger leaves on the glass. Only on the press — a
                 swipe already says everything by moving. */}

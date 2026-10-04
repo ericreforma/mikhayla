@@ -479,7 +479,7 @@ export function PartyDetailsSection() {
              width it gains it gains twice over in height. At `lg` the section
              ran 48px past the foot of the shortest desktop window the layout
              supports; this is the widest it can be and still land inside it. */
-          className="mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mx-auto wide:mt-0 wide:max-w-md wide:self-center wide:p-5"
+          className="order-2 mt-4 w-full rounded-2xl border border-gold/40 bg-parchment/70 p-3 shadow-sm sm:mt-5 sm:p-4 md:order-none wide:col-start-2 wide:row-span-2 wide:row-start-1 wide:mx-auto wide:mt-0 wide:max-w-md wide:self-center wide:p-5"
         >
           <p className="flex items-center justify-center gap-2 font-display text-lg leading-snug text-ink xs:text-xl sm:text-2xl wide:text-xl">
             <PalmIcon className="h-5 w-5 flex-none text-goldDeep sm:h-6 sm:w-6" />
@@ -707,7 +707,23 @@ export function PartyDetailsSection() {
             comes back for on the day. */}
         <motion.div
           variants={line}
-          className="mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center wide:px-[calc(var(--stage-w)*0.05)]"
+          /*
+            On a phone the two buttons come up above the venue card — see the
+            `order` on the card itself.
+
+            Reordered rather than moved, because the source order is the one
+            every other size wants: a tablet reads down the page to the venue
+            and then to what to do about it, and the landscape grid places
+            both by name anyway (`col-start` / `row-start`), where `order`
+            counts for nothing. `md:order-none` hands all three back to the
+            order they are written in.
+
+            A phone is the one place the question is the other way round. The
+            card is tall — a title, a map and a walkthrough stacked — and
+            below it "RSVP" sat under a fold that nothing on screen suggested
+            was there. The invitation's one ask should not need scrolling to.
+          */
+          className="order-1 mt-5 flex w-full flex-col items-stretch gap-2.5 sm:flex-row sm:justify-center sm:gap-3 md:order-none wide:col-start-1 wide:row-start-2 wide:mt-0 wide:flex-wrap wide:justify-center wide:px-[calc(var(--stage-w)*0.05)]"
         >
           {/*
             The same button either way. With an endpoint configured it opens

@@ -159,19 +159,50 @@ That holds on an iPad held upright too: 768px across and 1024px
           to the right, so the auto margin comes off and the cue simply
           follows the line above it.
         */}
-        <div className="hero-rise relative mt-auto pt-8 [animation-delay:0.7s] wide:mt-9 wide:pt-0">
-          {/* The hand rises out of the cue towards the top of the screen,
-              which is the gesture itself. `bottom-full` puts it above the
-              padding rather than on top of the words. */}
-          {/* Over the cue where the cue stands at the foot of the screen
-              and there is nothing above it but her gown. Split in two, the cue
-              has moved up into the middle of a column of writing, so the hand
-              steps out to the side of it rather than landing on the line
-              above. */}
+        {/* `w-full` so the hand's `right-*` below measures from the page's
+            gutter rather than from the end of the words. Shrink-wrapped, this
+            box is only as wide as "Swipe up to begin", and a hand pinned to
+            its right edge lands barely off centre. The cue inside is still
+            centred by its own `items-center`. */}
+        {/* `pb-*` is the room the deck's arrow stands in. It is pinned to the
+            foot of the window rather than to this block — see `ScrollCue` —
+            so the only way to keep the words off it is to stop short of it.
+            Without this the disc lands in the middle of the line and reads
+            "Swipe u(•)o begin". The hand is unaffected: it hangs from this
+            box's bottom edge, which the padding does not move. */}
+        <div className="hero-rise relative mt-auto w-full pb-12 pt-8 [animation-delay:0.7s] sm:pb-14 wide:mt-9 wide:pt-0">
+          {/*
+            Down in the corner a thumb actually lives.
+
+            It used to stand centred and high, directly over the cue — which
+            put it across her face on a phone, and asked for the gesture in
+            the one part of the screen nobody's hand ever reaches. A swipe up
+            is made low and to the side, by a thumb on the hand holding the
+            phone, so that is where the demonstration belongs.
+
+            Right of the cue rather than over it, so the two no longer fight:
+            the words say it, the hand shows it, and neither is sitting on
+            the other. `bottom-0` drops it level with the cue instead of a
+            whole line above, and the gesture then travels up into the empty
+            band beside the writing rather than across her.
+
+            `mouse:hidden` because there is nothing to teach a mouse. The deck
+            answers the wheel and the arrow keys, and a hand miming a swipe at
+            a trackpad is an instruction for a gesture that guest will never
+            make. The written cue stays and says the same thing in words.
+          */}
           <Hint
             gesture="swipe-up"
             active={isActive && !learned}
-            className="bottom-full left-1/2 -translate-x-1/2"
+            /* Placed by the fingertip, not by the edge.
+               The tip shift inside `Hint` lands the finger on the *centre* of
+               this box, so a percentage puts it exactly where it is wanted and
+               the drawing hangs down-right of it. Pinning `right-0` instead
+               reads as "against the edge" and renders as the hand's body half
+               off the screen, because the body is the part to the right of the
+               finger. 72% is as far over as it goes with the whole hand still
+               on the glass at 320px. */
+            className="bottom-0 left-[72%] -translate-x-1/2 mouse:hidden"
           />
 
           <motion.div
@@ -179,8 +210,11 @@ That holds on an iPad held upright too: 768px across and 1024px
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
           >
+            {/* The words only. The arrow that used to sit under them is now
+                the deck's own — a pressable disc at the foot of every section,
+                see `ScrollCue` — so drawing a second one here would be two
+                arrows saying one thing, and only one of them would work. */}
             <span className="text-xs uppercase tracking-widest sm:text-sm wide-lg:text-xs">Swipe up to begin</span>
-            <span aria-hidden>↓</span>
           </motion.div>
         </div>
       </div>

@@ -152,6 +152,19 @@ export function TimelineSlide() {
   const music = sectionActive && index > 0 ? MILESTONES[index - 1]?.music : undefined;
 
   /*
+   * The song one page further on, so the player can buffer it while this
+   * month is being read — see the priming effect in `TimelineMusic`.
+   *
+   * `MILESTONES[index]` rather than `index + 1`, because the rail is offset
+   * by its title page: panel `index` shows month `index - 1`, so the month
+   * *after* the one on screen is simply `index`. That offset also makes the
+   * title page do the right thing for free — it is panel zero, so the song
+   * waiting to be primed there is her first month's, which is exactly the
+   * one a guest is about to swipe into.
+   */
+  const nextMusic = sectionActive ? MILESTONES[index]?.music : undefined;
+
+  /*
    * Whether the hand still has anything to teach.
    *
    * Her year is the only place on the invitation that moves sideways, and
@@ -171,7 +184,7 @@ export function TimelineSlide() {
 
   return (
     <div className="relative h-full">
-      <TimelineMusic track={music} />
+      <TimelineMusic track={music} next={nextMusic} />
 
       <div
         ref={railRef}
@@ -199,10 +212,14 @@ export function TimelineSlide() {
         `hint-swipe-left` in globals.css for why that direction is the one
         that matters.
       */}
+      {/* `mouse:hidden` for the same reason as the hero's: the rail already
+          carries two arrows a mouse can click, and they are the instruction
+          a pointer needs. The hand is for the guests who have only a
+          finger and no arrow in reach. */}
       <Hint
         gesture="swipe-left"
         active={sectionActive && index === 0 && !railLearned}
-        className="left-1/2 top-[76%] -translate-x-1/2 -translate-y-1/2"
+        className="left-1/2 top-[76%] -translate-x-1/2 -translate-y-1/2 mouse:hidden"
       />
 
       <RailArrow direction="prev" onClick={() => goTo(index - 1)} disabled={index === 0} />

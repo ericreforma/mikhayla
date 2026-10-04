@@ -7,6 +7,29 @@ import { SlideActiveContext } from "./SlideActive";
 import { useSnapTrack } from "./useSnapTrack";
 import { enterFullscreen, exitFullscreen, isFullscreen } from "./fullscreen";
 import { PrincessPattern } from "./PrincessPattern";
+import { ScrollCue } from "./ScrollCue";
+
+/**
+ * How long the screen waits, after the deck has been sent somewhere, before
+ * it changes size.
+ *
+ * Taking or handing back the screen resizes the viewport, and a resize re-parks
+ * the track on the section it believes is current — `realign` in
+ * `useSnapTrack`. Done while the deck is still travelling, that re-park lands
+ * on top of the scroll already in flight: the two fight, and the slide tears
+ * or stops short of where it was going. Arriving at the finale was the worst
+ * of it, because that is the one move that always changes the screen.
+ *
+ * So the screen is left alone until the travel is over. A shade over the half
+ * second the deck takes — the cap on an interrupted flight is 1400ms, but that
+ * is the pathological case and waiting for it would leave the browser's chrome
+ * visibly late.
+ *
+ * It has to stay well under one number: a browser holds *transient activation*
+ * for about five seconds after a gesture, and `enterFullscreen` spends it. The
+ * swipe plus this wait is nowhere near that.
+ */
+const SCREEN_SETTLE_MS = 700;
 
 export type DeckSlide = {
   key: string;
@@ -140,8 +163,22 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
       landed.current = true;
       return;
     }
-    if (windowed) exitFullscreen();
-    else enterFullscreen();
+
+    /*
+     * Held until the deck has stopped moving — see `SCREEN_SETTLE_MS`.
+     *
+     * Clearing it on the way out is not housekeeping, it is the other half of
+     * the feature: a guest swiping briskly down to the finale changes `index`
+     * several times in under a second, and without this each step would queue
+     * its own resize to land on top of the next swipe. Re-timing on every
+     * change means the screen moves once, for wherever they actually stopped.
+     */
+    const timer = window.setTimeout(() => {
+      if (windowed) exitFullscreen();
+      else enterFullscreen();
+    }, SCREEN_SETTLE_MS);
+
+    return () => window.clearTimeout(timer);
   }, [windowed, index]);
 
   /*
@@ -275,6 +312,20 @@ export function Deck({ slides, sections }: { slides: DeckSlide[]; sections: NavS
           />
         ))}
       </div>
+
+      {/*
+        "There is another one under this, and here is how to get there."
+        ---------------------------------------------------------------
+        On every section that has one below it, the hero included: it is now
+        a control rather than a caption, and the hero is exactly where a guest
+        who does not swipe gets stuck. The words above it still teach the
+        gesture; this is the way through for anyone the gesture fails.
+
+        The finale needs no exception of its own. It is the last slide, so the
+        test excludes it by construction — better than naming it, because the
+        rule is then the honest one and stays right if the deck is reordered.
+      */}
+      {index < count - 1 && <ScrollCue onSelect={() => goTo(index + 1)} />}
 
       <BottomNav
         sections={sections}

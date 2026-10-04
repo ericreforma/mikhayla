@@ -127,6 +127,23 @@ const config: Config = {
        * All three are consumed from globals.css by name through
        * `@media screen(...)`, so this is the only place any of them is written.
        */
+      /*
+       * Is there a mouse? — the pointer half of `wide-lg`, on its own.
+       *
+       * `wide-lg` answers "should this window get the desktop layout", which
+       * is a question about the pointer *and* about having the room for a top
+       * menu. Some things only care about the first half, and the swipe hands
+       * are the clearest case: a hand teaching a guest to push the page
+       * sideways is meaningless to anyone holding a mouse, however small they
+       * have dragged the window. Keying that off `wide-lg` would leave the
+       * hand demonstrating a gesture at a 900px desktop window that cannot
+       * make it.
+       *
+       * No size floors, deliberately. The question really is only whether
+       * there is a finger, and that is exactly what these two queries ask.
+       */
+      mouse: { raw: "(hover: hover) and (pointer: fine)" },
+
       "wide-lg": {
         raw: "(min-width: 1100px) and (min-height: 500px) and (orientation: landscape) and (hover: hover) and (pointer: fine)",
       },

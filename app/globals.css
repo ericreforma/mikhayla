@@ -467,6 +467,26 @@ body {
     border-left-width: 0;
     border-right-width: 0;
     box-shadow: none;
+    /*
+       And the width has to come back with them.
+
+       The figure above is `--stage-w` *plus* both edges, because the border is
+       added to the page rather than taken out of it — see the note up there.
+       Take the border away and leave the width alone, as this block did, and
+       those twenty pixels stop being a gilt edge sitting outside the page and
+       become twenty pixels of page sitting outside the window: the content box
+       is `100vw + 20px`, `margin-inline: auto` resolves the overflow as
+       `margin-right: -20px` rather than centring anything, and every slide is
+       pinned at the left with its last twenty pixels off the right-hand side.
+
+       Nothing scrolls, because the deck is `fixed inset-0 overflow-hidden` and
+       clips it — which is exactly why it survived: it reads as a layout that
+       sits slightly left and loses its right margin, not as a broken page.
+
+       `--stage-w` alone is the whole window here, which is what this media
+       query already means by "the stage is the whole window".
+    */
+    width: var(--stage-w);
   }
 }
 
@@ -591,6 +611,91 @@ body {
 
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /*
+     Sets the note down *beside* the corner figure instead of across her.
+
+     She stands in the bottom-left corner of a stacked page — see
+     `.bottom-menu` and the figure in MilestonePanel — and the note is the one
+     block of text tall enough to reach her. Centred, its first line lands on
+     her crown. This is the inset that moves it clear, and `text-left` on the
+     same element is what stops the result reading as a centred column that
+     happens to start late.
+
+     ---------------------------------------------------------------------
+     Where the numbers come from
+     ---------------------------------------------------------------------
+     Not by eye. Each cut-out is 300px wide with a transparent margin of its
+     own, so the figure's *box* is a poor guide to where she visibly ends —
+     the widest, her own month's, paints to 98% of its width while Moana
+     stops at 82%. Measured against the artwork, the widest visible edge is
+     5.5em of the figure's own type size, and the figure is sized in title
+     lines (`text-2xl` → `xs:text-3xl` → `sm:text-4xl` → `md:text-5xl`), so
+     each rung below is that 5.5em restated at the next size, plus 0.75rem of
+     air, less the gutter the text already carries.
+
+     One figure for every month rather than one per princess, deliberately:
+     the note's left edge then holds still as a guest swipes along the rail,
+     where a per-month inset would have it jump about under the title.
+
+     In `rem`, so it rides the root type scale on a tablet the same way the
+     figure does. The last rung is the `tall` breakpoint spelled out — a
+     tablet held upright keeps the phone's single column, so it keeps this
+     too, which is the one thing the old version of this utility got wrong.
+  */
+  .beside-figure {
+    padding-left: 7.75rem;
+  }
+
+  @media (min-width: 400px) {
+    .beside-figure {
+      padding-left: 9.8125rem;
+    }
+  }
+
+  @media (min-width: 640px) {
+    .beside-figure {
+      padding-left: 11.625rem;
+    }
+  }
+
+  /*
+     Past `md` the note stops carrying the inset on its own, either way up.
+
+     Upright, the whole caption moves aside instead — see
+     `.month-caption-beside` below, and why. Sideways there is nothing in the
+     corner to clear at all. Both are handled elsewhere, so what is left here
+     is to stand down and not inset twice.
+  */
+  @media (min-width: 768px) {
+    .beside-figure {
+      padding-left: 0;
+    }
+  }
+
+  /*
+     A tablet held upright, where it is not only the note that collides.
+
+     The figure takes a step up of its own here (`md:text-5xl`) *and* another
+     from the root type scale, which is deliberate — see the note on her in
+     MilestonePanel. Twice enlarged she is no longer a footnote in the corner:
+     she stands high enough to reach the title, and the phone's arrangement of
+     a centred title above her with the note tucked beside stops working,
+     because there is nothing left above her to be centred in.
+
+     So the whole caption goes to her right and sets left — title, rule and
+     note as one column, which is the two-column page arriving early, in
+     portrait, because the figure is what makes the room for it.
+
+     5.5em of `text-5xl` is 16.5rem; the rest is the same arithmetic as the
+     rungs above. In `rem`, so it rides the root scale exactly as she does.
+  */
+  @media (min-width: 768px) and (orientation: portrait) {
+    .month-caption-beside {
+      padding-left: 15.75rem;
+      text-align: left;
+    }
   }
 
   /* Room for the tab bar, on top of whatever padding the slide asks for.
@@ -1522,23 +1627,109 @@ body {
  */
 @keyframes hint-swipe-up {
   0% {
-    transform: translateY(15px);
+    transform: translateY(20px);
     opacity: 0;
   }
   18% {
-    transform: translateY(10px);
+    transform: translateY(14px);
     opacity: 1;
   }
   62% {
-    transform: translateY(-22px);
+    transform: translateY(-58px);
     opacity: 1;
   }
   80% {
-    transform: translateY(-30px);
+    transform: translateY(-66px);
     opacity: 0;
   }
   100% {
-    transform: translateY(-30px);
+    transform: translateY(-66px);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The line the finger leaves behind
+   ---------------------------------------------------------------
+   A swipe is a journey, and a hand photographed mid-air only shows one
+   frame of it. The streak is the rest: it is drawn *in the hand's wake*,
+   from where the finger started up to where it has got to, and then fades
+   off the glass the way a smear of warmth would.
+
+   It cannot live inside the hand's own element, which is carrying the
+   gesture's transform — anything in there travels with the hand and so
+   never trails it. It is a sibling instead, pinned to the fingertip's
+   column through `--tip-x`, and it stays still while the hand climbs out
+   of it.
+
+   The geometry is the swipe's own, restated: the fingertip runs from
+   +20px to -66px, so the line is the 86px between them and its foot sits
+   at the start of that run. Those three figures and the keyframes above
+   are one measurement — change the travel and this has to move with it.
+   --------------------------------------------------------------- */
+.hint-trail {
+  position: absolute;
+  left: var(--tip-x);
+  top: calc(var(--tip-y) - 66px);
+  height: 86px;
+  width: 0.25rem;
+  margin-left: -0.125rem;
+  border-radius: 9999px;
+  /* Brightest under the fingertip and gone by the tail, so the line reads
+     as something being left rather than something being drawn. */
+  background: linear-gradient(
+    to top,
+    rgba(212, 175, 55, 0) 0%,
+    rgba(212, 175, 55, 0.55) 45%,
+    rgba(212, 175, 55, 0.95) 100%
+  );
+  /*
+     The same halo the cue wears, for the same reason: this is drawn over a
+     photograph of a baby in a pink gown, and gold on pink is the one pairing
+     on the whole page with nothing between the two tones.
+
+     `drop-shadow` and not `box-shadow` — the line is a gradient that fades to
+     nothing at its foot, and a box-shadow would trace the *element*, hanging a
+     bright rectangle of glow below where the line has already disappeared.
+     A drop-shadow follows the alpha and fades out with it.
+  */
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+  transform-origin: bottom center;
+  animation-name: hint-trail-up;
+  animation-duration: var(--beat, 1.7s);
+  animation-iteration-count: var(--cycles, 2);
+  animation-timing-function: cubic-bezier(0.33, 0, 0.2, 1);
+  animation-fill-mode: both;
+  will-change: transform, opacity;
+}
+
+/*
+ * Grown rather than moved, and on the hand's own clock.
+ *
+ * The percentages are the hand's: it is up to speed at 18% and has arrived
+ * by 62%, so the line is full at 62% too and the two stop together. What
+ * follows is the fade, which outlasts the hand a little on purpose — the
+ * mark is the last thing left, so it should be the last thing to go.
+ */
+@keyframes hint-trail-up {
+  0% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+  18% {
+    transform: scaleY(0.08);
+    opacity: 0.85;
+  }
+  62% {
+    transform: scaleY(1);
+    opacity: 0.85;
+  }
+  92% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+  100% {
+    transform: scaleY(1);
     opacity: 0;
   }
 }
@@ -1740,10 +1931,15 @@ body {
  */
 @media (prefers-reduced-motion: reduce) {
   .hint-run,
-  .hint-ripple {
+  .hint-ripple,
+  .hint-trail {
     animation: none;
   }
-  .hint-ripple {
+  /* Both are the movement rather than the instruction: a ring left by a
+     press that never happened, and the wake of a swipe that never ran. The
+     hand and its arrow stay and say the same thing standing still. */
+  .hint-ripple,
+  .hint-trail {
     display: none;
   }
 }

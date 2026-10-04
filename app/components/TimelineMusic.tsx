@@ -36,10 +36,27 @@ const FADE_MS = 550;
 const VOLUME = 0.55;
 
 /**
+ * How long after landing on a month before the next one starts buffering.
+ *
+ * It has to clear `FADE_MS`, because the player being primed is the one that
+ * has just faded out and is not paused until the fade finishes — loading a
+ * new song into it before then would cut the tail off the month a guest is
+ * still hearing.
+ *
+ * Past that the figure only trades one risk for the other: too eager and the
+ * next month competes for the pipe with the song playing now, too lazy and a
+ * quick swipe beats it. A guest reading a month spends several seconds on it,
+ * so there is room, and this sits just past the fade.
+ */
+const PRIME_AFTER_MS = 1200;
+
+/**
  * @param track The song for the month on screen, or nothing at all — the
  *   title page, or her year being off screen entirely.
+ * @param next The song one swipe further on, buffered ahead of the swipe
+ *   that wants it. See the priming effect below.
  */
-export function TimelineMusic({ track }: { track?: string }) {
+export function TimelineMusic({ track, next }: { track?: string; next?: string }) {
   /*
    * Whether the guest wants music, which is not the same as whether any is
    * playing — and shared with the bed, so one button answers for both.
@@ -81,6 +98,19 @@ export function TimelineMusic({ track }: { track?: string }) {
    */
   useMusicFloor(Boolean(track) && wanted);
 
+  /*
+   * Whether the unlocking touch has happened yet.
+   *
+   * State rather than a ref, because the buffering effect below has to wait
+   * for it and then run — and a ref changing wakes nothing. It is also why
+   * that effect cannot simply assume: priming a player with a real song
+   * before `prime` has reached it would leave that player carrying a `src`,
+   * which is exactly the condition `prime` skips over. The element would
+   * never get its one gesture-blessed `play()`, and on a phone every later
+   * attempt to start it would be refused.
+   */
+  const [unlocked, setUnlocked] = useState(false);
+
   /* The unlocking touch — see SILENCE. Once only, and it listens on the way
      down so it runs before the swipe it belongs to has finished. */
   useEffect(() => {
@@ -94,6 +124,7 @@ export function TimelineMusic({ track }: { track?: string }) {
           () => {},
         );
       }
+      setUnlocked(true);
     };
     const opts = { once: true, capture: true } as const;
     document.addEventListener("pointerdown", prime, opts);
@@ -146,13 +177,22 @@ export function TimelineMusic({ track }: { track?: string }) {
     fadeAudio(live, 0, FADE_MS, () => live.pause());
 
     /*
-     * The `src` is set here and nowhere else, which is what keeps the download
-     * to the months actually visited. Note it replaces the silent primer
-     * rather than a previous song: the players alternate, so the one being
-     * loaded has been quiet for a month already and nothing is cut off.
+     * Load the song, unless the idle player is already holding it.
+     *
+     * That guard is the whole point of the buffering effect below: assigning
+     * `src` restarts the browser's resource selection even when the string is
+     * identical, so writing it again here would throw away the very buffer
+     * that was filled ahead of this swipe and send the guest back to waiting
+     * on the network. Priming only pays if arrival leaves it alone.
+     *
+     * When it is a song this player has not got, this is still the only place
+     * a `src` is assigned from a swipe, so a month nobody visits is a month
+     * nobody downloads.
      */
-    idle.dataset.track = song;
-    idle.src = song;
+    if (idle.dataset.track !== song) {
+      idle.dataset.track = song;
+      idle.src = song;
+    }
     idle.volume = 0;
     liveRef.current = liveRef.current === 0 ? 1 : 0;
     void idle.play().then(
@@ -172,6 +212,67 @@ export function TimelineMusic({ track }: { track?: string }) {
   useEffect(() => {
     apply(track, wanted);
   }, [apply, track, wanted, blocked]);
+
+  /*
+   * Buffer the month ahead, on the player standing idle.
+   *
+   * ---------------------------------------------------------------------
+   * What this fixes
+   * ---------------------------------------------------------------------
+   * Her songs are fetched in month order after the invitation opens — see
+   * `useBackgroundFetch` — and a guest moving at a normal reading pace can
+   * outrun that queue, because it is fourteen megabytes and they are only
+   * ever a few seconds from the next swipe. When they win the race the month
+   * lands in silence and the song arrives a beat later, which is the one
+   * thing the timeline is built not to do.
+   *
+   * The fixed queue cannot help with this: it does not know where the guest
+   * is. This does. Sitting on a month is several seconds of a connection
+   * doing nothing, so the next month's song is loaded into the spare player
+   * during it, and the swipe that follows finds the audio already there.
+   *
+   * It is the *element* that is primed and not merely the cache, which is
+   * worth the distinction: a warmed cache still leaves the browser to open
+   * the file, parse it and spin up a decoder on arrival. A primed element
+   * has done all of that already and starts on the same frame.
+   *
+   * ---------------------------------------------------------------------
+   * The conditions, each of which is load-bearing
+   * ---------------------------------------------------------------------
+   * `unlocked` keeps this behind the gesture that blesses the two players —
+   * see the state's own note for what goes wrong if it runs first.
+   *
+   * `wanted` keeps it off a guest's data when they have asked for quiet. A
+   * silent invitation should not be downloading songs to stay silent with.
+   *
+   * The delay lets the month a guest is actually listening to have the pipe
+   * to itself first. See `PRIME_AFTER_MS`.
+   *
+   * Nothing here reports or retries. If the load does not finish before the
+   * swipe, `apply` finds the element already holding the right song and
+   * simply plays it — further along than it would have been, which is the
+   * worst this can do.
+   */
+  useEffect(() => {
+    if (!next || !wanted || blocked || !unlocked) return;
+
+    const timer = window.setTimeout(() => {
+      const idle = (liveRef.current === 0 ? twoRef : oneRef).current;
+      /* Already carrying it — a guest who swiped back, or sat still through
+         a re-render. Touching `src` here would undo the buffer. */
+      if (!idle || idle.dataset.track === next) return;
+      idle.dataset.track = next;
+      idle.volume = 0;
+      /* `preload` was "none" in the markup so an untouched page fetches no
+         audio at all; this is the moment that stops being the right answer
+         for this one element. */
+      idle.preload = "auto";
+      idle.src = next;
+      idle.load();
+    }, PRIME_AFTER_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [next, wanted, blocked, unlocked]);
 
   /* Nothing should outlive the page — a song still playing into a closed tab
      is a browser's problem, but a ramp still running is ours. */

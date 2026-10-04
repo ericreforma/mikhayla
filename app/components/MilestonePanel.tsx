@@ -455,7 +455,13 @@ export function MilestonePanel({ m }: { m: Milestone }) {
           at any shape of screen, which is the proportion, held directly.
         */}
         <motion.div
-          className="relative z-20 w-full wide:mx-auto wide:max-w-[46vh] wide-lg:max-w-[calc(var(--stage-w)*0.34)]"
+          /* `month-caption-beside` is the tablet-upright case only, where the
+             figure grows tall enough to reach the title and the whole caption
+             has to move to her right rather than just the note. It is inert
+             at every other size — see globals.css. */
+          className={`relative z-20 w-full wide:mx-auto wide:max-w-[46vh] wide-lg:max-w-[calc(var(--stage-w)*0.34)]${
+            m.character ? " month-caption-beside" : ""
+          }`}
           initial={false}
           animate={state}
           variants={GROUP}
@@ -486,27 +492,46 @@ export function MilestonePanel({ m }: { m: Milestone }) {
 
           {/*
             The note and the counter are the two lines that can fall inside the
-            figure's height. They used to be set down beside her — left-aligned
-            and pushed clear by a fixed inset — which left the caption reading
-            as two different settings stacked: a centred title over a column of
-            left-hung small print. Everything is centred now, and the halo below
-            is what carries the two lines across her where they meet.
+            figure's height — the title never reaches her.
 
-            Month zero has no gown and so no figure, and needs no halo.
+            Stacked, they are set down *beside* her: left-aligned and pushed
+            clear by `.beside-figure`, which is measured against the widest
+            cut-out's visible edge rather than its box. Centring them instead
+            puts the note's first line across her crown, which is what this
+            undoes.
+
+            It does leave the caption in two settings — a centred title over a
+            left-hung note — and that is the trade being made knowingly. The
+            alternative reads tidier in the abstract and worse on the page:
+            words printed over a face.
+
+            Landscape is the exception and keeps the centring, because there
+            she is not in the corner at all. The caption has a column to
+            itself, she stands inside it, and `caption-halo` — which is scoped
+            to that same query — is what carries the lines across her.
+
+            Month zero has no gown and so no figure: nothing to clear, nothing
+            to carry, and it stays centred at every size.
           */}
           <motion.div
             variants={TAIL_GROUP}
-            /* `caption-halo` only earns its keep on the two lines that can
-               fall across the princess — the title never reaches her. */
-            className={`mx-auto mt-3 max-w-[32ch] wide:max-w-[30ch]${
-              m.character ? " caption-halo" : ""
+            className={`mt-3 wide:mx-auto wide:max-w-[30ch] wide:text-center${
+              m.character
+                ? " beside-figure text-left caption-halo"
+                : " mx-auto max-w-[32ch]"
             }`}
           >
-            {/* A shade heavier than the parchment sections: the ground under it
-                is a tint rather than near-white paper. */}
+            {/* A shade heavier than the parchment sections: the ground under
+                it is a tint rather than near-white paper.
+
+                Beside the figure the measure has to be set here rather than on
+                the group, because the group is carrying the inset as padding
+                and `border-box` would have a width on it fight the two. */}
             <motion.p
               variants={line}
-              className="text-sm leading-relaxed text-ink/80 sm:text-base wide:text-lg"
+              className={`text-sm leading-relaxed text-ink/80 sm:text-base wide:text-lg${
+                m.character ? " max-w-[34ch] wide:max-w-none" : ""
+              }`}
             >
               {m.note}
             </motion.p>

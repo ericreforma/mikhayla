@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   GAME_BIRD_SPRITE,
-  GAME_PLAYER_SPRITE,
+  GAME_BOULDER_SPRITE,
+  GAME_HURT_SPRITE,
+  GAME_JUMP_SPRITE,
+  GAME_RUN_SPRITE,
+  GAME_RABBIT_SPRITE,
   GAME_ROCK_SPRITE,
 } from "@/app/config";
 import {
@@ -55,7 +59,15 @@ export function Game({ onLeave }: { onLeave: () => void }) {
      cause a render. */
   const viewRef = useRef<View>(measure(960, 420));
   const worldRef = useRef<World>(createGame(viewRef.current.cols));
-  const spritesRef = useRef<Sprites>({ player: null, rock: null, bird: null });
+  const spritesRef = useRef<Sprites>({
+    run: null,
+    jump: null,
+    hurt: null,
+    rock: null,
+    bird: null,
+    rabbit: null,
+    boulder: null,
+  });
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const [status, setStatus] = useState<Status>("ready");
@@ -86,7 +98,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
    * Nothing waits on it and nothing reports it failing. A leaderboard is a
    * nice-to-have on a page whose actual job is to run at sixty frames a
    * second, so it is allowed to simply not arrive — the line under the score
-   * falls back to this device's own best, and the Top 10 panel says so
+   * falls back to this device's own best, and the Scoreboard panel says so
    * properly if someone opens it.
    *
    * Called again at the start of every run, which is also what refreshes it
@@ -163,9 +175,13 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
   useEffect(() => {
     const slots: [keyof Sprites, string][] = [
-      ["player", GAME_PLAYER_SPRITE],
+      ["run", GAME_RUN_SPRITE],
+      ["jump", GAME_JUMP_SPRITE],
+      ["hurt", GAME_HURT_SPRITE],
       ["rock", GAME_ROCK_SPRITE],
       ["bird", GAME_BIRD_SPRITE],
+      ["rabbit", GAME_RABBIT_SPRITE],
+      ["boulder", GAME_BOULDER_SPRITE],
     ];
     const loaded: HTMLImageElement[] = [];
 

@@ -57,6 +57,72 @@ export const MAX_COLS = 19;
 export const PLAYER_X = 2.6;
 
 /* ---------------------------------------------------------------
+   How big she is drawn
+   ---------------------------------------------------------------
+   Taller than she is solid, deliberately. The hitbox is the one block it has
+   always been — every timing window in this file is measured against it — and
+   the drawing is a third again as tall, so her tiara reaches up into the
+   second block.
+
+   That overlap is allowed and is not a bug: a flying bird is only ever hit by
+   the box, so the worst it can look is a near miss that was in fact a miss.
+   The alternative was drawing a one-block princess, which at forty pixels is a
+   face too small to read an expression off — and her expression is the whole
+   of the game's feedback.
+   --------------------------------------------------------------- */
+
+/** How many blocks tall her *running* pose is drawn. */
+export const PLAYER_DRAW_H = 1.3;
+
+/**
+ * The shape of one cell of the sprite strips, printed by
+ * `scripts/build-player.py`. Re-run it if the artwork is re-supplied and all
+ * three of these will be printed again.
+ *
+ * A cell is bigger than the pose inside it, twice over:
+ *
+ *   `runFill` — the jump's airborne frame reaches higher than she stands, so
+ *   the cell has to hold the tallest pose of the three. `PLAYER_DRAW_H` is
+ *   about *her*, not about the cell, so the renderer divides by this to get
+ *   back to the cell it actually draws.
+ *
+ *   `foot` — every cell carries a transparent gutter all the way round, which
+ *   is what stops one frame bleeding into the next when the browser filters it
+ *   (see `PAD` in the script). That gutter means the bottom of the cell is not
+ *   the ground: her feet are this far down it, and the renderer stands *that*
+ *   line on the grass rather than the cell's edge.
+ */
+export const PLAYER_CELL = { aspect: 0.6667, runFill: 0.8816, foot: 0.963 };
+
+/** Frames in each strip. */
+export const RUN_FRAMES = 16;
+export const JUMP_FRAMES = 5;
+
+/**
+ * How far she travels in one full stride — both steps, all sixteen frames.
+ *
+ * Tied to distance rather than to time, which is the only way the cadence
+ * stays honest: at a fixed frame rate her legs would run at the same speed
+ * however fast the world moved. (Her feet are drawn running in place rather
+ * than planting and sliding back, so this is a matter of how it reads rather
+ * than of literal foot contact — but the principle holds, and she still
+ * quickens with every tier.)
+ *
+ * Longer stride, slower legs, which is why this number going *up* is the way
+ * to calm the animation down:
+ *
+ *   2.2 blocks   324ms a stride    (sprinting; the legs were a blur)
+ *   3.8 blocks   559ms a stride    <- this
+ *
+ * Unchanged when the artwork went from eight frames to sixteen, deliberately.
+ * The sheet holds one whole stride either way — two leg-passes, measured off
+ * the frames rather than assumed — so the same number keeps the same cadence
+ * and spends the extra frames on smoothness, which is the only thing more
+ * frames are good for.
+ */
+export const RUN_CYCLE_BLOCKS = 3.8;
+
+/* ---------------------------------------------------------------
    The jump
    ---------------------------------------------------------------
    Held longer, it goes higher: the only control the game has, so it carries
@@ -65,17 +131,18 @@ export const PLAYER_X = 2.6;
    The two apexes are chosen against the obstacles rather than by feel, and the
    comments on the obstacles below are the other half of each sum:
 
-     a tap  reaches 1.15 blocks — over a one-block rock, and no higher than it
+     a tap  reaches 1.30 blocks — over a one-block rock, and no higher than it
                                   has to be
-     a hold reaches 1.50 blocks — the same rock with room to spare, and a
+     a hold reaches 1.65 blocks — the same rock with room to spare, and a
                                   longer flight, which is what gets a player
                                   over a two-block one
 
-   Both are well above the bird band. A standing player's head stops 0.57 of a
-   block short of a bird's hitbox, and the smaller of the two jumps is twice
-   that — so *any* jump at a bird is a hit, and the way past one is to keep
-   running. That is the second rule of the game and the whole reason the air
-   obstacle exists.
+   Both are far above the flying lane, whose floor is one block. A standing
+   player's head stops 0.18 of a block short of a flying bird, and the smaller
+   of the two jumps is seven times that gap — so *any* jump at a bird in the air
+   is a hit, and the way past one is to keep running. That is the second rule of
+   the game, and the lane a bird is in is how you tell which rule applies. See
+   the block over `BIRD_FLY`.
    --------------------------------------------------------------- */
 
 /** Blocks per second per second. Tuned so a full jump lasts about 0.64s. */
@@ -122,19 +189,26 @@ export const AIRTIME_MAX = 2 * Math.sqrt((2 * JUMP_MAX) / GRAVITY);
    --------------------------------------------------------------- */
 
 /** Blocks per second at the start. */
-export const SPEED_BASE = 7.5;
+export const SPEED_BASE = 6.8;
 
-/** Every hundred points, the world moves this much faster again. */
-export const SPEED_STEP = 0.08;
+/** Every `TIER_POINTS`, the world moves this much faster again. */
+export const SPEED_STEP = 0.1;
 
 /**
  * And the ceiling, as a multiple of the base.
  *
- * Without one the hundredth tier would be travelling nine times faster than an
- * eye can follow, and the game would stop being a game and become a stopwatch.
- * Twice is already quick: a rock crosses the screen in a second.
+ * Down from twice, along with the base and the tier, because at 15 blocks a
+ * second the ground was unpleasant to look at — the scroll stopped reading as
+ * running and started reading as a flicker. The top speed is now a little over
+ * ten and a half, reached at three thousand points rather than thirteen
+ * hundred, so the whole run is calmer and the ramp is something a player
+ * notices rather than something that happens to them.
+ *
+ * None of that makes the game easier. Speed was never where the difficulty
+ * was — see the note over the hitbox insets, and the reason a *slower* world
+ * is harder to jump in.
  */
-export const SPEED_MAX = 2;
+export const SPEED_MAX = 1.6;
 
 /**
  * How long a speed-up takes to arrive.
@@ -152,13 +226,21 @@ export const SPEED_EASE_MS = 800;
    ---------------------------------------------------------------
    Points are distance, not time — the same thing the running dinosaur does,
    and the reason a faster tier is worth playing for rather than only worth
-   surviving. Ten a second at the starting speed, twenty at the cap.
+   surviving. Ten a second at the starting speed, sixteen at the cap.
    --------------------------------------------------------------- */
 
 export const SCORE_RATE = 10;
 
-/** How often the world speeds up. */
-export const TIER_POINTS = 100;
+/**
+ * How often the world speeds up.
+ *
+ * Five hundred, not a hundred. At a hundred the speed-ups came every ten
+ * seconds and stacked faster than anybody could settle into a rhythm; the run
+ * was over before the world stopped changing under it. At five hundred a tier
+ * lasts the better part of a minute, which is long enough to get used to one
+ * before the next arrives.
+ */
+export const TIER_POINTS = 500;
 
 /**
  * And how often the hour turns.
@@ -191,8 +273,34 @@ export const INVULN_MS = 1300;
    The obstacles
    --------------------------------------------------------------- */
 
-/** The bottom of the bird band, in blocks above the ground. */
-export const BIRD_Y = 1.15;
+/* ---------------------------------------------------------------
+   The two lanes a bird uses
+   ---------------------------------------------------------------
+   Blocks are counted as bands off the ground, so the first block is the one a
+   standing player fills (0 to 1, the same band a rock fills) and the second is
+   the one directly above their head (1 to 2).
+
+   A bird is in one of those two and nowhere else, and which one it is in is
+   the whole question it asks:
+
+     flying, in the second block   run under it. Any jump is a hit.
+     grounded, in the first block  jump it, exactly as you would a rock.
+
+   That is one rule inverted rather than two rules, which is what makes the
+   birds that change lane worth putting in: a bird you were about to jump
+   climbs out of reach and the jump becomes the mistake, and a bird you were
+   happily running under drops into your path.
+
+   The clearance under a flying bird is 0.18 of a block — the player's head
+   stops at 0.89 and the bird's hitbox starts at 1.07. Tight on purpose: it
+   should look like a near miss, because it is one.
+   --------------------------------------------------------------- */
+
+/** Flying: the second block up, out of a standing player's way. */
+export const BIRD_FLY = 1;
+
+/** Grounded: the first block, which is exactly where a rock sits. */
+export const BIRD_GROUND = 0;
 
 /**
  * Hitbox insets, as a fraction of a block taken off every side.
@@ -212,12 +320,19 @@ export const BIRD_Y = 1.15;
  * falls out is the window of press times that survive an ordinary rock at the
  * starting speed, found by sweeping the press over a single rock:
  *
- *                          jump        tap        hold
- *   player .22 / rock .16  1.15/1.50   208 ms     312 ms   (the forgiving one)
- *   player .08 / rock .04  1.30/1.65    89 ms     204 ms   ← these
+ *                            jump       speed    tap      hold
+ *   player .22 / rock .16    1.15/1.50   7.5     208 ms   312 ms  (forgiving)
+ *   player .08 / rock .04    1.30/1.65   7.5      96 ms   204 ms
+ *   player .11 / rock .07    1.30/1.65   6.8     105 ms   214 ms  ← these
  *
- * These are deliberately the hard ones: the boxes now sit at the edge of the
+ * These are deliberately the hard ones: the boxes sit at the edge of the
  * drawings, so a near miss is a hit, which is what was asked for.
+ *
+ * The third row only exists because the speed came down. A slower world spends
+ * *longer* crossing the same rock, so dropping the base speed from 7.5 to 6.8
+ * would have taken the tap window from 96ms to 73 on its own — a difficulty
+ * change nobody asked for, smuggled in under a comfort one. Four hundredths of
+ * a block back on each inset undoes it exactly.
  *
  * ---------------------------------------------------------------------------
  * Why they are not zero
@@ -241,40 +356,141 @@ export const BIRD_Y = 1.15;
  * a later tier hard is having less warning. So these windows are the tightest
  * the game ever gets, and they are at the start.
  */
-export const PLAYER_INSET = 0.08;
-export const ROCK_INSET = 0.04;
-export const BIRD_INSET = 0.04;
+export const PLAYER_INSET = 0.11;
+export const ROCK_INSET = 0.07;
+export const BIRD_INSET = 0.07;
+
+/**
+ * The rabbit's, which is its own because the rabbit is its own size.
+ *
+ * It is a smaller animal than a rock is a rock, and that is the point of it:
+ * three quarters of a block tall, so the jump that clears it is an easier one.
+ * What makes a rabbit hard is not knowing whether it will be there.
+ */
+export const RABBIT_INSET = 0.08;
+
+/** The boulder is round, so a touch more of its corners is forgiven. */
+export const BOULDER_INSET = 0.1;
+
+
+
+/**
+ * How far ahead of the player a thing that changes, changes.
+ *
+ * Measured in *seconds* of approach rather than blocks, because the whole
+ * point of it is reaction time and that is a time. Seven tenths is about
+ * five blocks at the starting speed — which is the middle of the screen, where
+ * it was asked to happen — and stretches to nearly eight at the cap, so a fast
+ * run gets the same warning rather than the same distance.
+ *
+ * The floor stops it collapsing on a slow tier. Nothing should ever transform
+ * closer than four and a half blocks out, which is a jump's worth of travel
+ * plus the time it takes to decide on one.
+ */
+export const CHANGE_LEAD_S = 0.7;
+export const CHANGE_LEAD_MIN = 4.5;
+
+/** And how long the change itself takes. Quick — these are meant to surprise. */
+export const CHANGE_MS = 260;
+
+/* ---------------------------------------------------------------
+   The rabbit
+   ---------------------------------------------------------------
+   A ground obstacle that may or may not be there when it arrives. Three
+   quarters of a block, so the jump that clears it is comfortable — what makes
+   a rabbit hard is the hole, which says something *might* happen here and
+   does not say what.
+   --------------------------------------------------------------- */
+
+export const RABBIT_H = 0.75;
+export const RABBIT_W = 0.8;
+
+/** Where it waits, out of sight, far enough under that its box clears the player's. */
+export const RABBIT_DOWN = -0.9;
+
+/* ---------------------------------------------------------------
+   The boulder
+   ---------------------------------------------------------------
+   The one obstacle that is not simply carried along by the world: it rolls,
+   and it picks up speed on the way in.
+   --------------------------------------------------------------- */
+
+/**
+ * Blocks per second per second of *extra* leftward speed, on top of the world.
+ *
+ * Three is about a third again by the time it reaches the player, which takes
+ * roughly a fifth off the warning a rock of the same size would give. That is
+ * the whole of its difficulty — and note that it makes the boulder *easier* to
+ * jump, not harder, because a faster thing spends less time overlapping the
+ * player. It is a reaction test, not a timing one.
+ */
+export const BOULDER_ACC = 3;
+
+/**
+ * Extra blocks of gap before a boulder is put out.
+ *
+ * It needs its own allowance because it closes on whatever is in front of it.
+ * Over a crossing it gains a couple of blocks on the world, so without this the
+ * obstacle before it would still be leaving as the boulder arrived — and the
+ * spacing rule that keeps every jump landable would quietly stop holding.
+ */
+export const BOULDER_LEAD = 3.5;
+
+/* ---------------------------------------------------------------
+   When each thing starts appearing
+   ---------------------------------------------------------------
+   One idea at a time. A player meets rocks, learns the button, and only then
+   meets something that argues with what the button taught them.
+   --------------------------------------------------------------- */
 
 /** The score from which birds appear at all. */
 export const BIRD_FROM = 150;
+
+/** Rabbits, which are the gentlest of the new ones. */
+export const RABBIT_FROM = 250;
+
+/**
+ * And the versions that change on the way in — the diving bird, the one that
+ * climbs away, the rabbit that pops up, the one that drops out of sight.
+ *
+ * Held back behind all three plain kinds, because every one of them is a
+ * variation on something and a variation is meaningless until the theme is
+ * known. A rabbit that appears from nowhere is only interesting to a player who
+ * has already learned what a rabbit sitting still does.
+ */
+export const TRICKS_FROM = 400;
+
+/** The boulder, last, because it is the only one that changes the pace. */
+export const BOULDER_FROM = 700;
 
 /** And the share of obstacles they make up once the run is properly going. */
 export const BIRD_SHARE = 0.4;
 export const BIRD_FULL = 600;
 
 /**
- * The score from which a rock may be two blocks wide.
+ * The wide rock: how wide, and from what score.
  *
- * This is where holding the button stops being a preference and starts being
- * the answer. Timing windows on a two-block rock, from the same sweep as the
- * insets above:
+ * It is the one obstacle a tap will not clear, and that is its whole job —
+ * the thing that makes the length of the press matter. Measured windows, which
+ * is how both numbers were chosen:
  *
- *                      tap       hold
- *   starting speed     72 ms     176 ms
- *   at this score     132 ms     232 ms
+ *                            tap        hold
+ *   2.0 wide, speed 6.80      0 ms       64 ms
+ *   2.0 wide, speed 8.16     28 ms      132 ms
+ *   1.7 wide, speed 7.48     32 ms      140 ms   <- these
  *
- * So a wide rock is very nearly untappable at the speed the game starts at,
- * and merely tight by the time it is first put out. Held back to here for that
- * reason rather than for difficulty: a player who met one in the first ten
- * seconds would conclude the game was broken, where one who meets it at three
- * hundred has already felt the button get longer and has somewhere to go.
+ * A two-block rock needs the world to be moving at 8.16 before even a held
+ * jump has a fair window, and the world does not reach 8.16 until a thousand
+ * points — well past where most guests at a party will ever get, which would
+ * have left the hold with nothing to do in a typical run. At 1.7 blocks the
+ * same gate opens at five hundred and change, which is a minute in.
  *
- * Note which way the speed runs. Every tier makes a wide rock *easier* to
- * clear, because the airtime is fixed and a faster world spends less time
- * crossing the same rock — difficulty later in a run comes from having less
- * warning, not from the jump.
+ * Note which way the speed runs, because it is the opposite of the intuition:
+ * every tier makes this *easier*, since the airtime is fixed and a faster world
+ * spends less time crossing the same rock.
  */
-export const DOUBLE_ROCK_FROM = 300;
+export const WIDE_ROCK_W = 1.7;
+export const WIDE_ROCK_FROM = 550;
 
 /* ---------------------------------------------------------------
    Spacing

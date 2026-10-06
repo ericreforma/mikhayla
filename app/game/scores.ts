@@ -188,10 +188,10 @@ export type BoardResult =
  * The last board the server gave us, kept for as long as the tab is open.
  *
  * It is what makes the fetch a background job rather than a wait. The game
- * asks for the board when it mounts — long before anybody presses Top 10 — so
- * by the time the panel opens the answer is usually already here and it opens
- * on a list instead of a spinner. The HUD reads the same copy for the name it
- * shows under the score.
+ * asks for the board when it mounts — long before anybody opens the Scoreboard
+ * panel — so by the time that panel opens the answer is usually already here,
+ * and it opens on a list instead of a spinner. The HUD reads the same copy for
+ * the name it shows under the score.
  *
  * Module-level rather than React state because it outlives the components that
  * use it: the panel is mounted and thrown away every time it is opened, and
@@ -210,7 +210,7 @@ export function cachedLeader(): TopScore | null {
 }
 
 /**
- * The ten best, for the board the "Top 10" button opens.
+ * The ten best, for the board the "Scoreboard" button opens.
  *
  * A plain `GET` with no headers of our own, which matters for the same reason
  * the POST sends `text/plain`: anything that would make this a non-simple

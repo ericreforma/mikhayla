@@ -337,20 +337,40 @@ export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzS7KwNFdc
 export const GAME_ENDPOINT = RSVP_ENDPOINT;
 
 /**
- * The player, and the two things in her way.
+ * Her three animations, as horizontal sprite strips.
  *
- * All three are empty, and the game draws blocky stand-ins for whichever is:
- * a crowned pixel head, a stone boulder, a flapping bird. Drop artwork into
- * `public/images/game/` and name it here and the drawing is replaced — one
- * block square for each, PNG or WebP with transparency, 128px is plenty.
+ * Built from the supplied artwork by `scripts/build-player.py` — the originals
+ * live in `assets-src/game/` and are never deployed. Every frame of all three
+ * shares one cell, one ground line and one head centre, so she neither drifts
+ * nor changes size as the animation changes.
  *
- * Nothing else changes when you do. Animation comes later the same way: the
- * renderer already gives a bird its wingbeat by squashing whatever it is
- * handed, so a single still frame arrives moving.
+ * `hurt` is the one nobody drew: it is the running frames with her crying head
+ * pasted over her happy one. See the script, which explains why that is a
+ * whole-head swap rather than a change of expression.
  */
-export const GAME_PLAYER_SPRITE = asset("");
+export const GAME_RUN_SPRITE = asset("/game/run.webp");
+export const GAME_JUMP_SPRITE = asset("/game/jump.webp");
+export const GAME_HURT_SPRITE = asset("/game/hurt.webp");
+
+/**
+ * The four things in her way.
+ *
+ * All empty, and the game draws blocky stand-ins for each: grey castle
+ * battlements, a flapping bird, a rabbit at its burrow, a rolling stone. Drop
+ * artwork into `public/game/` and name it here and the drawing is replaced —
+ * PNG or WebP with transparency, 128px is plenty. One block square each,
+ * except the rabbit, which is drawn into a box 0.8 of a block wide by 0.75
+ * tall.
+ *
+ * Nothing else changes when you do, and each is independent. Animation comes
+ * later the same way: the renderer already gives a bird its wingbeat by
+ * squashing whatever it is handed and rolls the boulder by turning it, so a
+ * single still frame arrives moving.
+ */
 export const GAME_ROCK_SPRITE = asset("");
 export const GAME_BIRD_SPRITE = asset("");
+export const GAME_RABBIT_SPRITE = asset("");
+export const GAME_BOULDER_SPRITE = asset("");
 
 /* ---------------------------------------------------------------
    The venue's two windows: a walkthrough video and a map

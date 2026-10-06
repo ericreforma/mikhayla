@@ -13,24 +13,84 @@ children at the party will, and nobody else need ever know it is there.
 ## How it plays
 
 A block-built runner, the shape of the dinosaur that appears when Chrome loses
-its connection. Mikhayla's head runs to the right; you have one button.
+its connection. Mikhayla runs to the right; you have one button.
+
+She has three animations, and they are the game's whole feedback channel:
+**running**, **jumping**, and **crying** for the second and a bit she is
+untouchable after a hit. Hurt beats jumping, so a hit taken mid-air still
+shows — it is the clearest signal in the game that a life has gone.
+
+She is drawn **1.3 blocks tall against a hitbox of one**, so her tiara reaches
+into the second block. That overlap is deliberate: only the box is ever hit, so
+the worst it can look is a near miss that was in fact a miss — and a one-block
+princess is a face too small to read an expression off.
 
 | | |
 |---|---|
 | **The control** | The right-hand half of the screen. All of it, not just the round button — a thumb on a phone held in two hands lands where it lands. Space, ↑ or W on a keyboard. |
-| **Tap** | A hop of 1.3 blocks. Clears an ordinary rock, in a window of about 96ms. |
-| **Hold** | Up to 1.65 blocks, reached after 220ms. 204ms of window, and the only thing that clears a two-block rock. |
-| **Rocks** | One block, sometimes two side by side from 300 points. Jump them. |
-| **Birds** | Fly at head height. **Don't jump** — run underneath. Any jump at a bird is a hit. |
+| **Tap** | A hop of 1.3 blocks. Clears a plain rock, in a window of about 108ms. |
+| **Hold** | Up to 1.65 blocks, reached after 220ms. 216ms of window, and the only thing that clears a wide rock. |
 | **Lives** | Three. A hit costs one and buys 1.3 seconds of blinking immunity. |
 | **Score** | Ten a second at the starting speed, and it counts distance — so a faster tier earns faster. |
-| **Every 100 points** | The world speeds up, to a ceiling of twice the starting speed. |
+| **Every 500 points** | The world speeds up, to a ceiling of 1.6× the starting speed, reached at three thousand. |
 | **Every 1000 points** | The sky turns: morning → afternoon → sunset → evening → dawn → morning. Nothing names them; the light does the telling. |
 
-The hitboxes sit at the edge of the drawings, so a near miss is a hit. That is
-the difficulty, and it is deliberately the tightest at the *start* — see
-`PLAYER_INSET` in `tuning.ts`, which carries the measured windows and the
-reason a faster run is easier to jump in, not harder.
+### What is in the way
+
+Four kinds, nine variations, each arriving in its own turn — one idea at a
+time, so nothing argues with what the button has just taught.
+
+| From | | |
+|---|---|---|
+| 0 | **Rock** | A one-block chunk of castle battlement. Jump it. |
+| 150 | **Bird, flying** | The second block up, over a standing player's head. **Run under it** — any jump is a hit. |
+| 150 | **Bird, grounded** | The first block, which is where a rock sits. **Jump it**, with exactly a rock's window. |
+| 250 | **Rabbit** | Sitting at its burrow. Three quarters of a block, so the jump that clears it is a comfortable one — 232ms. |
+| 400 | **Bird, diving** | Flying, then drops a block into your path. Run under, then jump. |
+| 400 | **Bird, climbing** | Grounded, then climbs a block out of it. Jump, then don't. |
+| 400 | **Rabbit, popping up** | An empty hole, until a rabbit comes out of it. |
+| 400 | **Rabbit, burrowing** | A rabbit, until it drops out of sight. |
+| 550 | **Rock, wide** | 1.7 blocks of the same wall. The one obstacle a tap will not clear. |
+| 700 | **Boulder** | Rolls at you, and accelerates the whole way in. |
+
+Everything that changes, changes at **the same seven tenths of a second ahead
+of the player**, whatever tier the run has reached — a time, not a distance,
+because what it buys is reaction and that is measured in time. At the starting
+speed that is the middle of the screen.
+
+**A bird is one rule inverted, not two rules.** Blocks are counted as bands off
+the ground, so the first block is the one a standing player fills — the same
+band a rock fills — and the second is the one directly over their head. Which
+band a bird is in is the whole question it asks: in the air, run under it; on
+the ground, jump it like a rock. Measured, at the starting speed:
+
+| | run under | jump window, tap / hold |
+|---|---|---|
+| flying | safe | — |
+| grounded | hit | 108 / 216 ms, identical to a rock |
+
+The clearance under a flying bird is 0.18 of a block. Tight on purpose: it
+should look like a near miss, because it is one.
+
+Two of the four changes make a safe thing dangerous and two make a dangerous
+thing safe. That is deliberate: if every change were a threat the answer would
+just be "treat everything as a threat", and the reading would stop being worth
+doing.
+
+The burrow is the one standing tell: a dark slot in the grass with a pale lip
+above it. A slot says *something may happen here* — it never says what, and it
+is drawn narrower than a rabbit so that a rabbit sitting on one covers it. If it
+showed around a rabbit's feet you could tell the three apart at a glance, and
+the whole of a rabbit is that you cannot. It is a line rather than an opening
+because this ground is seen from directly to the side, where a hole has no
+mouth to show.
+
+The boulder is the only thing on the field the world does not simply carry, and
+it needs its own allowance in the spacing — it closes on whatever is ahead of
+it, so it is put out with three and a half blocks more room in front. Note that
+moving faster makes it *easier* to jump, not harder: a faster thing spends less
+time overlapping the player. It is a reaction test, not a timing one — 324ms of
+jump window against a plain rock's 108.
 
 It is **landscape only**, and turning the phone upright shows a card rather
 than a cramped game. That is not fussiness: the field is seven blocks tall and
@@ -51,7 +111,7 @@ app/game/
   engine.ts     the simulation. No DOM, no React, no pixels.
   render.ts     the canvas. The only file that knows what a pixel is.
   Game.tsx      canvas sizing, the loop, the HUD, the controls.
-  Cards.tsx     the three panels: before, paused, after.
+  Cards.tsx     the panels: before, paused, after, and the scoreboard.
   scores.ts     posting to the sheet, and the personal best on the device.
   orientation.ts   landscape, and asking to stay that way.
   page.tsx      the route, and the turn-your-phone gate.
@@ -73,10 +133,13 @@ chose it written above it. The ones most likely to be wanted:
 
 | Want | Change |
 |---|---|
-| Easier or harder | `PLAYER_INSET` / `ROCK_INSET`. They are the hitbox margins, and between them they set the window of correct jump timing — 96ms for a tap on an ordinary rock as it stands, 204ms for a hold. Raise them to forgive more. |
+| How big she looks | `PLAYER_DRAW_H` (1.3 blocks). Changes nothing about the hitbox. |
+| Easier or harder | `PLAYER_INSET` / `ROCK_INSET`. They are the hitbox margins, and between them they set the window of correct jump timing — 108ms for a tap on a plain rock as it stands, 216ms for a hold. Raise them to forgive more. |
 | Slower or faster | `SPEED_BASE`, `SPEED_STEP`, `SPEED_MAX`. |
 | Points less briskly | `SCORE_RATE` (ten a second). |
-| Speed up more or less often | `TIER_POINTS` (every hundred). |
+| Speed up more or less often | `TIER_POINTS` (every five hundred). |
+| When each obstacle starts | `BIRD_FROM`, `RABBIT_FROM`, `TRICKS_FROM`, `WIDE_ROCK_FROM`, `BOULDER_FROM`. |
+| How much warning a change gives | `CHANGE_LEAD_S` (seven tenths of a second). |
 | A longer or shorter day | `SKY_POINTS` (every thousand). |
 | More or fewer lives | `LIVES`. |
 | Different weather | `SKIES` — five flat lists of colours. Add a sixth and the cycle simply gets longer. |
@@ -90,26 +153,87 @@ harder jump. Slowing the game down to make it kinder does the opposite.
 
 ## The artwork
 
-The player, the rocks and the birds are all drawn in code at the moment — a
-crowned pixel head, a stone boulder, a bird whose wings beat off the clock.
-They are placeholders and are meant to be replaced.
+**She is real artwork.** Three sheets arrive in `assets-src/game/` and
+`scripts/build-player.py` turns them into the strips the game animates:
 
-To replace one, drop a file in `public/images/game/` and name it in
-`app/config.ts`:
+```
+python scripts/build-player.py
 
-```ts
-export const GAME_PLAYER_SPRITE = asset("/images/game/player.png");
+  running-sprite-16f.png         ->  public/game/run.webp    (16 frames)
+  running-sprite-16f-crying.png  ->  public/game/hurt.webp   (16 frames)
+  jumping-sprite.png             ->  public/game/jump.webp    (5 frames)
 ```
 
-One block square, PNG or WebP with transparency, 128px is plenty. There are
-three slots — `GAME_PLAYER_SPRITE`, `GAME_ROCK_SPRITE`, `GAME_BIRD_SPRITE` —
-and each is independent: fill one and the other two keep their drawings.
+The originals stay outside `public/` for the same reason the photographs do —
+three megabytes of source art nobody requests is three megabytes in the deploy.
+
+Three things are wrong with the artwork as supplied, and the script's job is
+all three:
+
+- **Transparency, or the lack of it.** The run sheet has a real alpha channel;
+  the jump sheet is RGB with a checkerboard *painted into it* where the
+  transparency should be. The script does whichever a sheet needs — and for the
+  painted one the obvious test ("light and grey") eats the white frills of her
+  dress, so the background is found by flooding inward from the border instead.
+  Her dress is enclosed by its own outline, so the flood stops at it and the
+  white inside is never reached.
+- **Baked drop shadows.** The game draws its own, which shrinks and fades as
+  she rises; a second one painted onto her feet would ride up into the air with
+  her. The keying threshold is set low enough to take them.
+- **Two different scales.** She is drawn about a third larger on the jump sheet.
+  Left alone she would visibly grow the moment she left the ground, so both are
+  normalised on the width of her head — the one measurement a change of pose
+  does not alter.
+
+Before a crying run was supplied, the hurt strip was built here by pasting her
+crying head from `faces.png` over her happy one. It worked and always looked
+like what it was — a front-facing head grafted onto a body in profile — so the
+whole apparatus came out the moment real artwork arrived. `faces.png` is still
+in `assets-src/` and is no longer read by anything.
+
+Every frame of all three strips shares one cell, one ground line and one head
+centre, so she neither drifts nor jitters. Every cell also carries a
+transparent gutter: frames laid edge to edge bleed into each other, because
+`drawImage` with smoothing on has to interpolate at the boundary of the source
+rectangle and the texels it reaches for there belong to the frame alongside —
+which shows up as a sliver of the next pose down one side of her. The cell is
+measured outward from her head rather than from her widest frame, for the same
+reason: she is *placed* by her head, so a cell sized to a bounding box left the
+airborne jump frame hanging over its own edge. The script prints the two numbers
+`PLAYER_CELL` in `tuning.ts` needs; re-run it if the artwork is ever
+re-supplied and check them.
+
+**The run cycle is driven by distance, not by a clock** — at a fixed frame rate
+her legs would run at the same speed however fast the world moved. One stride
+is 3.8 blocks, which is 559ms at the starting speed and quickens with every
+tier. That number did not change when the artwork went from eight frames to
+sixteen: the sheet holds one whole stride either way, so the same number keeps
+the same cadence and spends the extra frames on smoothness. The jump's five frames read off her vertical speed for
+the same reason — a jump cut short by a tap and one held to full height both
+show the right frame at the right moment, with no timer to keep in step.
+
+**The obstacles are still drawn in code** — grey castle masonry with staggered
+courses and a crenellated top, a bird whose wings beat off the clock, a rabbit
+at its burrow, a round stone that turns as it rolls. Those are placeholders and
+are meant to be replaced.
+
+To replace one, drop a file in `public/game/` and name it in `app/config.ts`:
+
+```ts
+export const GAME_ROCK_SPRITE = asset("/game/rock.webp");
+```
+
+PNG or WebP with transparency, 128px is plenty. One block square each, except
+the rabbit, which is drawn into a box 0.8 of a block wide by 0.75 tall. There
+are four — `GAME_ROCK_SPRITE`, `GAME_BIRD_SPRITE`, `GAME_RABBIT_SPRITE`,
+`GAME_BOULDER_SPRITE` — and each is independent: fill one and the rest keep
+their drawings.
 
 Nothing else changes. A sprite that fails to load leaves its slot empty and the
 drawing comes back, so a typo in a path is a cosmetic problem rather than a
 broken game. Animation can arrive the same way later: the renderer already
-gives a bird its wingbeat by squashing whatever it is handed, so a single still
-frame arrives moving.
+gives a bird its wingbeat by squashing whatever it is handed and rolls the
+boulder by turning it, so a single still frame arrives moving.
 
 ---
 
@@ -126,7 +250,7 @@ deployment that predates the game files scores into `RSVPs` instead, which is
 the one failure anybody actually meets; that document says how to spot the
 misfiled rows and move them.
 
-**Top 10** on the start and game-over cards reads the board back — `?board=game`
+**Scoreboard** on the start and game-over cards reads the board back — `?board=game`
 on the same URL, answered by `topScores` in the script. Ten numbered rows and a
 **Refresh**. It is one row per *person*, their best, not one per run: without
 that fold one determined ten-year-old fills all ten places. Names are matched

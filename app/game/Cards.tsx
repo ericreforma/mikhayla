@@ -83,7 +83,12 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={`${BACKDROP} z-30`}>
-      <div className={`${CARD} max-h-full overflow-y-auto`}>
+      {/* Narrow, unlike every other card here, and that is the whole layout
+          decision. A name and its score belong next to each other — read at
+          the width of the rest of the cards they sat at opposite ends of a
+          long empty line, and a leaderboard you have to track across is not
+          one anybody reads. */}
+      <div className={`${CARD} max-w-[19rem] max-h-full overflow-y-auto sm:max-w-xs`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
         <button
@@ -171,7 +176,7 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 function BoardButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={SECONDARY}>
-      Top 10
+      Scoreboard
     </button>
   );
 }
@@ -229,9 +234,13 @@ export function StartCard({
               <b className="font-semibold text-ink">Hold</b> it for a bigger jump — the wide
               rocks need one.
             </Rule>
+            {/* The birds are two rules wearing one drawing, and which one
+                applies is the lane. Said as a pair, because said as either one
+                alone it is worse than saying nothing. */}
             <Rule>
-              Birds fly low — <b className="font-semibold text-ink">don&apos;t jump</b>, run
-              underneath them.
+              <b className="font-semibold text-ink">Jump</b> a bird on the ground.{" "}
+              <b className="font-semibold text-ink">Don&apos;t</b> jump at one in the air —
+              run under it.
             </Rule>
           </ul>
 

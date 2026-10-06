@@ -166,7 +166,7 @@ function saveScore(data) {
 }
 
 /**
- * The leaderboard the game's "Top 10" button reads.
+ * The leaderboard the game's "Scoreboard" button reads.
  *
  * One row per *person*, not per run — their best. A leaderboard is a list of
  * who is good at this, and without the fold one determined ten-year-old fills

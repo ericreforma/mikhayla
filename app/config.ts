@@ -307,7 +307,50 @@ export const RSVP_BY = "October 10";
  * invitation works perfectly well before the sheet exists. Nothing else has
  * to change when you fill it in.
  */
-export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbwbEY5AXjP5W0qOQaHDlCaQUL-qHZM7ZDiEoyYuzO_g4r8BaCZhuMo7kmJC06hUiArr5w/exec";
+export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzS7KwNFdcg7avWe0kPgc5ddtYK7v_5FS288LVQCuYzmsZnP1qwBBS8F4BOrFJACkiB4A/exec";
+
+/* ---------------------------------------------------------------
+   The game hidden behind the balloon
+   ---------------------------------------------------------------
+   Two taps on the rising balloon open `/game` — a block-built running game
+   with Mikhayla's head for a player. It is not linked from anywhere and
+   nothing on the invitation mentions it; finding it is the point.
+
+   See `docs/game.md` for how it plays and what every number does.
+   --------------------------------------------------------------- */
+
+/**
+ * Where a finished run posts its score.
+ *
+ * The *same* Apps Script URL as the RSVP above, deliberately: one script,
+ * bound to one spreadsheet, which reads a `kind` field off each post and
+ * drops the row in the right tab — RSVPs in `RSVPs`, scores in `GAME`. One
+ * deployment to keep public, one URL to keep right.
+ *
+ * It does mean the script has to be the updated one. The version in
+ * `docs/rsvp-setup.md` handles both; an older deployment that has never heard
+ * of `kind` will file scores as RSVPs. Redeploy before the party.
+ *
+ * Left empty, the game still plays and still keeps a personal best on the
+ * device — it simply stops asking for a name at the end.
+ */
+export const GAME_ENDPOINT = RSVP_ENDPOINT;
+
+/**
+ * The player, and the two things in her way.
+ *
+ * All three are empty, and the game draws blocky stand-ins for whichever is:
+ * a crowned pixel head, a stone boulder, a flapping bird. Drop artwork into
+ * `public/images/game/` and name it here and the drawing is replaced — one
+ * block square for each, PNG or WebP with transparency, 128px is plenty.
+ *
+ * Nothing else changes when you do. Animation comes later the same way: the
+ * renderer already gives a bird its wingbeat by squashing whatever it is
+ * handed, so a single still frame arrives moving.
+ */
+export const GAME_PLAYER_SPRITE = asset("");
+export const GAME_ROCK_SPRITE = asset("");
+export const GAME_BIRD_SPRITE = asset("");
 
 /* ---------------------------------------------------------------
    The venue's two windows: a walkthrough video and a map

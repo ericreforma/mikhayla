@@ -213,10 +213,19 @@ const config: Config = {
           "0%, 100%": { opacity: "0.25", transform: "scale(0.8) rotate(0deg)" },
           "50%": { opacity: "1", transform: "scale(1.15) rotate(15deg)" },
         },
+        /* The phone on the game's rotate card, turning itself a quarter turn
+           and holding there long enough to be read as an instruction rather
+           than as a wobble. */
+        turn: {
+          "0%, 24%": { transform: "rotate(0deg)" },
+          "46%, 86%": { transform: "rotate(-90deg)" },
+          "100%": { transform: "rotate(0deg)" },
+        },
       },
       animation: {
         "balloon-sway": "balloon-sway 6s ease-in-out infinite",
         twinkle: "twinkle 3.5s ease-in-out infinite",
+        turn: "turn 3.4s cubic-bezier(0.22, 1, 0.36, 1) infinite",
       },
     },
   },

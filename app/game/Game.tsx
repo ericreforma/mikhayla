@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   GAME_BIRD_SPRITE,
-  GAME_PLAYER_SPRITE,
+  GAME_BOULDER_SPRITE,
+  GAME_HURT_SPRITE,
+  GAME_JUMP_SPRITE,
+  GAME_RUN_SPRITE,
+  GAME_RABBIT_SPRITE,
   GAME_ROCK_SPRITE,
 } from "@/app/config";
 import {
@@ -20,9 +24,32 @@ import { enterFullscreen } from "@/app/components/fullscreen";
 import { Crown } from "@/app/components/Ornaments";
 import { lockLandscape } from "./orientation";
 import { draw, measure, type Sprites, type View } from "./render";
-import { cachedLeader, fetchTopScores, readBest, writeBest, type TopScore } from "./scores";
-import { LIVES } from "./tuning";
-import { GameOverCard, PausedCard, StartCard } from "./Cards";
+import {
+  cachedLeader,
+  fetchTopScores,
+  readBest,
+  readName,
+  suggestedName,
+  writeBest,
+  writeName,
+  type TopScore,
+} from "./scores";
+import { arm, play, startMenu, stopMenu, weather, type Sfx } from "./sfx";
+import { LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
+import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
+
+/**
+ * Which surface she is running on.
+ *
+ * The two weathers cross-fade over eight seconds, so a threshold rather than a
+ * test for zero: the sound swaps once, half way through the change, instead of
+ * alternating between two footsteps for the length of it.
+ */
+function footstep(g: World): Sfx {
+  if (g.snow > 0.5) return "step-snow";
+  if (g.rain > 0.5) return "step-rain";
+  return "step-grass";
+}
 
 /**
  * The game, wired to a screen.
@@ -55,7 +82,15 @@ export function Game({ onLeave }: { onLeave: () => void }) {
      cause a render. */
   const viewRef = useRef<View>(measure(960, 420));
   const worldRef = useRef<World>(createGame(viewRef.current.cols));
-  const spritesRef = useRef<Sprites>({ player: null, rock: null, bird: null });
+  const spritesRef = useRef<Sprites>({
+    run: null,
+    jump: null,
+    hurt: null,
+    rock: null,
+    bird: null,
+    rabbit: null,
+    boulder: null,
+  });
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
 
   const [status, setStatus] = useState<Status>("ready");
@@ -80,13 +115,82 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
   useEffect(() => setBest(readBest()), []);
 
+  /* ---------------------------------------------------------------
+     Who is playing
+     ---------------------------------------------------------------
+     Asked once, at the door, and kept on the device — the same bargain the
+     RSVP makes. Everything after it is quieter for it: a finished run uploads
+     itself, and nobody is asked to type while they are looking at the number
+     they just got.
+
+     `ready` is a third state rather than `name === ""`, because there is one
+     frame before the effect runs where nothing is known. Painting the name
+     card during it would flash a form at a player who has one stored.
+     --------------------------------------------------------------- */
+  const [name, setName] = useState("");
+  const [nameReady, setNameReady] = useState(false);
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    const chosen = readName();
+    /* The RSVP only ever fills the box; it never answers for them. */
+    setName(chosen || suggestedName());
+    setAsking(!chosen);
+    setNameReady(true);
+  }, []);
+
+  const named = useCallback((chosen: string) => {
+    writeName(chosen);
+    setName(chosen);
+    setAsking(false);
+  }, []);
+
+  /* ---------------------------------------------------------------
+     Sound
+     ---------------------------------------------------------------
+     Three effects, each answering to a different thing.
+     --------------------------------------------------------------- */
+
+  /* Open the device and fetch the effects. Usually immediate — see `arm`. */
+  useEffect(() => arm(), []);
+
+  /**
+   * The menu music follows the menu, and nothing else.
+   *
+   * On exactly while a card is up before the first run: the one asking a name
+   * and the one with the title and the instructions on it. `nameReady` is in
+   * here because it gates the card itself — there is one frame where the
+   * status is `ready` but nothing is drawn yet, and music under a blank screen
+   * is music under a blank screen.
+   *
+   * Starting it is allowed to be optimistic; `startMenu` falls back to the
+   * first touch if the browser refuses, and gives up if the card has gone by
+   * then. The status never returns to `ready`, so this plays once, at the door.
+   */
+  const menuUp = status === "ready" && nameReady;
+  useEffect(() => {
+    if (menuUp) startMenu();
+    else stopMenu();
+  }, [menuUp]);
+
+  /* Leaving the game stops everything it was making. The players live at
+     module scope and outlive this component, so without this the menu music
+     follows a guest back out to the invitation and plays over its own. */
+  useEffect(
+    () => () => {
+      stopMenu();
+      weather(0, 0);
+    },
+    []
+  );
+
   /**
    * Fetch the board in the background and keep the top name.
    *
    * Nothing waits on it and nothing reports it failing. A leaderboard is a
    * nice-to-have on a page whose actual job is to run at sixty frames a
    * second, so it is allowed to simply not arrive — the line under the score
-   * falls back to this device's own best, and the Top 10 panel says so
+   * falls back to this device's own best, and the Scoreboard panel says so
    * properly if someone opens it.
    *
    * Called again at the start of every run, which is also what refreshes it
@@ -163,9 +267,13 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
   useEffect(() => {
     const slots: [keyof Sprites, string][] = [
-      ["player", GAME_PLAYER_SPRITE],
+      ["run", GAME_RUN_SPRITE],
+      ["jump", GAME_JUMP_SPRITE],
+      ["hurt", GAME_HURT_SPRITE],
       ["rock", GAME_ROCK_SPRITE],
       ["bird", GAME_BIRD_SPRITE],
+      ["rabbit", GAME_RABBIT_SPRITE],
+      ["boulder", GAME_BOULDER_SPRITE],
     ];
     const loaded: HTMLImageElement[] = [];
 
@@ -198,6 +306,25 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     let sawStatus: Status = worldRef.current.status;
     let sawLives = worldRef.current.lives;
     let sawScore = -1;
+
+    /*
+     * And what the speaker was last told, for the same reason.
+     *
+     * Every sound in the game is an *edge* on something the simulation already
+     * tracks, found here rather than fired from the place that caused it. That
+     * is deliberate: `engine.ts` is a pure function of its own state and is run
+     * headless by the test harness, and a jump that made a noise could not be.
+     * So the engine stays silent and this loop watches it — which also means
+     * there is exactly one place a jump can be announced from, however many
+     * ways there are to ask for one.
+     */
+    let sawGrounded = worldRef.current.grounded;
+    let sawBeat = 0;
+
+    /* How much of the weather bed is let through. Eased rather than switched,
+       so a pause lowers the rain instead of cutting it — and so the ending
+       sting is not fighting a downpour for the last word. */
+    let gate = 0;
 
     const frame = (now: number) => {
       raf = window.requestAnimationFrame(frame);
@@ -235,6 +362,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
       if (ctx) draw(ctx, g, view, spritesRef.current);
 
+      /* The rain and the wind, held at whatever the sky is doing. The engine
+         already eases these two over eight seconds, so handing them straight
+         to the speaker crossfades the sound on the same curve as the picture. */
+      gate += ((g.status === "running" ? 1 : 0) - gate) * Math.min(1, elapsed * 6);
+      weather(g.rain * gate, g.snow * gate);
+
       /* The HUD, written straight onto the DOM — see the note at the top. */
       const shown = shownScore(g);
       if (shown !== sawScore) {
@@ -242,9 +375,9 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         if (scoreRef.current) scoreRef.current.textContent = String(shown);
 
         /* Passing the person at the top of the board is the one thing worth
-           reacting to mid-run, so the line under the score goes gold when it
-           happens. Written straight onto the node for the same reason the
-           score is — this is inside the frame loop. */
+           reacting to mid-run, so the corner goes gold when it happens.
+           Written straight onto the node for the same reason the score is —
+           this is inside the frame loop. */
         const top = leaderScoreRef.current;
         const el = leaderRef.current;
         if (top !== null && el) {
@@ -253,7 +386,37 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         }
       }
 
+      /* Up. `grounded` only ever goes false in `press`, and only when a jump
+         actually begins — so this is the jump, and a press that bought nothing
+         because she was already in the air is silent, as it should be. */
+      if (g.grounded !== sawGrounded) {
+        if (!g.grounded) play("jump");
+        sawGrounded = g.grounded;
+      }
+
+      /*
+       * And down: a footfall twice a stride, on the two frames where the
+       * artwork actually plants a foot (see `STEP_PHASE`).
+       *
+       * Counted off distance rather than off time, because the animation is —
+       * tie it to a clock and the sound drifts out of her legs as the tiers
+       * speed up. `beat` is reassigned whatever happens, so the distance
+       * covered in the air is swallowed rather than arriving all at once as a
+       * burst of footsteps the moment she lands.
+       */
+      const beat = Math.floor((g.distance / RUN_CYCLE_BLOCKS - STEP_PHASE) * 2);
+      if (beat !== sawBeat) {
+        if (beat === sawBeat + 1 && g.status === "running" && g.grounded) {
+          play(footstep(g));
+        }
+        sawBeat = beat;
+      }
+
       if (g.lives !== sawLives) {
+        /* A heart lost, but not the last one — the last one is the game over
+           below, which has its own three sounds and should not have this
+           underneath it. */
+        if (g.lives < sawLives && g.lives > 0) play("hurt");
         sawLives = g.lives;
         setLives(g.lives);
       }
@@ -262,9 +425,29 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         sawStatus = g.status;
         if (g.status === "over") {
           const final = shownScore(g);
+
+          /* Both read *before* the write, which is what makes beating your own
+             record detectable at all — a moment later this run is the record. */
+          const mine = readBest();
+          const theirs = leaderScoreRef.current;
+
           writeBest(final);
           setScore(final);
           setBest(readBest());
+
+          /*
+           * One sound, in this order. Topping the board is the bigger thing
+           * and swallows topping yourself; either of them replaces the game
+           * over rather than playing over it — the run ended, but that is not
+           * the news.
+           *
+           * With no board to compare against — no signal, or the very first
+           * player — `theirs` is null and beating yourself is the best news
+           * available, which is the right answer for a guest playing alone.
+           */
+          if (theirs !== null && final > theirs) play("winner-all");
+          else if (final > mine) play("winner-self");
+          else play("gameover");
         }
         setStatus(g.status);
       }
@@ -277,6 +460,63 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   /* ---------------------------------------------------------------
      Starting, pausing, and starting again
      --------------------------------------------------------------- */
+
+  /**
+   * Debug: pin the hour or the weather from the URL.
+   *
+   *   ?sky=0..4        morning, afternoon, sunset, evening, dawn
+   *   ?weather=rain | snow | clear
+   *
+   * Read once and applied to every run, restarts included, so a look at the
+   * snow does not end the moment you die. It exists because the alternative is
+   * playing for four minutes to see whether the snow is the right white — and
+   * on the phone it has to be checked on, four minutes is four minutes.
+   *
+   * Nothing is reachable without typing it. The route is already unlisted and
+   * `noindex`, and these change the light and nothing else: not the speed, not
+   * the spawns, not the score. A run with the weather pinned is still a real
+   * run and its score still counts, which is deliberate — a debug switch that
+   * quietly invalidated the scoreboard would be a worse bug than the one it
+   * was added to find.
+   */
+  const pinned = useRef<{ sky: number | null; weather: number | null }>({
+    sky: null,
+    weather: null,
+  });
+
+  /** Hold a game at whatever the URL asked for. */
+  const applyPins = useCallback((g: World) => {
+    const { sky, weather } = pinned.current;
+    if (sky !== null) {
+      g.forceSky = sky;
+      g.sky = sky;
+      g.skyFrom = sky;
+      g.skyBlend = 1;
+    }
+    if (weather !== null) {
+      g.forceWeather = weather;
+      /* Snapped rather than eased in. The eight-second gather is right for
+         weather that arrives during a run and wrong for weather you came to
+         look at. */
+      g.rain = weather === 1 ? 1 : 0;
+      g.snow = weather === 2 ? 1 : 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+
+    const sky = Number(q.get("sky"));
+    pinned.current.sky =
+      q.has("sky") && Number.isInteger(sky) && sky >= 0 && sky < SKIES.length ? sky : null;
+
+    const weather = { clear: 0, rain: 1, snow: 2 }[q.get("weather") ?? ""];
+    pinned.current.weather = weather ?? null;
+
+    /* The world standing behind the start card is a game too, and it is the
+       first thing anybody checking the weather will look at. */
+    applyPins(worldRef.current);
+  }, [applyPins]);
 
   const start = useCallback(() => {
     /*
@@ -295,11 +535,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     loadLeader();
 
     const g = createGame(viewRef.current.cols);
+    applyPins(g);
     g.status = "running";
     worldRef.current = g;
     setLives(LIVES);
     setStatus("running");
-  }, [loadLeader]);
+  }, [applyPins, loadLeader]);
 
   const pause = useCallback(() => {
     const g = worldRef.current;
@@ -433,7 +674,26 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   const running = status === "running";
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-[#7DC1EC]">
+    <div
+      ref={wrapRef}
+      /*
+        Every button in the game, caught in one place.
+
+        The alternative is a `play("button")` inside a dozen `onClick`s spread
+        across four cards, which is a dozen chances to add a thirteenth button
+        and forget. Capture, so a card that stops the event still makes a
+        noise; `pointerdown` rather than `click`, because a tap that slides off
+        the button never clicks, and a sound that arrives on release reads as
+        lag rather than as a button.
+
+        The jump zone deliberately is not a button, so it never fires here —
+        jumping has its own sound and does not want a click under it.
+      */
+      onPointerDownCapture={(e) => {
+        if ((e.target as HTMLElement | null)?.closest("button")) play("button");
+      }}
+      className="relative h-full w-full overflow-hidden bg-[#7DC1EC]"
+    >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       {/*
@@ -456,7 +716,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         aria-hidden
       >
         <div
-          className="pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/70 bg-white/25 text-white shadow-lg backdrop-blur-[2px]"
+          className="pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/30 text-white backdrop-blur-[2px] shadow-[0_4px_0_0_rgba(0,0,0,0.3),0_8px_18px_rgba(0,0,0,0.3)]"
           style={{ width: "clamp(3.5rem, 13vh, 5.5rem)", height: "clamp(3.5rem, 13vh, 5.5rem)" }}
         >
           <svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="none" aria-hidden>
@@ -476,23 +736,40 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           ---------------------------------------------------------------
           Over the canvas and out of the shake, so the score stays still while
           the world lurches. Nothing in here takes a tap except the pause.
+
+          Three columns, and the outer two are both `flex-1` on purpose: that
+          is what makes the middle one land on the true centre of the screen
+          rather than on the centre of whatever is left over once the pause and
+          the leaderboard have taken their share. Those two are never the same
+          width — one holds three hearts, the other holds somebody's name.
+
+          All of it sits in the top strip of sky. Nothing in the game is drawn
+          up there: the bird's own lane is a block or two off the ground, which
+          is most of the way down the screen.
           --------------------------------------------------------------- */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4"
+        className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-3 sm:p-4"
         style={{
           paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
           paddingRight: "max(0.75rem, env(safe-area-inset-right))",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2.5">
           <button
             type="button"
             onClick={pause}
             disabled={!running}
             aria-label="Pause"
-            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white/90 backdrop-blur-[2px] transition active:scale-95 disabled:opacity-0"
+            /* The same raised-and-pressed idea the cards' buttons use, in the
+               HUD's own palette: it sits on the game rather than on parchment,
+               so the shadow under it is the dark it is already drawn in. */
+            className="pointer-events-auto inline-flex flex-none select-none items-center justify-center rounded-full border-2 border-white/70 bg-black/35 text-white backdrop-blur-[2px] transition-all duration-75 ease-out shadow-[0_3px_0_0_rgba(0,0,0,0.45)] active:translate-y-[3px] active:shadow-[0_0_0_0_rgba(0,0,0,0.45)] disabled:opacity-0"
+            style={{
+              width: "clamp(2.6rem, 9vh, 3.6rem)",
+              height: "clamp(2.6rem, 9vh, 3.6rem)",
+            }}
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-[45%] w-[45%]" fill="currentColor" aria-hidden>
               <rect x="7" y="5" width="3.5" height="14" rx="1" />
               <rect x="13.5" y="5" width="3.5" height="14" rx="1" />
             </svg>
@@ -501,50 +778,74 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           <Hearts lives={lives} />
         </div>
 
-        {/* On a dark pill, because the sky underneath it runs from a white
-            noon to a navy midnight over the course of a long run and no single
-            colour of text is legible on both. */}
-        <div className="rounded-xl bg-black/25 px-2.5 py-1 text-right font-mono tabular-nums leading-none text-white backdrop-blur-[2px]">
+        {/* The score, dead centre and the biggest thing on the screen — it is
+            the only number anybody is playing for. On a dark pill because the
+            sky under it runs from a white noon to a navy midnight over the
+            course of a long run, and no one colour of text is legible on both. */}
+        <div className="flex-none rounded-2xl bg-black/30 px-4 py-1 text-center font-mono tabular-nums leading-none text-white backdrop-blur-[2px]">
           <span
             ref={scoreRef}
-            className="block text-[clamp(1.4rem,5.5vh,2.4rem)] font-bold tracking-tight"
+            className="block text-[clamp(2rem,9.5vh,3.6rem)] font-bold tracking-tight"
           >
             0
           </span>
-          {/*
-            Who there is to beat.
+        </div>
 
-            The board's leader when we have one, and this device's own best
-            when we don't — which covers a guest with no signal, a sheet that
-            isn't set up, and the very first player, for whom there is no board
-            yet. The name is a guest's own typing and can be a hundred
-            characters, so it is given a hard ceiling and allowed to ellipsise
-            rather than pushing the score off the screen.
-          */}
+        {/*
+          Who there is to beat, in the far corner.
+
+          The board's leader when we have one, and this device's own best when
+          we don't — which covers a guest with no signal, a sheet that isn't set
+          up, and the very first player, for whom there is no board yet. The
+          name is a guest's own typing and can be a hundred characters, so it is
+          given a hard ceiling and allowed to ellipsise rather than pushing the
+          score off its centre.
+        */}
+        <div className="flex flex-1 justify-end">
           {leader ? (
             <span
               ref={leaderRef}
               data-ahead="false"
-              className="mt-1 flex items-center justify-end gap-1 text-[clamp(0.6rem,2vh,0.8rem)] text-white/70 transition-colors data-[ahead=true]:text-gold"
+              className="flex min-w-0 items-center gap-1.5 rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.85rem,3.4vh,1.25rem)] leading-none text-white/85 backdrop-blur-[2px] transition-colors data-[ahead=true]:text-gold"
             >
-              <Crown className="h-[0.85em] w-auto flex-none" />
-              <span className="max-w-[26vw] truncate">{leader.name}</span>
-              <span className="flex-none font-semibold">{leader.score}</span>
+              <Crown className="h-[0.95em] w-auto flex-none" />
+              <span className="max-w-[24vw] truncate">{leader.name}</span>
+              <span className="flex-none font-mono font-semibold tabular-nums">
+                {leader.score}
+              </span>
             </span>
           ) : best > 0 ? (
-            <span className="mt-0.5 block text-[clamp(0.6rem,2vh,0.8rem)] uppercase tracking-[0.18em] text-white/70">
-              Best {best}
+            <span className="rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.8rem,3vh,1.1rem)] uppercase leading-none tracking-[0.14em] text-white/85 backdrop-blur-[2px]">
+              Best <span className="font-mono font-semibold tabular-nums">{best}</span>
             </span>
           ) : null}
         </div>
       </div>
 
-      {status === "ready" && <StartCard onStart={start} onLeave={onLeave} best={best} />}
+      {status === "ready" &&
+        nameReady &&
+        (asking ? (
+          <NameCard onDone={named} onLeave={onLeave} suggestion={name} />
+        ) : (
+          <StartCard
+            onStart={start}
+            onLeave={onLeave}
+            onRename={() => setAsking(true)}
+            best={best}
+            name={name}
+          />
+        ))}
       {status === "paused" && (
         <PausedCard onResume={resume} onRestart={start} onLeave={onLeave} />
       )}
       {status === "over" && (
-        <GameOverCard score={score} best={best} onRestart={start} onLeave={onLeave} />
+        <GameOverCard
+          score={score}
+          best={best}
+          name={name}
+          onRestart={start}
+          onLeave={onLeave}
+        />
       )}
     </div>
   );

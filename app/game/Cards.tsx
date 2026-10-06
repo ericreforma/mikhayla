@@ -8,9 +8,9 @@ import {
   CAN_SUBMIT,
   fetchTopScores,
   NAME_MAX,
-  readName,
+  readSent,
   submitScore,
-  writeName,
+  worthSending,
   type TopScore,
 } from "./scores";
 
@@ -34,11 +34,55 @@ const CARD =
 const BACKDROP =
   "absolute inset-0 z-20 flex items-center justify-center bg-night/70 p-[max(0.75rem,env(safe-area-inset-left))] backdrop-blur-sm";
 
+/* ---------------------------------------------------------------
+   Buttons that look like buttons
+   ---------------------------------------------------------------
+   A flat outlined pill reads as a label with a line round it, which is what
+   these were. What makes a thing look pressable is depth and, more than
+   depth, *travel*: a hard-edged shadow directly under the button, and a press
+   that moves the button down onto it and takes the shadow away. Nothing here
+   is a blur or a glow — the shadow has a sharp edge because a sharp edge is
+   what reads as a solid object sitting on a surface rather than as a drop
+   shadow floating over one.
+
+   `active:` does the whole of the press. The travel distance and the shadow
+   offset are the same number, so the button lands exactly on its own shadow
+   and nothing underneath it moves — the row keeps its height and the card
+   never reflows.
+
+   `duration-75` because a press has to feel like contact. Anything over about
+   a tenth of a second stops reading as the button answering and starts
+   reading as an animation of a button.
+   --------------------------------------------------------------- */
+
+const BUTTON =
+  "inline-flex select-none items-center justify-center gap-2 rounded-full font-display " +
+  "transition-all duration-75 ease-out " +
+  "active:translate-y-[3px] disabled:pointer-events-none disabled:opacity-60";
+
 const PRIMARY =
-  "flex min-h-[2.6rem] items-center justify-center gap-2 rounded-full bg-gold px-6 font-display text-[clamp(0.85rem,3.4vh,1.05rem)] font-semibold text-night shadow-lg shadow-gold/20 transition active:scale-[0.98] hover:bg-goldSoft disabled:opacity-60";
+  `${BUTTON} min-h-[2.7rem] bg-gradient-to-b from-[#E8CB63] to-[#C9A22C] px-6 ` +
+  "text-[clamp(0.85rem,3.4vh,1.05rem)] font-semibold text-night " +
+  "border border-[#A8841F]/60 " +
+  "shadow-[0_3px_0_0_#9C7A1B,0_5px_10px_rgba(62,40,20,0.3)] " +
+  "hover:from-[#F0DFA8] hover:to-[#D4AF37] " +
+  "active:shadow-[0_0_0_0_#9C7A1B,0_1px_4px_rgba(62,40,20,0.25)]";
 
 const SECONDARY =
-  "flex min-h-[2.6rem] items-center justify-center rounded-full border border-gold/50 px-5 font-display text-[clamp(0.8rem,3.2vh,1rem)] text-ink/75 transition active:scale-[0.98] hover:bg-mist hover:text-ink";
+  `${BUTTON} min-h-[2.7rem] bg-gradient-to-b from-white to-[#F6E8D8] px-5 ` +
+  "text-[clamp(0.8rem,3.2vh,1rem)] text-ink/80 " +
+  "border border-gold/60 " +
+  "shadow-[0_3px_0_0_#DCC79B,0_5px_10px_rgba(62,40,20,0.2)] " +
+  "hover:from-white hover:to-mist hover:text-ink " +
+  "active:shadow-[0_0_0_0_#DCC79B,0_1px_4px_rgba(62,40,20,0.18)]";
+
+/** The giant play button, which is the same idea made round and large. */
+const PLAY =
+  `${BUTTON} flex-none bg-gradient-to-b from-[#E8CB63] to-[#C9A22C] text-night ` +
+  "border-2 border-[#A8841F]/60 " +
+  "shadow-[0_4px_0_0_#9C7A1B,0_7px_14px_rgba(62,40,20,0.34)] " +
+  "hover:from-[#F0DFA8] hover:to-[#D4AF37] " +
+  "active:translate-y-[4px] active:shadow-[0_0_0_0_#9C7A1B,0_2px_5px_rgba(62,40,20,0.28)]";
 
 /* ---------------------------------------------------------------
    The board
@@ -83,7 +127,12 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={`${BACKDROP} z-30`}>
-      <div className={`${CARD} max-h-full overflow-y-auto`}>
+      {/* Narrow, unlike every other card here, and that is the whole layout
+          decision. A name and its score belong next to each other — read at
+          the width of the rest of the cards they sat at opposite ends of a
+          long empty line, and a leaderboard you have to track across is not
+          one anybody reads. */}
+      <div className={`${CARD} max-w-[19rem] max-h-full overflow-y-auto sm:max-w-xs`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
         <button
@@ -171,8 +220,164 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 function BoardButton({ onClick }: { onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className={SECONDARY}>
-      Top 10
+      Scoreboard
     </button>
+  );
+}
+
+/**
+ * The three ways on, in one place because both cards show the same three.
+ *
+ *     Invitation  ·  ▶  ·  Scoreboard
+ *
+ * The middle one is deliberately giant rather than one of three equals. A
+ * player sitting in front of either card is going to press play, and making
+ * them pick it out of a row of look-alikes is a tax on the thing they came to
+ * do — so it is given the size that says so, and the other two stay quiet
+ * either side of it.
+ *
+ * Shared rather than written twice, which is the only way the two cards can be
+ * relied on to stay the same: the start card and the game-over card are edited
+ * at different times for different reasons, and a row that is "the same" by
+ * coincidence stops being the same on the first of those edits.
+ */
+function WaysOn({
+  onLeave,
+  onPlay,
+  onBoard,
+  playLabel,
+}: {
+  onLeave: () => void;
+  onPlay: () => void;
+  onBoard: () => void;
+  playLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-3 border-t border-gold/20 pt-3">
+      <button type="button" onClick={onLeave} className={SECONDARY}>
+        Invitation
+      </button>
+
+      <button
+        type="button"
+        onClick={onPlay}
+        aria-label={playLabel}
+        autoFocus
+        className={PLAY}
+        style={{
+          width: "clamp(3.2rem, 13vh, 4.6rem)",
+          height: "clamp(3.2rem, 13vh, 4.6rem)",
+        }}
+      >
+        {/* Offset a hair right: a triangle centred on its bounding box reads
+            as sitting left of centre inside a circle. */}
+        <svg viewBox="0 0 24 24" className="h-[42%] w-[42%] translate-x-[6%]" fill="currentColor" aria-hidden>
+          <path d="M8 5.5 L19 12 L8 18.5 Z" />
+        </svg>
+      </button>
+
+      {/* The board's slot is held even when there is no board, so the play
+          button stays on the centre line rather than sliding across. */}
+      {CAN_SUBMIT ? (
+        <BoardButton onClick={onBoard} />
+      ) : (
+        <span className="w-[5.9rem]" aria-hidden />
+      )}
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------
+   The door: who is playing
+   ---------------------------------------------------------------
+   Asked once, before the first run, and never again on this device — the same
+   bargain the RSVP makes. Everything after it is quieter for it: scores go up
+   by themselves at the end of a run, and nobody is asked to type while they
+   are still looking at the number they just got.
+   --------------------------------------------------------------- */
+
+export function NameCard({
+  onDone,
+  onLeave,
+  suggestion,
+}: {
+  onDone: (name: string) => void;
+  onLeave: () => void;
+  /** Whatever they RSVP'd as, if they did. Very often the only time they will
+      have typed their name on this site. */
+  suggestion: string;
+}) {
+  const [name, setName] = useState(suggestion);
+  const [error, setError] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  function go(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("We need something to put on the board.");
+      inputRef.current?.focus();
+      return;
+    }
+    onDone(trimmed.slice(0, NAME_MAX));
+  }
+
+  return (
+    <div className={BACKDROP}>
+      <div className={`${CARD} max-w-md max-h-full overflow-y-auto`}>
+        <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
+
+        <div className="relative px-5 py-[clamp(0.9rem,4vh,1.6rem)] sm:px-7">
+          <header className="text-center">
+            <Crown className="mx-auto h-[clamp(1.1rem,4vh,1.75rem)] w-auto text-gold" />
+            <h1 className="mt-1 font-display text-[clamp(1.05rem,4.6vh,1.7rem)] italic leading-tight text-ink">
+              Who is playing?
+            </h1>
+          </header>
+
+          <form onSubmit={go} noValidate className="mt-3 flex flex-col gap-2">
+            <input
+              ref={inputRef}
+              id="game-name"
+              name="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              autoComplete="name"
+              maxLength={NAME_MAX}
+              placeholder="Juan Dela Cruz"
+              className="w-full rounded-xl border border-gold/40 bg-parchment px-3.5 py-2.5 text-center font-body text-[clamp(0.9rem,3.6vh,1.1rem)] text-ink shadow-sm outline-none transition placeholder:text-ink/30 focus:border-gold focus:ring-2 focus:ring-gold/30"
+            />
+
+            {/* The one instruction that matters, and the reason for it. A
+                scoreboard of "Mika", "Mika" and "Mika" belongs to nobody. */}
+            <p className="text-center text-[clamp(0.65rem,2.7vh,0.82rem)] leading-snug text-ink/60">
+              Your <b className="font-semibold text-ink/80">full name</b>, please — there will
+              be more than one Mika at this party.
+            </p>
+
+            {error && (
+              <p role="alert" className="text-center text-[clamp(0.65rem,2.6vh,0.8rem)] text-snow">
+                {error}
+              </p>
+            )}
+
+            <div className="mt-1 flex items-center justify-center gap-2.5">
+              <button type="submit" className={PRIMARY}>
+                <Sparkle className="h-3.5 w-3.5" />
+                That&apos;s me
+              </button>
+              <button type="button" onClick={onLeave} className={SECONDARY}>
+                Back
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -183,11 +388,15 @@ function BoardButton({ onClick }: { onClick: () => void }) {
 export function StartCard({
   onStart,
   onLeave,
+  onRename,
   best,
+  name,
 }: {
   onStart: () => void;
   onLeave: () => void;
+  onRename: () => void;
   best: number;
+  name: string;
 }) {
   const [board, setBoard] = useState(false);
   if (board) return <Leaderboard onClose={() => setBoard(false)} />;
@@ -203,8 +412,12 @@ export function StartCard({
             <h1 className="mt-1 font-display text-[clamp(1.1rem,5vh,1.9rem)] italic leading-tight text-ink">
               {BABY_NAME}&apos;s Royal Dash
             </h1>
+            {/* Her name rather than the subtitle, once we know it. It is the
+                whole of what "welcome back" needs to be — and it doubles as the
+                check that the phone still thinks it is her, which on a phone
+                being passed round a party it very often is not. */}
             <p className="mt-0.5 font-hand text-[clamp(0.8rem,3.4vh,1.1rem)] text-berry">
-              Mind the rocks. Mind the birds.
+              {name ? `Welcome back, ${name}` : "Mind the rocks. Mind the birds."}
             </p>
           </header>
 
@@ -229,28 +442,42 @@ export function StartCard({
               <b className="font-semibold text-ink">Hold</b> it for a bigger jump — the wide
               rocks need one.
             </Rule>
+            {/* The birds are two rules wearing one drawing, and which one
+                applies is the lane. Said as a pair, because said as either one
+                alone it is worse than saying nothing. */}
             <Rule>
-              Birds fly low — <b className="font-semibold text-ink">don&apos;t jump</b>, run
-              underneath them.
+              <b className="font-semibold text-ink">Jump</b> a bird on the ground.{" "}
+              <b className="font-semibold text-ink">Don&apos;t</b> jump at one in the air —
+              run under it.
             </Rule>
           </ul>
 
-          <div className="flex flex-wrap items-center justify-center gap-2.5">
-            <button type="button" onClick={onStart} className={PRIMARY} autoFocus>
-              <Sparkle className="h-3.5 w-3.5" />
-              Start running
-            </button>
-            {CAN_SUBMIT && <BoardButton onClick={() => setBoard(true)} />}
-            <button type="button" onClick={onLeave} className={SECONDARY}>
-              Back
-            </button>
-          </div>
+          <WaysOn
+            onLeave={onLeave}
+            onPlay={onStart}
+            onBoard={() => setBoard(true)}
+            playLabel="Start running"
+          />
 
-          {best > 0 && (
-            <p className="text-center text-[clamp(0.65rem,2.6vh,0.8rem)] text-ink/50">
-              Your best so far: <span className="font-semibold text-ink/70">{best}</span>
-            </p>
-          )}
+          <p className="text-center text-[clamp(0.65rem,2.6vh,0.8rem)] leading-snug text-ink/50">
+            {best > 0 && (
+              <>
+                Your best so far: <span className="font-semibold text-ink/70">{best}</span>
+                {name ? " · " : ""}
+              </>
+            )}
+            {/* A party is one phone passed between six children. Without this
+                every one of their scores goes up under whoever typed first. */}
+            {name && (
+              <button
+                type="button"
+                onClick={onRename}
+                className="underline underline-offset-2 transition hover:text-ink"
+              >
+                Not you?
+              </button>
+            )}
+          </p>
         </div>
       </div>
     </div>
@@ -314,176 +541,123 @@ export function PausedCard({
  * `submitScore`. It reads as neither success nor failure, and it is the one
  * state that does not put a plain "Save" back in front of the player.
  */
-type Sending = "idle" | "sending" | "sent" | "error" | "unsure";
+/**
+ * How the automatic save is going.
+ *
+ * `kept` is the one that needs explaining: the run was real but did not beat
+ * what the board already has for this player, so nothing was sent. See
+ * `worthSending`, and the note over `SENT_KEY` for why that is measured
+ * against what was *sent* rather than against their best.
+ */
+type Saving = "sending" | "sent" | "kept" | "error" | "unsure" | "off";
 
 export function GameOverCard({
   score,
   best,
+  name,
   onRestart,
   onLeave,
 }: {
   score: number;
   best: number;
+  name: string;
   onRestart: () => void;
   onLeave: () => void;
 }) {
-  const [name, setName] = useState("");
-  const [state, setState] = useState<Sending>("idle");
+  const [state, setState] = useState<Saving>("sending");
   const [error, setError] = useState("");
   const [board, setBoard] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  /* Read on mount rather than in `useState`'s initialiser: this renders on the
-     server during the export, where there is no `localStorage` to read. */
-  useEffect(() => setName(readName()), []);
+  /* What the board already holds for them, read in the effect rather than in
+     render — `localStorage` has no business being touched while rendering. */
+  const [standing, setStanding] = useState(0);
 
   const beaten = score > 0 && score >= best;
 
-  /**
-   * Whether the save is in flight.
+  /*
+   * The save happens by itself, the moment the run ends.
    *
-   * It takes the whole card over: while it is true, "Run again" and "Back to
-   * the invitation" are not drawn at all. Both of them throw the card away —
-   * one starts a new run, the other leaves the page — and a save that is still
-   * waiting on a round trip to Google would go with it, silently, half a second
-   * before it would have landed. Disabling them would say the same thing, but a
-   * greyed button still reads as something to press and wait out; a button that
-   * is not there is not a decision anybody has to make.
+   * Nobody is asked to type at the end of a game any more — the name was taken
+   * at the door, which is the only moment a player is not in the middle of
+   * something. What is left here is a line of status and three buttons.
+   *
+   * It runs once. React in development mounts effects twice, so the guard is
+   * not optional: without it every score goes up twice.
    */
-  const sending = state === "sending";
+  const sent = useRef(false);
+  useEffect(() => {
+    if (sent.current) return;
+    sent.current = true;
+
+    if (!CAN_SUBMIT || !name) {
+      setState("off");
+      return;
+    }
+    if (!worthSending(score)) {
+      setStanding(readSent());
+      setState("kept");
+      return;
+    }
+
+    submitScore(name, score).then((result) => {
+      if (result.ok) setState("sent");
+      else {
+        setState(result.certain ? "error" : "unsure");
+        setError(result.error);
+      }
+    });
+  }, [name, score]);
 
   if (board) return <Leaderboard onClose={() => setBoard(false)} />;
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    if (state === "sending" || state === "sent") return;
-    if (!name.trim()) {
-      setError("Who shall we put on the board?");
-      inputRef.current?.focus();
-      return;
-    }
-    setState("sending");
-    setError("");
-    writeName(name.trim());
-
-    const result = await submitScore(name, score);
-    if (result.ok) {
-      setState("sent");
-      return;
-    }
-    setState(result.certain ? "error" : "unsure");
-    setError(result.error);
-  }
+  const saving = state === "sending";
 
   return (
     <div className={BACKDROP}>
-      <div className={`${CARD} max-h-full overflow-y-auto`}>
+      <div className={`${CARD} max-w-md max-h-full overflow-y-auto`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
-        <div className="relative px-5 py-[clamp(0.75rem,3.5vh,1.5rem)] sm:px-7">
-          {/* Side by side, because height is what a landscape screen has least
-              of — the score on the left, the scoreboard on the right. */}
-          <div className="flex flex-col items-stretch gap-4 sm:flex-row sm:items-center">
-            <div className="flex-none text-center sm:w-40">
-              <p className="font-hand text-[clamp(0.85rem,3.4vh,1.15rem)] text-berry">
-                {beaten ? "A new best!" : "Game over"}
-              </p>
-              <p className="font-display text-[clamp(1.9rem,9vh,3.2rem)] font-bold leading-none text-ink">
-                {score}
-              </p>
-              <p className="mt-1 text-[clamp(0.62rem,2.5vh,0.78rem)] uppercase tracking-[0.16em] text-goldDeep">
-                {beaten ? "Your best yet" : `Best ${best}`}
-              </p>
-            </div>
+        <div className="relative px-5 py-[clamp(0.75rem,3.5vh,1.5rem)] text-center sm:px-7">
+          <p className="font-hand text-[clamp(0.85rem,3.4vh,1.15rem)] text-berry">
+            {beaten ? "A new best!" : "Game over"}
+          </p>
+          <p className="font-display text-[clamp(2.2rem,11vh,3.8rem)] font-bold leading-none text-ink">
+            {score}
+          </p>
 
-            <div aria-hidden className="hidden w-px self-stretch bg-gold/30 sm:block" />
+          {/* One line, always, so the card never changes height as the save
+              settles and the buttons never move under a finger. */}
+          <p className="mt-1.5 flex min-h-[1.4em] items-center justify-center gap-1.5 text-[clamp(0.65rem,2.7vh,0.82rem)] leading-snug text-ink/60">
+            {saving && (
+              <>
+                <Spinner className="h-3.5 w-3.5" />
+                Saving your score…
+              </>
+            )}
+            {state === "sent" && (
+              <>
+                <CheckIcon className="h-4 w-4 text-goldDeep" />
+                On the board, {name}.
+              </>
+            )}
+            {state === "kept" && <>Your {standing} on the board still stands.</>}
+            {state === "off" && <>Kept on this device.</>}
+            {state === "unsure" && <>It&apos;s probably on the board — we didn&apos;t hear back.</>}
+            {state === "error" && <span className="text-snow">{error}</span>}
+          </p>
 
-            <div className="min-w-0 flex-1">
-              {!CAN_SUBMIT ? (
-                <p className="text-center text-[clamp(0.7rem,2.9vh,0.9rem)] leading-snug text-ink/60">
-                  Kept on this device. The royal scoreboard isn&apos;t open yet.
-                </p>
-              ) : state === "sent" ? (
-                <div className="text-center">
-                  <span className="mx-auto flex h-9 w-9 items-center justify-center rounded-full border border-gold/50 text-goldDeep">
-                    <CheckIcon className="h-5 w-5" />
-                  </span>
-                  <p className="mt-1.5 text-[clamp(0.72rem,2.9vh,0.9rem)] leading-snug text-ink/70">
-                    On the board, {name.trim()}. Beat it?
-                  </p>
-                </div>
-              ) : state === "unsure" ? (
-                /* Not a failure and not a success. The row has very likely
-                   landed — see `submitScore` — so the honest thing is to say
-                   what is and isn't known and leave sending it again as a
-                   deliberate act rather than the obvious correction. */
-                <div className="text-center">
-                  <p className="text-[clamp(0.72rem,2.9vh,0.9rem)] leading-snug text-ink/75">
-                    It&apos;s probably on the board already — we just didn&apos;t get an answer
-                    back to be sure.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setState("idle");
-                      setError("");
-                    }}
-                    className={`${SECONDARY} mx-auto mt-2`}
-                  >
-                    Send it again anyway
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={send} noValidate className="flex flex-col gap-2">
-                  <label
-                    htmlFor="game-name"
-                    className="text-[clamp(0.6rem,2.4vh,0.72rem)] font-semibold uppercase tracking-[0.14em] text-goldDeep"
-                  >
-                    Add your score to the board
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      ref={inputRef}
-                      id="game-name"
-                      name="name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      autoComplete="name"
-                      maxLength={NAME_MAX}
-                      placeholder="Your name"
-                      className="min-w-0 flex-1 rounded-xl border border-gold/40 bg-parchment px-3 py-2 font-body text-[clamp(0.8rem,3.2vh,1rem)] text-ink shadow-sm outline-none transition placeholder:text-ink/30 focus:border-gold focus:ring-2 focus:ring-gold/30"
-                    />
-                    <button
-                      type="submit"
-                      disabled={sending}
-                      className={`${PRIMARY} flex-none px-5`}
-                    >
-                      {sending ? <Spinner className="h-4 w-4" /> : "Save"}
-                    </button>
-                  </div>
-                  {error && (
-                    <p
-                      role="alert"
-                      className="text-[clamp(0.62rem,2.5vh,0.78rem)] leading-snug text-snow"
-                    >
-                      {error}
-                    </p>
-                  )}
-                </form>
-              )}
-            </div>
-          </div>
-
-          {/* Gone entirely while the save is in flight — see `sending` above. */}
-          {!sending && (
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5 border-t border-gold/20 pt-3">
-              <button type="button" onClick={onRestart} className={PRIMARY} autoFocus>
-                Run again
-              </button>
-              {CAN_SUBMIT && <BoardButton onClick={() => setBoard(true)} />}
-              <button type="button" onClick={onLeave} className={SECONDARY}>
-                Back to the invitation
-              </button>
+          {/*
+            Hidden while the save is in flight. Two of the three throw this
+            card away, and a save still waiting on a round trip to Google would
+            go with it.
+          */}
+          {!saving && (
+            <div className="mt-3">
+              <WaysOn
+                onLeave={onLeave}
+                onPlay={onRestart}
+                onBoard={() => setBoard(true)}
+                playLabel="Play again"
+              />
             </div>
           )}
         </div>

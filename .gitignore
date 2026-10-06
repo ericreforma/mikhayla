@@ -39,3 +39,4 @@ yarn-error.log*
 # editors
 .vscode/
 .idea/
+__pycache__/

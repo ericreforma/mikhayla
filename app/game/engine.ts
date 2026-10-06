@@ -17,11 +17,20 @@
 import {
   AIRTIME_MAX,
   BIRD_FROM,
+  BIRD_FLY,
   BIRD_FULL,
   BIRD_INSET,
   BIRD_SHARE,
-  BIRD_Y,
-  DOUBLE_ROCK_FROM,
+  BIRD_GROUND,
+  BOULDER_ACC,
+  BOULDER_FROM,
+  BOULDER_INSET,
+  BOULDER_LEAD,
+  CHANGE_LEAD_MIN,
+  CHANGE_LEAD_S,
+  CHANGE_MS,
+  WIDE_ROCK_FROM,
+  WIDE_ROCK_W,
   GAP_LANDING,
   GAP_SPREAD,
   GRAVITY,
@@ -32,6 +41,11 @@ import {
   LIVES,
   PLAYER_INSET,
   PLAYER_X,
+  RABBIT_FROM,
+  RABBIT_H,
+  RABBIT_INSET,
+  RABBIT_W,
+  RABBIT_DOWN,
   ROCK_INSET,
   SCORE_RATE,
   SKIES,
@@ -42,6 +56,10 @@ import {
   SPEED_MAX,
   SPEED_STEP,
   TIER_POINTS,
+  TRICKS_FROM,
+  WEATHER_FADE_MS,
+  WEATHER_POINTS,
+  WEATHERS,
 } from "./tuning";
 
 /**
@@ -58,16 +76,48 @@ export const STEP = 1 / 120;
 
 export type Status = "ready" | "running" | "paused" | "over";
 
-export type ObstacleKind = "rock" | "bird";
+export type ObstacleKind = "rock" | "bird" | "rabbit" | "boulder";
+
+/**
+ * What a thing does on its way across, which is now most of the game.
+ *
+ * `steady` is everything that simply arrives as it looked. The other four are
+ * the ones that change their mind at the line — see `changeLine` — and every
+ * one of them is a question about the same single button:
+ *
+ *   drop     a bird sailing safely overhead folds into the low lane. It was
+ *            nothing to worry about and now you must not jump.
+ *   climb    a bird in the low lane pulls up and away. You were holding still
+ *            for it and now you needn't.
+ *   emerge   a rabbit comes up out of its hole. There was nothing there.
+ *   burrow   a rabbit drops down its hole. There was something there.
+ *
+ * Two of them make a safe thing dangerous and two make a dangerous thing safe,
+ * which is deliberate: if every change were a threat the answer would just be
+ * "treat everything as a threat", and the reading would stop being worth
+ * doing.
+ */
+export type Motion = "steady" | "drop" | "climb" | "emerge" | "burrow";
 
 export type Obstacle = {
   kind: ObstacleKind;
+  motion: Motion;
   /** Left edge, in blocks from the left of the screen. Falls as the world moves. */
   x: number;
-  /** Bottom edge, in blocks above the grass line. */
+  /** Bottom edge, in blocks above the grass line. Animated, for the four above. */
   y: number;
+  /** Where the change runs from and to. Equal when the motion is `steady`. */
+  fromY: number;
+  toY: number;
+  /** 0 before the change, 1 after it. */
+  phase: number;
   w: number;
   h: number;
+  /**
+   * Extra leftward speed of its own, on top of the world's. Only the boulder
+   * has any, and the boulder's grows the whole way in.
+   */
+  vx: number;
   /** Fixed per obstacle, so its drawing is varied but never flickers. */
   seed: number;
   /** Already took a life. It stays on screen but can't take another. */
@@ -110,11 +160,45 @@ export type Game = {
   obstacles: Obstacle[];
   /** Blocks of ground still to pass before the next obstacle is put out. */
   untilSpawn: number;
+  /**
+   * And what that one will be.
+   *
+   * Chosen a whole gap in advance, because the gap's length depends on it: a
+   * boulder needs more room in front of it than anything else. See `nextGap`.
+   */
+  nextKind: ObstacleKind;
 
   /** The sky on screen, the one it is becoming, and how far through. */
   sky: number;
   skyFrom: number;
   skyBlend: number;
+
+  /**
+   * How hard it is raining, and how hard it is snowing — each 0 to 1.
+   *
+   * Two eased scalars rather than a weather index with a crossfade beside it,
+   * and the difference is worth the line it costs: an index would need the
+   * renderer to draw two weathers at once and work out which was which, where
+   * these just *are* how much of each to draw. Clear weather is both at zero,
+   * which needs no special case anywhere.
+   */
+  rain: number;
+  snow: number;
+
+  /* ---------------------------------------------------------------
+     Pinned, for looking at things
+     ---------------------------------------------------------------
+     Null in every real run. Set, they hold the clock or the weather still at
+     a chosen value instead of letting the score drive it — see the query
+     parameters in `Game.tsx`.
+
+     They live on the game rather than in the renderer because the renderer
+     must stay a pure function of this: a sky forced in one place and derived
+     in another is two sources of truth for the same pixel, and they come apart
+     the first time anything is changed.
+     --------------------------------------------------------------- */
+  forceSky: number | null;
+  forceWeather: number | null;
 
   rng: () => number;
 };
@@ -160,10 +244,17 @@ export function createGame(cols: number, seed = Date.now()): Game {
     obstacles: [],
     /* A clear run-up: a few seconds of empty ground to find the button in. */
     untilSpawn: 14,
+    nextKind: "rock",
 
     sky: 0,
     skyFrom: 0,
     skyBlend: 1,
+
+    rain: 0,
+    snow: 0,
+
+    forceSky: null,
+    forceWeather: null,
 
     rng: makeRng(seed),
   };
@@ -273,13 +364,49 @@ export function step(g: Game) {
   spawn(g, moved);
   collide(g);
   advanceSky(g);
+  advanceWeather(g);
 
   g.shake = Math.max(0, g.shake - STEP * 3.2);
   g.flash = Math.max(0, g.flash - STEP * 2.4);
 }
 
+/**
+ * How far ahead of the player the things that change, change.
+ *
+ * A time rather than a distance — see `CHANGE_LEAD_S`. The player gets the same
+ * fraction of a second to read it whatever tier the run has reached, which is
+ * the only version of this that stays fair at the top speed.
+ */
+function changeLine(g: Game) {
+  return PLAYER_X + Math.max(CHANGE_LEAD_MIN, CHANGE_LEAD_S * g.speed);
+}
+
+/** Ease-out cubic: quick off the mark, settling. Everything changes on this. */
+function ease(t: number) {
+  const u = 1 - t;
+  return 1 - u * u * u;
+}
+
 function moveObstacles(g: Game, moved: number) {
-  for (const o of g.obstacles) o.x -= moved;
+  const line = changeLine(g);
+
+  for (const o of g.obstacles) {
+    if (o.kind === "boulder") {
+      /* The one thing the world does not simply carry. It accelerates the
+         whole way in, so it arrives sooner than its spacing would suggest —
+         which is what `BOULDER_LEAD` pays for at the other end. */
+      o.vx += BOULDER_ACC * STEP;
+      o.x -= moved + o.vx * STEP;
+    } else {
+      o.x -= moved;
+    }
+
+    if (o.motion !== "steady" && o.phase < 1 && o.x <= line) {
+      o.phase = Math.min(1, o.phase + STEP / (CHANGE_MS / 1000));
+      o.y = o.fromY + (o.toY - o.fromY) * ease(o.phase);
+    }
+  }
+
   /* Gone past the left edge with room to spare, so nothing pops out of sight. */
   for (let i = g.obstacles.length - 1; i >= 0; i -= 1) {
     if (g.obstacles[i].x + g.obstacles[i].w < -2) g.obstacles.splice(i, 1);
@@ -299,47 +426,143 @@ function moveObstacles(g: Game, moved: number) {
  * one the player is still airborne for at the cap. This is the single rule
  * that keeps a fast run hard rather than impossible.
  */
-function nextGap(g: Game) {
+function nextGap(g: Game, kind: ObstacleKind) {
   const jump = AIRTIME_MAX * g.speed;
-  return jump + GAP_LANDING + g.rng() * GAP_SPREAD;
+  const extra = kind === "boulder" ? BOULDER_LEAD : 0;
+  return jump + GAP_LANDING + extra + g.rng() * GAP_SPREAD;
+}
+
+/**
+ * What comes next, weighted by how far the run has got.
+ *
+ * Decided when the *gap* is set rather than when the thing is put out, which
+ * is the whole reason this is a function of its own. The boulder needs a longer
+ * run-up than everything else — it closes on whatever is ahead of it — and a
+ * gap cannot be made longer for a thing nobody has chosen yet.
+ */
+function pickKind(g: Game): ObstacleKind {
+  const score = g.score;
+
+  /* Weights, not thresholds, so each new kind thins the others out rather than
+     replacing them. A rock stays the commonest thing on the field all the way
+     through, because it is the one the button was learned on. */
+  const weights: [ObstacleKind, number][] = [["rock", 10]];
+
+  if (score >= BIRD_FROM) {
+    weights.push([
+      "bird",
+      10 *
+        BIRD_SHARE *
+        Math.min(1, (score - BIRD_FROM) / Math.max(1, BIRD_FULL - BIRD_FROM)),
+    ]);
+  }
+  if (score >= RABBIT_FROM) weights.push(["rabbit", 4]);
+  if (score >= BOULDER_FROM) weights.push(["boulder", 3]);
+
+  let total = 0;
+  for (const [, w] of weights) total += w;
+
+  let roll = g.rng() * total;
+  for (const [kind, w] of weights) {
+    roll -= w;
+    if (roll <= 0) return kind;
+  }
+  return "rock";
+}
+
+/** One obstacle, with the fields only a transforming one ever uses defaulted. */
+function make(
+  kind: ObstacleKind,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  seed: number,
+  motion: Motion = "steady",
+  toY = y
+): Obstacle {
+  return { kind, motion, x, y, fromY: y, toY, phase: 0, w, h, vx: 0, seed, spent: false };
 }
 
 function spawn(g: Game, moved: number) {
   g.untilSpawn -= moved;
   if (g.untilSpawn > 0) return;
-  g.untilSpawn = nextGap(g);
+
+  /* What was chosen last time round, and the gap that was sized for it. */
+  const kind = g.nextKind;
+  g.nextKind = pickKind(g);
+  g.untilSpawn = nextGap(g, g.nextKind);
 
   const score = g.score;
-
-  /* Birds arrive late and then settle at a share of the traffic, so the first
-     half-minute is one idea at a time: rocks, then rocks and birds. */
-  const birdOdds =
-    score < BIRD_FROM
-      ? 0
-      : BIRD_SHARE *
-        Math.min(1, (score - BIRD_FROM) / Math.max(1, BIRD_FULL - BIRD_FROM));
-
-  const kind: ObstacleKind = g.rng() < birdOdds ? "bird" : "rock";
+  const tricks = score >= TRICKS_FROM;
 
   /* Just off the right-hand edge. `cols` is handed in by the renderer, so a
      wide screen puts them out further away and sees them sooner — which is
      what `MAX_COLS` in tuning.ts is there to keep within reason. */
   const x = g.cols + 0.5;
+  const seed = g.rng();
 
   if (kind === "bird") {
-    g.obstacles.push({ kind, x, y: BIRD_Y, w: 1, h: 1, seed: g.rng(), spent: false });
+    /*
+     * Four of them, and the two plain ones come first on purpose: one flying
+     * and one grounded, which between them teach that the lane is the rule.
+     * Only once both are familiar do the two that swap lanes appear, and a
+     * swap is only interesting to somebody who knows what each lane means.
+     */
+    const roll = g.rng();
+    if (!tricks) {
+      const lane = roll < 0.5 ? BIRD_FLY : BIRD_GROUND;
+      g.obstacles.push(make(kind, x, lane, 1, 1, seed));
+    } else if (roll < 0.28) {
+      /* Was no trouble at all, and is about to be in the way. */
+      g.obstacles.push(make(kind, x, BIRD_FLY, 1, 1, seed, "drop", BIRD_GROUND));
+    } else if (roll < 0.52) {
+      /* Was in the way, and is about to climb out of it — so the jump you were
+         lining up becomes the thing that hits it. */
+      g.obstacles.push(make(kind, x, BIRD_GROUND, 1, 1, seed, "climb", BIRD_FLY));
+    } else if (roll < 0.76) {
+      g.obstacles.push(make(kind, x, BIRD_FLY, 1, 1, seed));
+    } else {
+      g.obstacles.push(make(kind, x, BIRD_GROUND, 1, 1, seed));
+    }
     return;
   }
 
-  /* Two blocks wide is the one obstacle a tap will not clear — see
-     `DOUBLE_ROCK_FROM`, which carries the arithmetic. */
-  const wide = score >= DOUBLE_ROCK_FROM && g.rng() < 0.3;
-  g.obstacles.push({ kind, x, y: 0, w: wide ? 2 : 1, h: 1, seed: g.rng(), spent: false });
+  if (kind === "rabbit") {
+    const roll = tricks ? g.rng() : 1;
+    if (roll < 0.35) {
+      /* An empty hole, until it is not. */
+      g.obstacles.push(make(kind, x, RABBIT_DOWN, RABBIT_W, RABBIT_H, seed, "emerge", 0));
+    } else if (roll < 0.6) {
+      g.obstacles.push(make(kind, x, 0, RABBIT_W, RABBIT_H, seed, "burrow", RABBIT_DOWN));
+    } else {
+      g.obstacles.push(make(kind, x, 0, RABBIT_W, RABBIT_H, seed));
+    }
+    return;
+  }
+
+  if (kind === "boulder") {
+    g.obstacles.push(make(kind, x, 0, 1, 1, seed));
+    return;
+  }
+
+  /* The wide one is the only obstacle a tap will not clear — see
+     `WIDE_ROCK_W`, which carries the arithmetic. */
+  const wide = score >= WIDE_ROCK_FROM && g.rng() < 0.3;
+  g.obstacles.push(make("rock", x, 0, wide ? WIDE_ROCK_W : 1, 1, seed));
 }
 
 /* ---------------------------------------------------------------
    Hits
    --------------------------------------------------------------- */
+
+/** Each kind's own forgiveness. See the insets in `tuning.ts`. */
+const INSET: Record<ObstacleKind, number> = {
+  rock: ROCK_INSET,
+  bird: BIRD_INSET,
+  rabbit: RABBIT_INSET,
+  boulder: BOULDER_INSET,
+};
 
 function collide(g: Game) {
   if (g.t < g.invulnUntil) return;
@@ -351,7 +574,7 @@ function collide(g: Game) {
 
   for (const o of g.obstacles) {
     if (o.spent) continue;
-    const inset = o.kind === "bird" ? BIRD_INSET : ROCK_INSET;
+    const inset = INSET[o.kind];
     const ox = o.x + inset;
     const ow = o.w - inset * 2;
     const oy = o.y + inset;
@@ -393,7 +616,7 @@ function advanceSky(g: Game) {
   /* `SKY_POINTS`, not the speed tier. The two used to be the same hundred and
      are deliberately not any more — the world speeds up ten times for every
      once the sun moves. */
-  const want = Math.floor(g.score / SKY_POINTS) % SKIES.length;
+  const want = g.forceSky ?? Math.floor(g.score / SKY_POINTS) % SKIES.length;
   if (want !== g.sky) {
     /*
      * Fade out of whatever is on screen *right now*, which is not necessarily
@@ -409,6 +632,22 @@ function advanceSky(g: Game) {
   if (g.skyBlend < 1) {
     g.skyBlend = Math.min(1, g.skyBlend + STEP / (SKY_FADE_MS / 1000));
   }
+}
+
+/**
+ * The weather wheel: clear, rain, snow, and round again — one turn per day.
+ *
+ * Both scalars ease toward where they should be every step, so a change of
+ * weather is a thing that gathers rather than a thing that is switched. Two
+ * eased numbers also means the handover is free: on the boundary between rain
+ * and snow the rain is still falling off as the snow comes in, which is
+ * exactly what that boundary should look like.
+ */
+function advanceWeather(g: Game) {
+  const turn = g.forceWeather ?? Math.floor(g.score / WEATHER_POINTS) % WEATHERS;
+  const ease = Math.min(1, STEP / (WEATHER_FADE_MS / 1000));
+  g.rain += ((turn === 1 ? 1 : 0) - g.rain) * ease;
+  g.snow += ((turn === 2 ? 1 : 0) - g.snow) * ease;
 }
 
 /* ---------------------------------------------------------------

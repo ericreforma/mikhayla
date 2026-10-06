@@ -23,6 +23,18 @@ const BEST_KEY = "mikhayla-game-best";
 /** And the name they last played under, so the second run doesn't ask again. */
 const NAME_KEY = "mikhayla-game-name";
 
+/**
+ * The highest score this device has actually got onto the board.
+ *
+ * Kept apart from `BEST_KEY`, and the difference is the whole point of it.
+ * `best` is what the player achieved; this is what the scoreboard knows about,
+ * and the two come apart the moment a send fails. Deciding whether to upload
+ * from `best` would mean a run of 500 that never left the phone locks out
+ * every later run under 500 — the board would hold nothing for them and the
+ * game would keep deciding there was nothing worth sending.
+ */
+const SENT_KEY = "mikhayla-game-sent";
+
 /** The RSVP's own store, which already knows what to call this guest. */
 const RSVP_KEY = "mikhayla-rsvp";
 
@@ -47,17 +59,56 @@ export function writeBest(score: number) {
   }
 }
 
+/** The best this device has got onto the board, as far as it knows. */
+export function readSent(): number {
+  try {
+    const raw = window.localStorage.getItem(SENT_KEY);
+    const n = raw ? Number.parseInt(raw, 10) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeSent(score: number) {
+  try {
+    if (score > readSent()) window.localStorage.setItem(SENT_KEY, String(score));
+  } catch {
+    /* Private mode. The worst case is sending a score twice. */
+  }
+}
+
+/** Whether a score is worth the trip. */
+export function worthSending(score: number): boolean {
+  return score > 0 && score > readSent();
+}
+
 /**
- * The name to put in the box before anyone types.
+ * The name this player chose for the game, and only that.
  *
- * Falls back to whatever they RSVP'd as, which is very often the only time
- * they will have typed their name on this site — and a prefilled box is the
- * difference between a leaderboard of names and a leaderboard of blanks.
+ * Empty means they have not been asked yet, which is exactly what the door
+ * needs to know. It deliberately does *not* fall back to the RSVP — see
+ * `suggestedName`, which is the thing that does.
  */
 export function readName(): string {
   try {
-    const own = window.localStorage.getItem(NAME_KEY);
-    if (own) return own;
+    return window.localStorage.getItem(NAME_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * A name to put in the box before anyone types — but not a name to play under.
+ *
+ * Whatever they RSVP'd as, which is very often the only time they will have
+ * typed their name on this site. It fills the box and is still presented for
+ * approval, because an RSVP is signed the way you sign a card ("Mika") and the
+ * board needs the way you sign a register. Taking it silently would quietly
+ * defeat the one instruction the door gives.
+ */
+export function suggestedName(): string {
+  try {
     const rsvp = window.localStorage.getItem(RSVP_KEY);
     if (!rsvp) return "";
     const parsed = JSON.parse(rsvp) as { name?: string } | null;
@@ -159,7 +210,10 @@ export async function submitScore(name: string, score: number): Promise<SubmitRe
 
   /* The script's own answer. The only thing here that settles anything. */
   if (data && typeof data.ok === "boolean") {
-    if (data.ok) return { ok: true };
+    if (data.ok) {
+      writeSent(Math.floor(score));
+      return { ok: true };
+    }
     return {
       ok: false,
       certain: true,
@@ -188,10 +242,10 @@ export type BoardResult =
  * The last board the server gave us, kept for as long as the tab is open.
  *
  * It is what makes the fetch a background job rather than a wait. The game
- * asks for the board when it mounts — long before anybody presses Top 10 — so
- * by the time the panel opens the answer is usually already here and it opens
- * on a list instead of a spinner. The HUD reads the same copy for the name it
- * shows under the score.
+ * asks for the board when it mounts — long before anybody opens the Scoreboard
+ * panel — so by the time that panel opens the answer is usually already here,
+ * and it opens on a list instead of a spinner. The HUD reads the same copy for
+ * the name it shows under the score.
  *
  * Module-level rather than React state because it outlives the components that
  * use it: the panel is mounted and thrown away every time it is opened, and
@@ -210,7 +264,7 @@ export function cachedLeader(): TopScore | null {
 }
 
 /**
- * The ten best, for the board the "Top 10" button opens.
+ * The ten best, for the board the "Scoreboard" button opens.
  *
  * A plain `GET` with no headers of our own, which matters for the same reason
  * the POST sends `text/plain`: anything that would make this a non-simple

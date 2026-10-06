@@ -24,9 +24,18 @@ import { enterFullscreen } from "@/app/components/fullscreen";
 import { Crown } from "@/app/components/Ornaments";
 import { lockLandscape } from "./orientation";
 import { draw, measure, type Sprites, type View } from "./render";
-import { cachedLeader, fetchTopScores, readBest, writeBest, type TopScore } from "./scores";
-import { LIVES } from "./tuning";
-import { GameOverCard, PausedCard, StartCard } from "./Cards";
+import {
+  cachedLeader,
+  fetchTopScores,
+  readBest,
+  readName,
+  suggestedName,
+  writeBest,
+  writeName,
+  type TopScore,
+} from "./scores";
+import { LIVES, SKIES } from "./tuning";
+import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
 
 /**
  * The game, wired to a screen.
@@ -91,6 +100,36 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   }, [leader]);
 
   useEffect(() => setBest(readBest()), []);
+
+  /* ---------------------------------------------------------------
+     Who is playing
+     ---------------------------------------------------------------
+     Asked once, at the door, and kept on the device — the same bargain the
+     RSVP makes. Everything after it is quieter for it: a finished run uploads
+     itself, and nobody is asked to type while they are looking at the number
+     they just got.
+
+     `ready` is a third state rather than `name === ""`, because there is one
+     frame before the effect runs where nothing is known. Painting the name
+     card during it would flash a form at a player who has one stored.
+     --------------------------------------------------------------- */
+  const [name, setName] = useState("");
+  const [nameReady, setNameReady] = useState(false);
+  const [asking, setAsking] = useState(false);
+
+  useEffect(() => {
+    const chosen = readName();
+    /* The RSVP only ever fills the box; it never answers for them. */
+    setName(chosen || suggestedName());
+    setAsking(!chosen);
+    setNameReady(true);
+  }, []);
+
+  const named = useCallback((chosen: string) => {
+    writeName(chosen);
+    setName(chosen);
+    setAsking(false);
+  }, []);
 
   /**
    * Fetch the board in the background and keep the top name.
@@ -258,9 +297,9 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         if (scoreRef.current) scoreRef.current.textContent = String(shown);
 
         /* Passing the person at the top of the board is the one thing worth
-           reacting to mid-run, so the line under the score goes gold when it
-           happens. Written straight onto the node for the same reason the
-           score is — this is inside the frame loop. */
+           reacting to mid-run, so the corner goes gold when it happens.
+           Written straight onto the node for the same reason the score is —
+           this is inside the frame loop. */
         const top = leaderScoreRef.current;
         const el = leaderRef.current;
         if (top !== null && el) {
@@ -294,6 +333,63 @@ export function Game({ onLeave }: { onLeave: () => void }) {
      Starting, pausing, and starting again
      --------------------------------------------------------------- */
 
+  /**
+   * Debug: pin the hour or the weather from the URL.
+   *
+   *   ?sky=0..4        morning, afternoon, sunset, evening, dawn
+   *   ?weather=rain | snow | clear
+   *
+   * Read once and applied to every run, restarts included, so a look at the
+   * snow does not end the moment you die. It exists because the alternative is
+   * playing for four minutes to see whether the snow is the right white — and
+   * on the phone it has to be checked on, four minutes is four minutes.
+   *
+   * Nothing is reachable without typing it. The route is already unlisted and
+   * `noindex`, and these change the light and nothing else: not the speed, not
+   * the spawns, not the score. A run with the weather pinned is still a real
+   * run and its score still counts, which is deliberate — a debug switch that
+   * quietly invalidated the scoreboard would be a worse bug than the one it
+   * was added to find.
+   */
+  const pinned = useRef<{ sky: number | null; weather: number | null }>({
+    sky: null,
+    weather: null,
+  });
+
+  /** Hold a game at whatever the URL asked for. */
+  const applyPins = useCallback((g: World) => {
+    const { sky, weather } = pinned.current;
+    if (sky !== null) {
+      g.forceSky = sky;
+      g.sky = sky;
+      g.skyFrom = sky;
+      g.skyBlend = 1;
+    }
+    if (weather !== null) {
+      g.forceWeather = weather;
+      /* Snapped rather than eased in. The eight-second gather is right for
+         weather that arrives during a run and wrong for weather you came to
+         look at. */
+      g.rain = weather === 1 ? 1 : 0;
+      g.snow = weather === 2 ? 1 : 0;
+    }
+  }, []);
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+
+    const sky = Number(q.get("sky"));
+    pinned.current.sky =
+      q.has("sky") && Number.isInteger(sky) && sky >= 0 && sky < SKIES.length ? sky : null;
+
+    const weather = { clear: 0, rain: 1, snow: 2 }[q.get("weather") ?? ""];
+    pinned.current.weather = weather ?? null;
+
+    /* The world standing behind the start card is a game too, and it is the
+       first thing anybody checking the weather will look at. */
+    applyPins(worldRef.current);
+  }, [applyPins]);
+
   const start = useCallback(() => {
     /*
      * Both of these have to be asked for from inside the gesture that called
@@ -311,11 +407,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     loadLeader();
 
     const g = createGame(viewRef.current.cols);
+    applyPins(g);
     g.status = "running";
     worldRef.current = g;
     setLives(LIVES);
     setStatus("running");
-  }, [loadLeader]);
+  }, [applyPins, loadLeader]);
 
   const pause = useCallback(() => {
     const g = worldRef.current;
@@ -472,7 +569,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         aria-hidden
       >
         <div
-          className="pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/70 bg-white/25 text-white shadow-lg backdrop-blur-[2px]"
+          className="pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/30 text-white backdrop-blur-[2px] shadow-[0_4px_0_0_rgba(0,0,0,0.3),0_8px_18px_rgba(0,0,0,0.3)]"
           style={{ width: "clamp(3.5rem, 13vh, 5.5rem)", height: "clamp(3.5rem, 13vh, 5.5rem)" }}
         >
           <svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="none" aria-hidden>
@@ -492,23 +589,40 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           ---------------------------------------------------------------
           Over the canvas and out of the shake, so the score stays still while
           the world lurches. Nothing in here takes a tap except the pause.
+
+          Three columns, and the outer two are both `flex-1` on purpose: that
+          is what makes the middle one land on the true centre of the screen
+          rather than on the centre of whatever is left over once the pause and
+          the leaderboard have taken their share. Those two are never the same
+          width — one holds three hearts, the other holds somebody's name.
+
+          All of it sits in the top strip of sky. Nothing in the game is drawn
+          up there: the bird's own lane is a block or two off the ground, which
+          is most of the way down the screen.
           --------------------------------------------------------------- */}
       <div
-        className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-3 sm:p-4"
+        className="pointer-events-none absolute inset-x-0 top-0 flex items-start gap-2 p-3 sm:p-4"
         style={{
           paddingLeft: "max(0.75rem, env(safe-area-inset-left))",
           paddingRight: "max(0.75rem, env(safe-area-inset-right))",
         }}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2.5">
           <button
             type="button"
             onClick={pause}
             disabled={!running}
             aria-label="Pause"
-            className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/50 bg-black/25 text-white/90 backdrop-blur-[2px] transition active:scale-95 disabled:opacity-0"
+            /* The same raised-and-pressed idea the cards' buttons use, in the
+               HUD's own palette: it sits on the game rather than on parchment,
+               so the shadow under it is the dark it is already drawn in. */
+            className="pointer-events-auto inline-flex flex-none select-none items-center justify-center rounded-full border-2 border-white/70 bg-black/35 text-white backdrop-blur-[2px] transition-all duration-75 ease-out shadow-[0_3px_0_0_rgba(0,0,0,0.45)] active:translate-y-[3px] active:shadow-[0_0_0_0_rgba(0,0,0,0.45)] disabled:opacity-0"
+            style={{
+              width: "clamp(2.6rem, 9vh, 3.6rem)",
+              height: "clamp(2.6rem, 9vh, 3.6rem)",
+            }}
           >
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+            <svg viewBox="0 0 24 24" className="h-[45%] w-[45%]" fill="currentColor" aria-hidden>
               <rect x="7" y="5" width="3.5" height="14" rx="1" />
               <rect x="13.5" y="5" width="3.5" height="14" rx="1" />
             </svg>
@@ -517,50 +631,74 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           <Hearts lives={lives} />
         </div>
 
-        {/* On a dark pill, because the sky underneath it runs from a white
-            noon to a navy midnight over the course of a long run and no single
-            colour of text is legible on both. */}
-        <div className="rounded-xl bg-black/25 px-2.5 py-1 text-right font-mono tabular-nums leading-none text-white backdrop-blur-[2px]">
+        {/* The score, dead centre and the biggest thing on the screen — it is
+            the only number anybody is playing for. On a dark pill because the
+            sky under it runs from a white noon to a navy midnight over the
+            course of a long run, and no one colour of text is legible on both. */}
+        <div className="flex-none rounded-2xl bg-black/30 px-4 py-1 text-center font-mono tabular-nums leading-none text-white backdrop-blur-[2px]">
           <span
             ref={scoreRef}
-            className="block text-[clamp(1.4rem,5.5vh,2.4rem)] font-bold tracking-tight"
+            className="block text-[clamp(2rem,9.5vh,3.6rem)] font-bold tracking-tight"
           >
             0
           </span>
-          {/*
-            Who there is to beat.
+        </div>
 
-            The board's leader when we have one, and this device's own best
-            when we don't — which covers a guest with no signal, a sheet that
-            isn't set up, and the very first player, for whom there is no board
-            yet. The name is a guest's own typing and can be a hundred
-            characters, so it is given a hard ceiling and allowed to ellipsise
-            rather than pushing the score off the screen.
-          */}
+        {/*
+          Who there is to beat, in the far corner.
+
+          The board's leader when we have one, and this device's own best when
+          we don't — which covers a guest with no signal, a sheet that isn't set
+          up, and the very first player, for whom there is no board yet. The
+          name is a guest's own typing and can be a hundred characters, so it is
+          given a hard ceiling and allowed to ellipsise rather than pushing the
+          score off its centre.
+        */}
+        <div className="flex flex-1 justify-end">
           {leader ? (
             <span
               ref={leaderRef}
               data-ahead="false"
-              className="mt-1 flex items-center justify-end gap-1 text-[clamp(0.6rem,2vh,0.8rem)] text-white/70 transition-colors data-[ahead=true]:text-gold"
+              className="flex min-w-0 items-center gap-1.5 rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.85rem,3.4vh,1.25rem)] leading-none text-white/85 backdrop-blur-[2px] transition-colors data-[ahead=true]:text-gold"
             >
-              <Crown className="h-[0.85em] w-auto flex-none" />
-              <span className="max-w-[26vw] truncate">{leader.name}</span>
-              <span className="flex-none font-semibold">{leader.score}</span>
+              <Crown className="h-[0.95em] w-auto flex-none" />
+              <span className="max-w-[24vw] truncate">{leader.name}</span>
+              <span className="flex-none font-mono font-semibold tabular-nums">
+                {leader.score}
+              </span>
             </span>
           ) : best > 0 ? (
-            <span className="mt-0.5 block text-[clamp(0.6rem,2vh,0.8rem)] uppercase tracking-[0.18em] text-white/70">
-              Best {best}
+            <span className="rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.8rem,3vh,1.1rem)] uppercase leading-none tracking-[0.14em] text-white/85 backdrop-blur-[2px]">
+              Best <span className="font-mono font-semibold tabular-nums">{best}</span>
             </span>
           ) : null}
         </div>
       </div>
 
-      {status === "ready" && <StartCard onStart={start} onLeave={onLeave} best={best} />}
+      {status === "ready" &&
+        nameReady &&
+        (asking ? (
+          <NameCard onDone={named} onLeave={onLeave} suggestion={name} />
+        ) : (
+          <StartCard
+            onStart={start}
+            onLeave={onLeave}
+            onRename={() => setAsking(true)}
+            best={best}
+            name={name}
+          />
+        ))}
       {status === "paused" && (
         <PausedCard onResume={resume} onRestart={start} onLeave={onLeave} />
       )}
       {status === "over" && (
-        <GameOverCard score={score} best={best} onRestart={start} onLeave={onLeave} />
+        <GameOverCard
+          score={score}
+          best={best}
+          name={name}
+          onRestart={start}
+          onLeave={onLeave}
+        />
       )}
     </div>
   );

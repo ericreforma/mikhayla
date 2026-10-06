@@ -108,19 +108,21 @@ export const JUMP_FRAMES = 5;
  * than of literal foot contact — but the principle holds, and she still
  * quickens with every tier.)
  *
- * Longer stride, slower legs, which is why this number going *up* is the way
- * to calm the animation down:
+ * Longer stride, slower legs, so this number going *down* is the way to pick
+ * the pace up. What it has been, at the starting speed:
  *
- *   2.2 blocks   324ms a stride    (sprinting; the legs were a blur)
- *   3.8 blocks   559ms a stride    <- this
+ *   2.2 blocks   324ms a stride   — at eight frames this strobed
+ *   3.8 blocks   559ms a stride   — legible, and a shade too stately
+ *   2.8 blocks   412ms a stride   <- this: five steps a second, a child's run
  *
- * Unchanged when the artwork went from eight frames to sixteen, deliberately.
- * The sheet holds one whole stride either way — two leg-passes, measured off
- * the frames rather than assumed — so the same number keeps the same cadence
- * and spends the extra frames on smoothness, which is the only thing more
- * frames are good for.
+ * The first of those was set when the artwork had eight frames, and most of
+ * what made it unreadable was the frame count rather than the speed — eight
+ * poses in a third of a second is a strobe. At sixteen frames the same cadence
+ * is smooth, so the pace can come most of the way back up without returning to
+ * a blur. It runs at 39 frames a second here and 62 at the cap, which the
+ * sheet has the frames to cover.
  */
-export const RUN_CYCLE_BLOCKS = 3.8;
+export const RUN_CYCLE_BLOCKS = 2.8;
 
 /* ---------------------------------------------------------------
    The jump
@@ -245,13 +247,17 @@ export const TIER_POINTS = 500;
 /**
  * And how often the hour turns.
  *
- * Ten times less often than a speed-up, which is a much longer day than it
- * sounds: a thousand points is somewhere between seventy and ninety seconds of
- * running, so most guests will see one sky and the good ones will see two.
- * That is the point of it — the sky is a reward for a long run rather than
- * wallpaper that changes every ten seconds.
+ * Three hundred points is twenty to thirty seconds of running, so the light
+ * changes within the first half-minute of almost any run and a decent one goes
+ * right round the clock twice. It is still slower than the speed-up, which is
+ * the only ordering that matters: the world getting quicker is the thing a
+ * player has to react to, and the sky moving is the thing they get to enjoy
+ * while they do.
+ *
+ * This number sets the weather as well — see `WEATHER_POINTS`, which is this
+ * times the length of a day — so pulling it in shortens both wheels together.
  */
-export const SKY_POINTS = 1000;
+export const SKY_POINTS = 300;
 
 /* ---------------------------------------------------------------
    Lives
@@ -314,50 +320,41 @@ export const BIRD_GROUND = 0;
  * ---------------------------------------------------------------------------
  * These numbers are the game's difficulty, and that is not obvious
  * ---------------------------------------------------------------------------
- * The jump is fixed, so what decides whether a rock is hard is how long the
- * player's box is clear of the rock's box, less how long the two overlap
+ * The jump is fixed, so what decides whether a bush is hard is how long the
+ * player's box is clear of the bush's box, less how long the two overlap
  * horizontally — and both halves of that are these insets. The figure that
- * falls out is the window of press times that survive an ordinary rock at the
- * starting speed, found by sweeping the press over a single rock:
+ * falls out is the window of press times that survive, at the starting speed:
  *
- *                            jump       speed    tap      hold
- *   player .22 / rock .16    1.15/1.50   7.5     208 ms   312 ms  (forgiving)
- *   player .08 / rock .04    1.30/1.65   7.5      96 ms   204 ms
- *   player .11 / rock .07    1.30/1.65   6.8     105 ms   214 ms  ← these
- *
- * These are deliberately the hard ones: the boxes sit at the edge of the
- * drawings, so a near miss is a hit, which is what was asked for.
- *
- * The third row only exists because the speed came down. A slower world spends
- * *longer* crossing the same rock, so dropping the base speed from 7.5 to 6.8
- * would have taken the tap window from 96ms to 73 on its own — a difficulty
- * change nobody asked for, smuggled in under a comfort one. Four hundredths of
- * a block back on each inset undoes it exactly.
+ *                              1-block bush        wide bush, when it appears
+ *                              tap      hold       tap        hold
+ *   player .11 / bush .07      105 ms   214 ms      34 ms     143 ms
+ *   player .11 / bush .15      157 ms   259 ms      83 ms     186 ms   <- these
  *
  * ---------------------------------------------------------------------------
- * Why they are not zero
+ * Why the bush's is the loose one
  * ---------------------------------------------------------------------------
- * Because zero does not leave a game. Measured, at the starting speed, with a
- * one-block player and a one-block rock touching exactly:
+ * Because the bush is not a block. It is drawn as three overlapping mounds, so
+ * its corners are empty and its crown reaches about 0.84 of the way up the
+ * block it is drawn in — and a box the size of the block collects hits from a
+ * player who cleared the leaves by a visible margin. Fifteen hundredths puts
+ * the top of the box at 0.85, which is where the foliage actually stops, and
+ * takes the corners off the sides where there was never anything to hit.
  *
- *   tap  -73 ms      hold  87 ms      two-block rock  -46 ms, at any jump
+ * So this is not a difficulty dial being turned down. It is the box being made
+ * to agree with the picture, which happens to be worth fifty milliseconds.
  *
- * A negative window means there is no moment at which the press works. At
- * literally exact hitboxes the ordinary rock is a coin toss and the wide one
- * is impossible, so the first thirty seconds of every run would end in the
- * same place regardless of skill. Four and eight hundredths of a block — a
- * couple of pixels on a phone — is what turns that back into something a
- * person can learn, and it is still well inside the drawn edge of both
- * sprites.
+ * The wide bush survives it, and that was the thing to check: a tap on one
+ * goes from impossible to an 83ms window against a hold's 186ms, so holding is
+ * still plainly the answer and the one obstacle that teaches the button still
+ * teaches it. Push this past about 0.18 and that stops being true.
  *
- * Note which direction the speed runs, because it is the opposite of the
- * intuition: every tier makes a rock *easier* to clear, since the airtime is
- * fixed and a faster world spends less time crossing the same rock. What makes
- * a later tier hard is having less warning. So these windows are the tightest
- * the game ever gets, and they are at the start.
+ * The player's own inset stays where it is. A head is round inside a square
+ * tile, which is the same argument, but she is the thing being aimed and
+ * loosening both at once is how a game stops registering hits that plainly
+ * happened.
  */
 export const PLAYER_INSET = 0.11;
-export const ROCK_INSET = 0.07;
+export const ROCK_INSET = 0.15;
 export const BIRD_INSET = 0.07;
 
 /**
@@ -656,3 +653,32 @@ export const SKIES: Sky[] = [
 
 /** How long one sky takes to become the next. */
 export const SKY_FADE_MS = 1400;
+
+/* ---------------------------------------------------------------
+   The weather
+   ---------------------------------------------------------------
+   A slower wheel turning over the top of the day: clear, then rain, then
+   snow, then clear again. One turn per complete day — so the first full
+   round of the clock is dry, it rains through the second, it snows through
+   the third, and the fourth is fine again.
+
+   Slower than the sky on purpose. The hour changing is the thing a player
+   notices every half minute; the weather is the thing they mention afterwards,
+   and something that arrives every few minutes is worth mentioning in a way
+   that something arriving every thirty seconds is not.
+   --------------------------------------------------------------- */
+
+/** How many points a whole weather sits for: one complete day. */
+export const WEATHER_POINTS = SKY_POINTS * SKIES.length;
+
+/** 0 clear, 1 rain, 2 snow — and round again. */
+export const WEATHERS = 3;
+
+/**
+ * How long it takes to start or stop raining.
+ *
+ * Far longer than a sky fade. Weather that switched on in a second and a half
+ * would read as a bug in the renderer; weather that gathers over eight reads
+ * as weather.
+ */
+export const WEATHER_FADE_MS = 8000;

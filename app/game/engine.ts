@@ -57,6 +57,9 @@ import {
   SPEED_STEP,
   TIER_POINTS,
   TRICKS_FROM,
+  WEATHER_FADE_MS,
+  WEATHER_POINTS,
+  WEATHERS,
 } from "./tuning";
 
 /**
@@ -170,6 +173,33 @@ export type Game = {
   skyFrom: number;
   skyBlend: number;
 
+  /**
+   * How hard it is raining, and how hard it is snowing — each 0 to 1.
+   *
+   * Two eased scalars rather than a weather index with a crossfade beside it,
+   * and the difference is worth the line it costs: an index would need the
+   * renderer to draw two weathers at once and work out which was which, where
+   * these just *are* how much of each to draw. Clear weather is both at zero,
+   * which needs no special case anywhere.
+   */
+  rain: number;
+  snow: number;
+
+  /* ---------------------------------------------------------------
+     Pinned, for looking at things
+     ---------------------------------------------------------------
+     Null in every real run. Set, they hold the clock or the weather still at
+     a chosen value instead of letting the score drive it — see the query
+     parameters in `Game.tsx`.
+
+     They live on the game rather than in the renderer because the renderer
+     must stay a pure function of this: a sky forced in one place and derived
+     in another is two sources of truth for the same pixel, and they come apart
+     the first time anything is changed.
+     --------------------------------------------------------------- */
+  forceSky: number | null;
+  forceWeather: number | null;
+
   rng: () => number;
 };
 
@@ -219,6 +249,12 @@ export function createGame(cols: number, seed = Date.now()): Game {
     sky: 0,
     skyFrom: 0,
     skyBlend: 1,
+
+    rain: 0,
+    snow: 0,
+
+    forceSky: null,
+    forceWeather: null,
 
     rng: makeRng(seed),
   };
@@ -328,6 +364,7 @@ export function step(g: Game) {
   spawn(g, moved);
   collide(g);
   advanceSky(g);
+  advanceWeather(g);
 
   g.shake = Math.max(0, g.shake - STEP * 3.2);
   g.flash = Math.max(0, g.flash - STEP * 2.4);
@@ -579,7 +616,7 @@ function advanceSky(g: Game) {
   /* `SKY_POINTS`, not the speed tier. The two used to be the same hundred and
      are deliberately not any more — the world speeds up ten times for every
      once the sun moves. */
-  const want = Math.floor(g.score / SKY_POINTS) % SKIES.length;
+  const want = g.forceSky ?? Math.floor(g.score / SKY_POINTS) % SKIES.length;
   if (want !== g.sky) {
     /*
      * Fade out of whatever is on screen *right now*, which is not necessarily
@@ -595,6 +632,22 @@ function advanceSky(g: Game) {
   if (g.skyBlend < 1) {
     g.skyBlend = Math.min(1, g.skyBlend + STEP / (SKY_FADE_MS / 1000));
   }
+}
+
+/**
+ * The weather wheel: clear, rain, snow, and round again — one turn per day.
+ *
+ * Both scalars ease toward where they should be every step, so a change of
+ * weather is a thing that gathers rather than a thing that is switched. Two
+ * eased numbers also means the handover is free: on the boundary between rain
+ * and snow the rain is still falling off as the snow comes in, which is
+ * exactly what that boundary should look like.
+ */
+function advanceWeather(g: Game) {
+  const turn = g.forceWeather ?? Math.floor(g.score / WEATHER_POINTS) % WEATHERS;
+  const ease = Math.min(1, STEP / (WEATHER_FADE_MS / 1000));
+  g.rain += ((turn === 1 ? 1 : 0) - g.rain) * ease;
+  g.snow += ((turn === 2 ? 1 : 0) - g.snow) * ease;
 }
 
 /* ---------------------------------------------------------------

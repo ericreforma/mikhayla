@@ -76,6 +76,22 @@ function css(c: Rgb, alpha = 1) {
   return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${alpha})`;
 }
 
+/**
+ * Under snow, everything goes white — but only as white as it should.
+ *
+ * The amount is per-surface rather than one figure for the whole field, and it
+ * has to be: snow lies thickly on grass, patchily on a bush, and not at all on
+ * a berry. More to the point, a scene whitened uniformly stops having any
+ * shape in it. The amounts below are chosen so the forms survive, and the dark
+ * keyline every obstacle carries is what finally holds them apart — it is the
+ * one thing on the field that the weather never touches.
+ */
+const FROST: Rgb = [242, 248, 255];
+
+function frost(c: Rgb, snow: number, amount = 1): Rgb {
+  return snow > 0.01 ? mix(c, FROST, Math.min(1, snow * amount)) : c;
+}
+
 /** The same colour, pushed toward white or black. Shading, in one call. */
 function shade(c: Rgb, amount: number): Rgb {
   const to: Rgb = amount > 0 ? [255, 255, 255] : [0, 0, 0];
@@ -92,29 +108,111 @@ function shade(c: Rgb, amount: number): Rgb {
  */
 function skyNow(g: Game): Sky {
   const to = SKIES[g.sky];
-  if (g.skyBlend >= 1) return to;
-  const from = SKIES[g.skyFrom];
-  const t = g.skyBlend;
-  return {
-    name: to.name,
-    high: mix(from.high, to.high, t),
-    mid: mix(from.mid, to.mid, t),
-    low: mix(from.low, to.low, t),
-    disc: mix(from.disc, to.disc, t),
-    discGlow: mix(from.discGlow, to.discGlow, t),
-    discAt: from.discAt + (to.discAt - from.discAt) * t,
-    stars: from.stars + (to.stars - from.stars) * t,
-    cloud: mix(from.cloud, to.cloud, t),
-    cloudShade: mix(from.cloudShade, to.cloudShade, t),
-    hillFar: mix(from.hillFar, to.hillFar, t),
-    hillNear: mix(from.hillNear, to.hillNear, t),
-    grass: mix(from.grass, to.grass, t),
-    grassShade: mix(from.grassShade, to.grassShade, t),
-    dirt: mix(from.dirt, to.dirt, t),
-    dirtShade: mix(from.dirtShade, to.dirtShade, t),
-    tint: mix(from.tint, to.tint, t),
-    tintAlpha: from.tintAlpha + (to.tintAlpha - from.tintAlpha) * t,
-  };
+  const weather = g.rain > 0.01;
+  const snowing = g.snow > 0.01;
+
+  /* Settled on one hour, and nothing to do to it: hand back the constant
+     itself. A third of the game is spent here, and this is the only path
+     through this function that allocates nothing. */
+  if (g.skyBlend >= 1 && !weather && !snowing) return to;
+
+  let out: Sky;
+  if (g.skyBlend >= 1) {
+    /* Copied, not returned. `SKIES[n]` is a module constant and the rain pass
+       below writes to whatever this hands back — returning the constant itself
+       would darken that hour permanently, for the rest of the run. */
+    out = { ...to };
+  } else {
+    const from = SKIES[g.skyFrom];
+    const t = g.skyBlend;
+    out = {
+      name: to.name,
+      high: mix(from.high, to.high, t),
+      mid: mix(from.mid, to.mid, t),
+      low: mix(from.low, to.low, t),
+      disc: mix(from.disc, to.disc, t),
+      discGlow: mix(from.discGlow, to.discGlow, t),
+      discAt: from.discAt + (to.discAt - from.discAt) * t,
+      stars: from.stars + (to.stars - from.stars) * t,
+      cloud: mix(from.cloud, to.cloud, t),
+      cloudShade: mix(from.cloudShade, to.cloudShade, t),
+      hillFar: mix(from.hillFar, to.hillFar, t),
+      hillNear: mix(from.hillNear, to.hillNear, t),
+      grass: mix(from.grass, to.grass, t),
+      grassShade: mix(from.grassShade, to.grassShade, t),
+      dirt: mix(from.dirt, to.dirt, t),
+      dirtShade: mix(from.dirtShade, to.dirtShade, t),
+      tint: mix(from.tint, to.tint, t),
+      tintAlpha: from.tintAlpha + (to.tintAlpha - from.tintAlpha) * t,
+    };
+  }
+
+  /*
+   * And then the weather, over the top of whatever hour it is.
+   *
+   * Done to the *palette* rather than as a grey sheet laid over the finished
+   * frame, which is the whole difference between a scene under cloud and a
+   * scene behind a dirty window. Every surface darkens by its own amount —
+   * the sky most, because that is where the cloud is; the ground least,
+   * because the ground is lit by the sky rather than being it — and they go
+   * toward one slate blue rather than toward black, because an overcast day
+   * is blue-grey and a dimmed one is just dim.
+   */
+  if (weather) {
+    const k = g.rain;
+    const storm: Rgb = [56, 62, 80];
+    const damp = (c: Rgb, amount: number) => mix(c, storm, amount * k);
+
+    out.high = damp(out.high, 0.62);
+    out.mid = damp(out.mid, 0.56);
+    out.low = damp(out.low, 0.48);
+    out.cloud = damp(out.cloud, 0.46);
+    out.cloudShade = damp(out.cloudShade, 0.52);
+    out.hillFar = damp(out.hillFar, 0.42);
+    out.hillNear = damp(out.hillNear, 0.36);
+    out.grass = damp(out.grass, 0.3);
+    out.grassShade = damp(out.grassShade, 0.32);
+    out.dirt = damp(out.dirt, 0.38);
+    out.dirtShade = damp(out.dirtShade, 0.38);
+
+    /* No stars through a rain cloud, and no warm wash either — the hour's
+       tint is sunlight, and the sun is behind all of this. */
+    out.stars *= 1 - k;
+    out.tintAlpha *= 1 - k * 0.75;
+  }
+
+  /*
+   * And snow, which does the opposite of rain to the same palette.
+   *
+   * Everything goes toward one cold white — but *partly*, which is the whole
+   * instruction here. The hour is still supposed to show through: a snowy
+   * midnight is a blue-white and a snowy sunset is a pink-white, and both stop
+   * being either if the mix goes to one. The ground takes the most because
+   * snow lies on it; the sky takes less than it looks, because a white sky
+   * that has lost its hour is just a blank page.
+   */
+  if (snowing) {
+    const k = g.snow;
+    const ice = (c: Rgb, amount: number) => frost(c, k, amount);
+
+    out.high = ice(out.high, 0.66);
+    out.mid = ice(out.mid, 0.72);
+    out.low = ice(out.low, 0.78);
+    out.cloud = ice(out.cloud, 0.88);
+    out.cloudShade = ice(out.cloudShade, 0.72);
+    out.hillFar = ice(out.hillFar, 0.84);
+    out.hillNear = ice(out.hillNear, 0.78);
+    out.grass = ice(out.grass, 0.92);
+    out.grassShade = ice(out.grassShade, 0.82);
+    out.dirt = ice(out.dirt, 0.74);
+    out.dirtShade = ice(out.dirtShade, 0.68);
+
+    /* A few stars still get through a snow sky, where none get through rain. */
+    out.stars *= 1 - k * 0.55;
+    out.tintAlpha *= 1 - k * 0.5;
+  }
+
+  return out;
 }
 
 /* ---------------------------------------------------------------
@@ -235,7 +333,7 @@ export function draw(
 
   paintSky(ctx, view, sky);
   paintStars(ctx, g, view, sky);
-  paintDisc(ctx, view, sky);
+  paintDisc(ctx, view, sky, 1 - Math.max(g.rain, g.snow));
   paintClouds(ctx, g, view, sky);
   /*
    * The far ridge is allowed to reach two blocks and the near one barely
@@ -259,11 +357,143 @@ export function draw(
 
   ctx.restore();
 
+  /* Weather, outside the shake — rain that lurched with the ground would read
+     as the camera moving rather than as rain. */
+  paintWeather(ctx, g, view);
+
   /* And the hit, which is outside the shake so it covers the whole screen
      rather than lurching with the world. */
   if (g.flash > 0) {
     ctx.fillStyle = `rgba(214,52,66,${g.flash * 0.34})`;
     ctx.fillRect(0, 0, view.w, view.h);
+  }
+}
+
+/* ---------------------------------------------------------------
+   Weather
+   ---------------------------------------------------------------
+   Rain and snow, each drawn at its own strength — see `rain` and `snow` on
+   the game, which ease between 0 and 1 over several seconds. Clear weather is
+   both at zero and costs two comparisons.
+
+   Neither is stored. Every drop and every flake is a function of its own index
+   and the clock, the same trick the hills and the stars use, so a storm that
+   lasts four minutes allocates nothing at all.
+   --------------------------------------------------------------- */
+
+function paintWeather(ctx: CanvasRenderingContext2D, g: Game, view: View) {
+  if (g.rain > 0.01) paintRain(ctx, g, view);
+  if (g.snow > 0.01) paintSnow(ctx, g, view);
+}
+
+function paintRain(ctx: CanvasRenderingContext2D, g: Game, view: View) {
+  const amount = g.rain;
+
+  /*
+   * A thin wash only. The weather's real darkening is done to the palette, in
+   * `skyNow`, so that every surface dims by an amount that suits it — this is
+   * just the haze in the air between the player and the field, and laying any
+   * more of it on top flattens the whole picture to one grey.
+   */
+  ctx.fillStyle = `rgba(62,72,96,${0.1 * amount})`;
+  ctx.fillRect(0, 0, view.w, view.h);
+
+  /*
+   * The drops lean *with* the run. She is travelling right, so the world's air
+   * is travelling left past her, and rain falling into that leans left — the
+   * same reason rain leans back along a moving train.
+   */
+  const lean = -view.b * 0.5;
+  const fall = view.h + view.b * 2;
+
+  /* Short and many rather than long and few. Long streaks read as scratches on
+     the lens — a raindrop at this distance is a tick, and what makes it rain is
+     how many of them there are. */
+  const count = Math.round(200 * amount);
+
+  ctx.strokeStyle = `rgba(214,228,255,${0.46 * amount})`;
+  ctx.lineWidth = Math.max(1, view.b * 0.026);
+  ctx.beginPath();
+  for (let i = 0; i < count; i += 1) {
+    const speed = 1.1 + hash(i * 2.3) * 0.7;
+    const x = hash(i * 5.1) * (view.w + view.b * 4) - view.b * 2;
+    const y = ((hash(i * 7.9) + g.t * speed * 0.55) % 1) * fall - view.b;
+    const len = view.b * (0.16 + hash(i * 3.3) * 0.14);
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + lean * (len / view.b), y + len);
+  }
+  ctx.stroke();
+
+  paintSplashes(ctx, g, view, amount);
+}
+
+/**
+ * Where the rain lands: a tick on the grass that opens and fades.
+ *
+ * It is the thing that joins the rain to the ground. Without it the drops fall
+ * past the bottom of the screen and the field they are falling on might as
+ * well be under glass — and a splash is cheap, where actually colliding two
+ * hundred drops with a ground line would not be.
+ *
+ * Each has its own period and its own place, so they do not pulse together;
+ * none of them is stored, for the same reason nothing else here is.
+ */
+function paintSplashes(
+  ctx: CanvasRenderingContext2D,
+  g: Game,
+  view: View,
+  amount: number
+) {
+  const count = Math.round(36 * amount);
+  const line = view.groundY + view.b * 0.02;
+
+  for (let i = 0; i < count; i += 1) {
+    const period = 0.45 + hash(i * 3.7) * 0.5;
+    const life = ((g.t / period) + hash(i * 8.1)) % 1;
+    /* Each splash is only alive for the first half of its period; the rest is
+       the gap before the next drop lands in the same place. */
+    if (life > 0.5) continue;
+
+    const p = life / 0.5;
+    const x = hash(i * 5.3) * view.w;
+    const fade = (1 - p) * 0.9 * amount;
+    const w = view.b * (0.06 + p * 0.16);
+    const t = Math.max(1, view.b * 0.022);
+
+    ctx.fillStyle = `rgba(226,238,255,${fade})`;
+    /* The ring, as the two ends of one — side on, that is all of it you see. */
+    ctx.fillRect(x - w, line, w * 0.5, t);
+    ctx.fillRect(x + w * 0.5, line, w * 0.5, t);
+
+    /* And two specks thrown up out of it, falling back as they fade. */
+    const lift = view.b * 0.12 * Math.sin(p * Math.PI);
+    ctx.fillRect(x - w * 0.8, line - lift, t, t);
+    ctx.fillRect(x + w * 0.7, line - lift, t, t);
+  }
+}
+
+function paintSnow(ctx: CanvasRenderingContext2D, g: Game, view: View) {
+  const amount = g.snow;
+
+  /* Snow light is cold and flat rather than dark. */
+  ctx.fillStyle = `rgba(198,214,238,${0.17 * amount})`;
+  ctx.fillRect(0, 0, view.w, view.h);
+
+  const fall = view.h + view.b * 2;
+  const count = Math.round(85 * amount);
+
+  for (let i = 0; i < count; i += 1) {
+    const speed = 0.12 + hash(i * 1.7) * 0.12;
+    const size = view.b * (0.05 + hash(i * 9.1) * 0.06);
+
+    /* Each flake wanders on its own sine as it comes down, which is the whole
+       difference between snow and falling dust. */
+    const sway = Math.sin(g.t * (0.5 + hash(i * 4.4) * 0.7) + i) * view.b * 0.5;
+    const x = hash(i * 5.1) * (view.w + view.b * 2) - view.b + sway;
+    const y = ((hash(i * 7.9) + g.t * speed) % 1) * fall - view.b;
+
+    ctx.fillStyle = `rgba(255,255,255,${(0.55 + hash(i * 6.2) * 0.4) * amount})`;
+    ctx.fillRect(x, y, size, size);
   }
 }
 
@@ -305,7 +535,14 @@ function paintStars(
   }
 }
 
-function paintDisc(ctx: CanvasRenderingContext2D, view: View, sky: Sky) {
+/** `through` is how much of it the weather lets past: 1 in the clear, 0 in either. */
+function paintDisc(
+  ctx: CanvasRenderingContext2D,
+  view: View,
+  sky: Sky,
+  through: number
+) {
+  if (through <= 0.01) return;
   const size = view.b * 1.5;
   const x = view.w * 0.74 - size / 2;
   const y = sky.discAt * (view.groundY - size);
@@ -320,14 +557,14 @@ function paintDisc(ctx: CanvasRenderingContext2D, view: View, sky: Sky) {
     y + size / 2,
     size * 2.4
   );
-  glow.addColorStop(0, css(sky.discGlow, 0.5));
+  glow.addColorStop(0, css(sky.discGlow, 0.5 * through));
   glow.addColorStop(1, css(sky.discGlow, 0));
   ctx.fillStyle = glow;
   ctx.fillRect(x - size * 2.4, y - size * 2.4, size * 5.8, size * 5.8);
 
-  ctx.fillStyle = css(sky.disc);
+  ctx.fillStyle = css(sky.disc, through);
   ctx.fillRect(x, y, size, size);
-  ctx.fillStyle = css(shade(sky.disc, 0.35), 0.8);
+  ctx.fillStyle = css(shade(sky.disc, 0.35), 0.8 * through);
   ctx.fillRect(x, y, size, size * 0.18);
 }
 
@@ -341,7 +578,10 @@ function paintClouds(
   view: View,
   sky: Sky
 ) {
-  const span = 9; // blocks between clouds
+  /* Half as far apart under either weather, so twice as many are overhead —
+     which is what an overcast sky is, rather than the same few clouds painted
+     a different colour. */
+  const span = 9 - 4.6 * Math.max(g.rain, g.snow);
   const shift = g.distance * 0.12;
   const first = Math.floor((shift - span) / span);
   const last = Math.ceil((shift + view.cols + span) / span);
@@ -352,7 +592,7 @@ function paintClouds(
     const x = (k * span + r * 3 - shift) * view.b;
     if (x > view.w + view.b * 6 || x < -view.b * 6) continue;
     const y = (0.25 + r2 * 0.55) * view.groundY * 0.52;
-    const unit = view.b * (0.42 + r * 0.26);
+    const unit = view.b * (0.42 + r * 0.26) * (1 + 0.3 * Math.max(g.rain, g.snow));
     puff(ctx, x, y, unit, sky);
   }
 }
@@ -504,6 +744,61 @@ function paintGround(
     ctx.fillStyle = "rgba(0,0,0,0.08)";
     ctx.fillRect(x, view.groundY, 1, view.h - view.groundY);
   }
+
+  if (g.rain > 0.01) paintWetGround(ctx, g, view, b, grassH, offset, first, cols);
+}
+
+/**
+ * What the rain does to the ground it is falling on.
+ *
+ * Two things, and the second is the one that sells it. The sheen along the
+ * grass line is wet grass catching what light there is — a single pale band,
+ * because a wet surface seen side on returns the sky in a stripe rather than
+ * all over. The puddles are standing water, and they are dark rather than
+ * light: a puddle is a hole in the ground as far as the eye is concerned,
+ * reflecting a sky that this weather has already made darker than the field.
+ *
+ * Both scroll on the ground's own offset, so they travel with the grass rather
+ * than swimming over it — which is the single thing that would give the whole
+ * effect away.
+ */
+function paintWetGround(
+  ctx: CanvasRenderingContext2D,
+  g: Game,
+  view: View,
+  b: number,
+  grassH: number,
+  offset: number,
+  first: number,
+  cols: number
+) {
+  const wet = g.rain;
+
+  /* The sheen, straight along the top of the grass. */
+  ctx.fillStyle = `rgba(188,214,246,${0.2 * wet})`;
+  ctx.fillRect(0, view.groundY, view.w, Math.max(1, b * 0.045));
+
+  for (let i = 0; i < cols; i += 1) {
+    const col = first + i;
+    const x = (i - 1) * b - offset;
+
+    /* About one column in four has standing water on it. Placed by the
+       column's own hash, so a puddle stays on the same patch of ground for as
+       long as that ground is on screen. */
+    if (hash(col * 8.3) > 0.72) {
+      const pw = b * (0.5 + hash(col * 2.1) * 0.9);
+      const px = x + hash(col * 4.9) * (b - pw * 0.5);
+      const py = view.groundY + grassH * 0.35;
+      const ph = Math.max(2, b * 0.075);
+
+      ctx.fillStyle = `rgba(42,56,78,${0.5 * wet})`;
+      ctx.fillRect(px, py, pw, ph);
+      /* A bright lip along the near edge, which is the whole of what makes a
+         dark patch read as water rather than as a hole. */
+      ctx.fillStyle = `rgba(206,228,255,${0.4 * wet})`;
+      ctx.fillRect(px, py, pw, Math.max(1, b * 0.018));
+    }
+  }
 }
 
 /* ---------------------------------------------------------------
@@ -557,11 +852,11 @@ function paintObstacle(
   } else if (o.kind === "bird") {
     paintBird(ctx, g, x, y, w, h, o.seed);
   } else if (o.kind === "rabbit") {
-    paintRabbit(ctx, x, y, w, h, o.seed, g.t);
+    paintRabbit(ctx, x, y, w, h, o.seed, g.t, g.snow);
   } else if (o.kind === "boulder") {
-    spin(ctx, g, o, x, y, w, h, () => paintBoulder(ctx, x, y, w, h, o.seed));
+    spin(ctx, g, o, x, y, w, h, () => paintBoulder(ctx, x, y, w, h, o.seed, g.snow));
   } else {
-    paintRock(ctx, x, y, w, h, o.seed);
+    paintRock(ctx, x, y, w, h, o.seed, g.snow);
   }
 
   /* Spent obstacles are the ones that already took a life. Washed out so a
@@ -635,8 +930,8 @@ function paintBird(
   h: number,
   seed: number
 ) {
-  const body: Rgb = [92, 112, 182];
-  const wing: Rgb = [226, 232, 248];
+  const body = frost([92, 112, 182], g.snow, 0.84);
+  const wing = frost([226, 232, 248], g.snow, 0.9);
   const beat = Math.sin(g.t * 11 + seed * 6);
 
   const u = w * 0.2;
@@ -662,33 +957,50 @@ function paintBird(
 }
 
 /* ---------------------------------------------------------------
-   Rocks — which are castle masonry
+   Rocks — which are bushes
    ---------------------------------------------------------------
-   A chunk of battlement rather than a stone: courses of grey brick with
-   staggered joints and a crenellated top. It is the one obstacle the player
-   meets in the first ten seconds, so it is also the one that sets what the
-   game is about — and a fragment of castle wall says "this is her invitation"
-   where a boulder said "this is a running game".
+   A dense green bush with fruit on it. Still the obstacle the player meets in
+   the first ten seconds, so it still sets what the game is about: a garden
+   with things growing in it rather than a quarry.
 
-   Grey, and the grey matters. Everything else on the field is green, blue or
-   brown; cut stone is the one surface that reads as *built* rather than grown,
-   and the keyline underneath it is what keeps it legible when the sky goes
-   dark. See `cube` for why every obstacle carries one.
+   Legibility is the whole problem with a green obstacle on green ground, and
+   it is solved three ways at once rather than by hoping. The foliage is darker
+   and far more saturated than either the grass or the hazed hills behind it;
+   every bush carries the same dark keyline as everything else that can hit
+   you; and the fruit is red, which is the one hue nothing else on the field
+   shares. The last of those is doing the most work — a player reads "red dots"
+   long before they read "bush".
    --------------------------------------------------------------- */
 
+/** How many pixel rows tall every bush is drawn on. */
+const BUSH_ROWS = 16;
+
 /**
- * The silhouette: merlons up top, solid wall below.
+ * The top of each pixel column.
  *
- * Returned as an alternating run of columns — the odd ones are the gaps a
- * bowman would shoot through — so a one-block piece gets three merlons and a
- * wide one gets four or five, and both are built from the same rule rather
- * than from two drawings.
+ * Three or four overlapping mounds rather than one, which is the difference
+ * between a bush and a hill: the silhouette has to break. Each mound is a
+ * half-ellipse, and the jitter on top of them is deliberately coarser than a
+ * rock's was — a leafy edge is meant to be ragged.
  */
-function battlement(w: number, h: number) {
-  /* Forced odd, so the piece begins and ends on a merlon and reads as a
-     fragment of wall rather than as a comb. */
-  const slots = Math.max(3, Math.round(w / (h * 0.26)) | 1);
-  return { slots, slotW: w / slots, crenel: h * 0.2 };
+function bushProfile(cols: number, seed: number, peaks: number[]): number[] {
+  const tops: number[] = [];
+  for (let i = 0; i < cols; i += 1) {
+    const u = (i + 0.5) / cols;
+
+    /* The lowest top of any mound wins — mounds union rather than average, so
+       the silhouette is their outline rather than a mush of all of them. */
+    let top = BUSH_ROWS;
+    for (let k = 0; k < peaks.length; k += 1) {
+      const d = Math.min(1, Math.abs(u - peaks[k]) / (0.62 / peaks.length));
+      const lift = 2.6 + hash(seed * 13 + k) * 2.2;
+      top = Math.min(top, lift + 10 * (1 - Math.sqrt(Math.max(0, 1 - d * d))));
+    }
+
+    const jitter = hash(seed * 37 + i * 1.7) < 0.35 ? 1 : 0;
+    tops.push(Math.max(1, Math.min(BUSH_ROWS - 3, Math.round(top) + jitter)));
+  }
+  return tops;
 }
 
 function paintRock(
@@ -697,90 +1009,81 @@ function paintRock(
   y: number,
   w: number,
   h: number,
-  seed: number
+  seed: number,
+  snow: number
 ) {
-  const { slots, slotW, crenel } = battlement(w, h);
+  const wide = w > h * 1.5;
+  const cols = wide ? BUSH_ROWS * 2 : BUSH_ROWS;
+  const px = w / cols;
+  const py = h / BUSH_ROWS;
+  const peaks = wide ? [0.16, 0.42, 0.68, 0.9] : [0.22, 0.52, 0.8];
+  const tops = bushProfile(cols, seed, peaks);
 
-  const base: Rgb = [152, 148, 144];
-  const lit: Rgb = [200, 196, 190];
-  const mortar: Rgb = [92, 88, 86];
-  const shadow: Rgb = [118, 114, 112];
+  /* Under snow the leaves go white and the fruit does not. A berry with snow
+     on it is still a berry, and the red is the one thing on this field that
+     survives both weathers — it is what a player actually tracks. */
+  const leaf = frost([58, 116, 48], snow, 0.84);
+  const lit = frost([108, 174, 70], snow, 0.9);
+  const dark = frost([32, 68, 30], snow, 0.62);
 
-  /* Every merlon and the wall under them, as one path. Built once and used
-     three times over: for the keyline, as the clip the brickwork is laid
-     inside, and for the lit top faces. */
-  const silhouette = (grow: number) => {
-    ctx.beginPath();
-    for (let i = 0; i < slots; i += 1) {
-      const top = i % 2 === 0 ? 0 : crenel;
-      ctx.rect(x + i * slotW - grow, y + top - grow, slotW + grow * 2, h - top + grow);
-    }
-  };
-
-  const key = Math.max(1.5, h * 0.05);
-  ctx.fillStyle = "rgba(28,22,34,0.6)";
-  silhouette(key);
-  ctx.fill();
-
-  ctx.save();
-  silhouette(0);
-  ctx.clip();
-
-  ctx.fillStyle = css(base);
-  ctx.fillRect(x, y, w, h);
-
-  /*
-   * The courses, laid from the bottom up so the bed joint always sits on the
-   * ground rather than wherever the division happened to fall. Alternate
-   * courses are offset by half a brick, which is the whole of what makes
-   * masonry read as masonry — in line, it reads as a grid.
-   */
-  const courseH = h / 5;
-  const brickW = h / 3;
-  const joint = Math.max(1, h * 0.022);
-
-  for (let c = 0; c * courseH < h; c += 1) {
-    const top = y + h - (c + 1) * courseH;
-    const offset = (c % 2) * brickW * 0.5;
-
-    for (let b = -1; x + b * brickW + offset < x + w; b += 1) {
-      const bx = x + b * brickW + offset;
-
-      /* A little variation per brick, fixed by its own position so a wall
-         does not shimmer as it crosses the screen. */
-      const n = hash(seed * 17 + c * 7.3 + b * 2.9);
-      if (n > 0.78) {
-        ctx.fillStyle = css(mix(base, lit, 0.25));
-        ctx.fillRect(bx, top, brickW, courseH);
-      } else if (n < 0.18) {
-        ctx.fillStyle = css(mix(base, shadow, 0.5));
-        ctx.fillRect(bx, top, brickW, courseH);
-      }
-
-      /* The perpend — the vertical joint between this brick and the next. */
-      ctx.fillStyle = css(mortar, 0.75);
-      ctx.fillRect(bx, top, joint, courseH);
-    }
-
-    /* And the bed joint along the top of the course. */
-    ctx.fillStyle = css(mortar, 0.75);
-    ctx.fillRect(x, top, w, joint);
-
-    /* A hairline of light under each bed joint, which is what gives the wall
-       its depth: the course below catches the sun on its own top edge. */
-    ctx.fillStyle = css(lit, 0.35);
-    ctx.fillRect(x, top + joint, w, joint);
+  /* The keyline, as one pass of slightly over-sized columns underneath. It is
+     what keeps a green bush legible against a green hill at every hour. */
+  ctx.fillStyle = "rgba(20,32,20,0.62)";
+  const key = Math.max(1.5, py * 0.5);
+  for (let i = 0; i < cols; i += 1) {
+    ctx.fillRect(
+      x + i * px - key,
+      y + tops[i] * py - key,
+      px + key * 2,
+      (BUSH_ROWS - tops[i]) * py + key
+    );
   }
 
-  ctx.restore();
+  for (let i = 0; i < cols; i += 1) {
+    const top = tops[i];
+    const cx = x + i * px;
 
-  /* The sunlit top face of every merlon and of each crenel floor. Outside the
-     clip, because these are the edges of the silhouette rather than anything
-     laid inside it. */
-  ctx.fillStyle = css(lit);
-  for (let i = 0; i < slots; i += 1) {
-    const top = i % 2 === 0 ? 0 : crenel;
-    ctx.fillRect(x + i * slotW, y + top, slotW, Math.max(1.5, h * 0.045));
+    ctx.fillStyle = css(leaf);
+    ctx.fillRect(cx, y + top * py, px + 0.5, (BUSH_ROWS - top) * py);
+
+    /* Sun on the crown of each column, falling away down the right. */
+    ctx.fillStyle = css(mix(lit, leaf, (i / cols) * 0.55));
+    ctx.fillRect(cx, y + top * py, px + 0.5, py * 1.5);
+
+    /* And the shade the bush casts into itself, along the ground. */
+    ctx.fillStyle = css(dark, 0.45);
+    ctx.fillRect(cx, y + h - py * 2.6, px + 0.5, py * 2.6);
+  }
+
+  /* Leaf gaps: a few darker notches, placed by the bush's own hash so they
+     sit still while it crosses the screen. */
+  ctx.fillStyle = css(dark, 0.5);
+  for (let k = 0; k < (wide ? 9 : 5); k += 1) {
+    const i = Math.floor(hash(seed * 11 + k) * cols);
+    const row = tops[i] + 1 + Math.floor(hash(seed * 23 + k) * (BUSH_ROWS - tops[i] - 2));
+    if (row >= BUSH_ROWS - 1) continue;
+    ctx.fillRect(x + i * px, y + row * py, px * 1.5, py);
+  }
+
+  /* The fruit. Sitting on the foliage rather than floating in front of it —
+     each one is placed a row or two under the leaf line of its own column, so
+     it reads as hanging in the bush. */
+  const berries = wide ? 6 : 4;
+  for (let k = 0; k < berries; k += 1) {
+    const i = Math.floor(hash(seed * 7.7 + k * 3.1) * (cols - 2)) + 1;
+    const row = tops[i] + 1.4 + hash(seed * 19 + k) * (BUSH_ROWS - tops[i] - 3);
+    if (row >= BUSH_ROWS - 1.2) continue;
+
+    const bx = x + i * px;
+    const by = y + row * py;
+    const r = Math.max(2, py * 1.15);
+
+    ctx.fillStyle = "rgba(20,32,20,0.55)";
+    ctx.fillRect(bx - r * 0.5, by - r * 0.5, r * 2, r * 2);
+    ctx.fillStyle = css(frost([210, 58, 82], snow, 0.18));
+    ctx.fillRect(bx - r * 0.2, by - r * 0.2, r * 1.4, r * 1.4);
+    ctx.fillStyle = "rgba(255,210,210,0.85)";
+    ctx.fillRect(bx, by, r * 0.45, r * 0.45);
   }
 }
 
@@ -797,7 +1100,8 @@ function paintBoulder(
   y: number,
   w: number,
   h: number,
-  seed: number
+  seed: number,
+  snow: number
 ) {
   const cx = x + w / 2;
   const cy = y + h / 2;
@@ -805,11 +1109,11 @@ function paintBoulder(
   const rows = 14;
   const py = (r * 2) / rows;
 
-  /* Grey, like the masonry — but round and unjointed, because this one is a
-     stone that came loose rather than a piece of wall. */
-  const base: Rgb = [138, 132, 128];
-  const lit: Rgb = [190, 184, 176];
-  const dark: Rgb = [92, 86, 84];
+  /* Grey, and round and unjointed — a stone that came loose rather than a
+     piece of anything. Under snow it goes to a snowball, pits and all. */
+  const base = frost([138, 132, 128], snow, 0.86);
+  const lit = frost([190, 184, 176], snow, 0.9);
+  const dark = frost([92, 86, 84], snow, 0.6);
 
   /* A pixel disc: every row as wide as the circle is at that height. Drawn
      twice, the first time over-sized, for the keyline. */
@@ -903,14 +1207,17 @@ function paintRabbit(
   w: number,
   h: number,
   seed: number,
-  t: number
+  t: number,
+  snow: number
 ) {
   const u = w / 16;
   const v = h / 16;
 
-  const fur: Rgb = hash(seed * 7) > 0.5 ? [206, 190, 174] : [172, 150, 132];
-  const dark = mix(fur, [0, 0, 0], 0.28);
-  const shadeFur = mix(fur, [0, 0, 0], 0.14);
+  /* A winter coat: she turns white with the weather, like a real one. The eye
+     and the nose below are left alone — they are the whole of her face. */
+  const fur = frost(hash(seed * 7) > 0.5 ? [206, 190, 174] : [172, 150, 132], snow, 0.88);
+  const dark = frost(mix(fur, [0, 0, 0], 0.28), snow, 0.5);
+  const shadeFur = frost(mix(fur, [0, 0, 0], 0.14), snow, 0.6);
 
   const box = (px: number, py: number, pw: number, ph: number, style: string) => {
     ctx.fillStyle = style;

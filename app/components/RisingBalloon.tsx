@@ -1,6 +1,15 @@
 "use client";
 
-import { motion, useTransform, useSpring, type MotionValue } from "framer-motion";
+import { useCallback, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  motion,
+  useAnimationControls,
+  useTransform,
+  useSpring,
+  type MotionValue,
+} from "framer-motion";
+import { GAME_PATH, RETURN_KEY, TAP_WINDOW_MS, TAPS_TO_OPEN } from "@/app/game/entry";
 
 /**
  * The page's signature move, kept alive in the deck: the balloon floats up
@@ -25,6 +34,67 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
   const rawTop = useTransform(progress, [0, 1], ["72%", "3%"]);
   const top = useSpring(rawTop, { stiffness: 60, damping: 20, mass: 0.6 });
   const rotate = useTransform(progress, [0, 1], [-6, 6]);
+
+  /*
+   * And it is also the door to the game.
+   * ----------------------------------------------------------------------
+   * Two taps on the balloon open `/game` — see `app/game/`. Nothing else on
+   * the invitation leads there and nothing says it is there, which is the
+   * whole of the idea: the children at this party will find it, and the great
+   * aunts will never know it exists.
+   *
+   * Two rather than one, because a balloon this size is caught by accident,
+   * and a guest who meant to bat it about would otherwise lose the invitation
+   * off the screen. Two inside `TAP_WINDOW_MS` is a deliberate act and almost
+   * never an accidental one. The count resets as soon as that window closes,
+   * so a tap now and a tap in a minute is just two taps.
+   *
+   * Each tap gets a little pop, and that pop is the only hint there is. It is
+   * enough — a thing that answers when you touch it is a thing people touch
+   * again — and it says nothing to anyone who taps once and moves on.
+   *
+   * It is a tap, not a press: Motion only fires this when the pointer went
+   * down and up without travelling, so dragging the balloon across the screen
+   * and letting it spring back never counts as one.
+   */
+  const router = useRouter();
+  const pop = useAnimationControls();
+  const taps = useRef(0);
+  const window_ = useRef(0);
+
+  useEffect(() => () => window.clearTimeout(window_.current), []);
+
+  const onTap = useCallback(() => {
+    pop.start({
+      scale: [1, 1.18, 1],
+      transition: { duration: 0.34, ease: [0.22, 1, 0.36, 1] },
+    });
+
+    taps.current += 1;
+    window.clearTimeout(window_.current);
+
+    if (taps.current < TAPS_TO_OPEN) {
+      /* Fetch the game's code on the first tap, so the second one opens it
+         rather than starting a download. A guest who taps once and wanders
+         off has cost themselves one small file. */
+      router.prefetch(GAME_PATH);
+      window_.current = window.setTimeout(() => {
+        taps.current = 0;
+      }, TAP_WINDOW_MS);
+      return;
+    }
+
+    taps.current = 0;
+    try {
+      /* Tells the game there is an invitation behind it on the history stack,
+         so its way out can be a Back rather than a second push. See
+         `app/game/entry.ts`. */
+      window.sessionStorage.setItem(RETURN_KEY, "1");
+    } catch {
+      /* Private mode. The game pushes its way back instead. */
+    }
+    router.push(GAME_PATH);
+  }, [pop, router]);
 
   return (
     /* The run the balloon climbs. It is the whole deck everywhere the bar is
@@ -64,6 +134,8 @@ export function RisingBalloon({ progress }: { progress: MotionValue<number> }) {
       dragMomentum={false}
       whileDrag={{ scale: 1.06 }}
       transition={{ type: "spring", stiffness: 300, damping: 22 }}
+      animate={pop}
+      onTap={onTap}
     >
       <div className="animate-balloon-sway">
       <motion.svg

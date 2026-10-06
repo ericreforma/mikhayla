@@ -372,6 +372,17 @@ export const GAME_BIRD_SPRITE = asset("");
 export const GAME_RABBIT_SPRITE = asset("");
 export const GAME_BOULDER_SPRITE = asset("");
 
+/**
+ * Where the game's noises live — a folder rather than ten constants, because
+ * `app/game/sfx.ts` names them by what they are (`jump`, `step-rain`) and the
+ * names are the whole of the mapping.
+ *
+ * Built by `scripts/build-audio.py` out of `assets-src/game/sfx/`, which is
+ * 2.1MB of 256kbps stereo and never deployed; what lands here is 536KB of mono
+ * AAC, and only the menu loop is more than a few tens of KB.
+ */
+export const GAME_SFX = asset("/game/sfx");
+
 /* ---------------------------------------------------------------
    The venue's two windows: a walkthrough video and a map
    ---------------------------------------------------------------

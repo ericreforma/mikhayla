@@ -8,8 +8,15 @@
  * build, it would quietly send a guest off the site.
  */
 
-/** Where the game lives, relative to the site root. `basePath` is added by Next. */
-export const GAME_PATH = "/game";
+/**
+ * Where the game lives, relative to the site root. `basePath` is added by Next.
+ *
+ * Deliberately not `/game`. Nothing links here and the route is `noindex`, but
+ * a URL is still the one part of a hidden thing that gets read aloud, pasted
+ * into a chat and guessed at — and `/game` is the first guess anybody makes.
+ * The source stays in `app/game/`; only the address is in disguise.
+ */
+export const GAME_PATH = "/escaped";
 
 /**
  * Set in `sessionStorage` by the balloon just before it navigates.

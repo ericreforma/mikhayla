@@ -34,8 +34,22 @@ import {
   writeName,
   type TopScore,
 } from "./scores";
-import { LIVES, SKIES } from "./tuning";
+import { arm, play, startMenu, stopMenu, weather, type Sfx } from "./sfx";
+import { LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
 import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
+
+/**
+ * Which surface she is running on.
+ *
+ * The two weathers cross-fade over eight seconds, so a threshold rather than a
+ * test for zero: the sound swaps once, half way through the change, instead of
+ * alternating between two footsteps for the length of it.
+ */
+function footstep(g: World): Sfx {
+  if (g.snow > 0.5) return "step-snow";
+  if (g.rain > 0.5) return "step-rain";
+  return "step-grass";
+}
 
 /**
  * The game, wired to a screen.
@@ -130,6 +144,45 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     setName(chosen);
     setAsking(false);
   }, []);
+
+  /* ---------------------------------------------------------------
+     Sound
+     ---------------------------------------------------------------
+     Three effects, each answering to a different thing.
+     --------------------------------------------------------------- */
+
+  /* Open the device and fetch the effects. Usually immediate — see `arm`. */
+  useEffect(() => arm(), []);
+
+  /**
+   * The menu music follows the menu, and nothing else.
+   *
+   * On exactly while a card is up before the first run: the one asking a name
+   * and the one with the title and the instructions on it. `nameReady` is in
+   * here because it gates the card itself — there is one frame where the
+   * status is `ready` but nothing is drawn yet, and music under a blank screen
+   * is music under a blank screen.
+   *
+   * Starting it is allowed to be optimistic; `startMenu` falls back to the
+   * first touch if the browser refuses, and gives up if the card has gone by
+   * then. The status never returns to `ready`, so this plays once, at the door.
+   */
+  const menuUp = status === "ready" && nameReady;
+  useEffect(() => {
+    if (menuUp) startMenu();
+    else stopMenu();
+  }, [menuUp]);
+
+  /* Leaving the game stops everything it was making. The players live at
+     module scope and outlive this component, so without this the menu music
+     follows a guest back out to the invitation and plays over its own. */
+  useEffect(
+    () => () => {
+      stopMenu();
+      weather(0, 0);
+    },
+    []
+  );
 
   /**
    * Fetch the board in the background and keep the top name.
@@ -254,6 +307,25 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     let sawLives = worldRef.current.lives;
     let sawScore = -1;
 
+    /*
+     * And what the speaker was last told, for the same reason.
+     *
+     * Every sound in the game is an *edge* on something the simulation already
+     * tracks, found here rather than fired from the place that caused it. That
+     * is deliberate: `engine.ts` is a pure function of its own state and is run
+     * headless by the test harness, and a jump that made a noise could not be.
+     * So the engine stays silent and this loop watches it — which also means
+     * there is exactly one place a jump can be announced from, however many
+     * ways there are to ask for one.
+     */
+    let sawGrounded = worldRef.current.grounded;
+    let sawBeat = 0;
+
+    /* How much of the weather bed is let through. Eased rather than switched,
+       so a pause lowers the rain instead of cutting it — and so the ending
+       sting is not fighting a downpour for the last word. */
+    let gate = 0;
+
     const frame = (now: number) => {
       raf = window.requestAnimationFrame(frame);
 
@@ -290,6 +362,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
       if (ctx) draw(ctx, g, view, spritesRef.current);
 
+      /* The rain and the wind, held at whatever the sky is doing. The engine
+         already eases these two over eight seconds, so handing them straight
+         to the speaker crossfades the sound on the same curve as the picture. */
+      gate += ((g.status === "running" ? 1 : 0) - gate) * Math.min(1, elapsed * 6);
+      weather(g.rain * gate, g.snow * gate);
+
       /* The HUD, written straight onto the DOM — see the note at the top. */
       const shown = shownScore(g);
       if (shown !== sawScore) {
@@ -308,7 +386,37 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         }
       }
 
+      /* Up. `grounded` only ever goes false in `press`, and only when a jump
+         actually begins — so this is the jump, and a press that bought nothing
+         because she was already in the air is silent, as it should be. */
+      if (g.grounded !== sawGrounded) {
+        if (!g.grounded) play("jump");
+        sawGrounded = g.grounded;
+      }
+
+      /*
+       * And down: a footfall twice a stride, on the two frames where the
+       * artwork actually plants a foot (see `STEP_PHASE`).
+       *
+       * Counted off distance rather than off time, because the animation is —
+       * tie it to a clock and the sound drifts out of her legs as the tiers
+       * speed up. `beat` is reassigned whatever happens, so the distance
+       * covered in the air is swallowed rather than arriving all at once as a
+       * burst of footsteps the moment she lands.
+       */
+      const beat = Math.floor((g.distance / RUN_CYCLE_BLOCKS - STEP_PHASE) * 2);
+      if (beat !== sawBeat) {
+        if (beat === sawBeat + 1 && g.status === "running" && g.grounded) {
+          play(footstep(g));
+        }
+        sawBeat = beat;
+      }
+
       if (g.lives !== sawLives) {
+        /* A heart lost, but not the last one — the last one is the game over
+           below, which has its own three sounds and should not have this
+           underneath it. */
+        if (g.lives < sawLives && g.lives > 0) play("hurt");
         sawLives = g.lives;
         setLives(g.lives);
       }
@@ -317,9 +425,29 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         sawStatus = g.status;
         if (g.status === "over") {
           const final = shownScore(g);
+
+          /* Both read *before* the write, which is what makes beating your own
+             record detectable at all — a moment later this run is the record. */
+          const mine = readBest();
+          const theirs = leaderScoreRef.current;
+
           writeBest(final);
           setScore(final);
           setBest(readBest());
+
+          /*
+           * One sound, in this order. Topping the board is the bigger thing
+           * and swallows topping yourself; either of them replaces the game
+           * over rather than playing over it — the run ended, but that is not
+           * the news.
+           *
+           * With no board to compare against — no signal, or the very first
+           * player — `theirs` is null and beating yourself is the best news
+           * available, which is the right answer for a guest playing alone.
+           */
+          if (theirs !== null && final > theirs) play("winner-all");
+          else if (final > mine) play("winner-self");
+          else play("gameover");
         }
         setStatus(g.status);
       }
@@ -546,7 +674,26 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   const running = status === "running";
 
   return (
-    <div ref={wrapRef} className="relative h-full w-full overflow-hidden bg-[#7DC1EC]">
+    <div
+      ref={wrapRef}
+      /*
+        Every button in the game, caught in one place.
+
+        The alternative is a `play("button")` inside a dozen `onClick`s spread
+        across four cards, which is a dozen chances to add a thirteenth button
+        and forget. Capture, so a card that stops the event still makes a
+        noise; `pointerdown` rather than `click`, because a tap that slides off
+        the button never clicks, and a sound that arrives on release reads as
+        lag rather than as a button.
+
+        The jump zone deliberately is not a button, so it never fires here —
+        jumping has its own sound and does not want a click under it.
+      */
+      onPointerDownCapture={(e) => {
+        if ((e.target as HTMLElement | null)?.closest("button")) play("button");
+      }}
+      className="relative h-full w-full overflow-hidden bg-[#7DC1EC]"
+    >
       <canvas ref={canvasRef} className="block h-full w-full" />
 
       {/*

@@ -124,6 +124,22 @@ export const JUMP_FRAMES = 5;
  */
 export const RUN_CYCLE_BLOCKS = 2.8;
 
+/**
+ * Where in that cycle a foot hits the ground, so the footstep sound lands on
+ * the footstep.
+ *
+ * Measured off the sheet rather than guessed. At full stride the silhouette is
+ * at its widest down near the ground, and at mid-stance — legs passing each
+ * other — at its narrowest, so the width of the bottom fifth of each frame
+ * traces the stride. Across the sixteen frames it peaks at frame 6 and frame
+ * 14 and nowhere else: 0.375 and 0.875, exactly half a cycle apart, which is
+ * what a well-drawn run should do and a reassuring sign the sheet is honest.
+ *
+ * Two steps a cycle, so only the first is stored; the second is this plus a
+ * half. At the base speed that is a footfall every 206ms.
+ */
+export const STEP_PHASE = 0.375;
+
 /* ---------------------------------------------------------------
    The jump
    ---------------------------------------------------------------

@@ -2,11 +2,17 @@
 
 There is a small running game inside the invitation. **Tap the floating balloon
 twice** — the one that climbs the right-hand edge as you swipe through the
-sections — and it opens at `/mikhayla/game`.
+sections — and it opens at `/mikhayla/escaped`.
 
 Nothing links to it and nothing mentions it. The route is `noindex`, so it will
 not turn up in a search either. Finding it is the whole of the idea: the
 children at the party will, and nobody else need ever know it is there.
+
+**The URL is `/escaped`, not `/game`**, and that is the only place the disguise
+lives. A URL is the part of a hidden thing that gets read over somebody's
+shoulder, pasted into a chat and guessed at — and `/game` is the first guess
+anyone makes. In the codebase it is still a game and still filed under
+`app/game/`; see **The files**.
 
 ---
 
@@ -91,9 +97,9 @@ construction rather than by being kept in step.
 **To look at any of it without playing for four minutes**, pin it from the URL:
 
 ```
-/mikhayla/game?weather=rain
-/mikhayla/game?weather=snow&sky=3     snow at night
-/mikhayla/game?sky=2                  sunset, clear
+/mikhayla/escaped?weather=rain
+/mikhayla/escaped?weather=snow&sky=3     snow at night
+/mikhayla/escaped?sky=2                  sunset, clear
 ```
 
 `sky` is 0 to 4 — morning, afternoon, sunset, evening, dawn. Both are read once
@@ -176,17 +182,30 @@ having got them.
 ## The files
 
 ```
-app/game/
+app/escaped/      the route, and only the route
+  page.tsx      the page, and the turn-your-phone gate.
+  layout.tsx    the title, and the `noindex` that keeps it out of search.
+
+app/game/         the game itself. No page.tsx, so not a route at all.
   tuning.ts     every number, in blocks and seconds. Start here.
   engine.ts     the simulation. No DOM, no React, no pixels.
   render.ts     the canvas. The only file that knows what a pixel is.
   Game.tsx      canvas sizing, the loop, the HUD, the controls.
   Cards.tsx     the panels: before, paused, after, and the scoreboard.
   scores.ts     posting to the sheet, and the personal best on the device.
+  sfx.ts        the noises. Nothing else in the game knows it makes any.
   orientation.ts   landscape, and asking to stay that way.
-  page.tsx      the route, and the turn-your-phone gate.
   entry.ts      the two constants the balloon and the game have to agree on.
 ```
+
+Two folders because the App Router makes a folder name a URL segment, and the
+URL is in disguise while the source should not be. `app/game/` has no
+`page.tsx`, which is all it takes to stop being a route — Next only makes one
+where it finds a page.
+
+**The artwork and the sounds stay at `/game/…`**, in `public/game/`. Those are
+asset paths rather than routes: `/mikhayla/game` itself is a 404, and nothing
+reaches the files under it without first having found the game.
 
 The split between `engine.ts` and everything else is the one worth keeping. The
 simulation is a pure function of its own state at a fixed 120Hz step, which is
@@ -210,7 +229,9 @@ chose it written above it. The ones most likely to be wanted:
 | Speed up more or less often | `TIER_POINTS` (every five hundred). |
 | When each obstacle starts | `BIRD_FROM`, `RABBIT_FROM`, `TRICKS_FROM`, `WIDE_ROCK_FROM`, `BOULDER_FROM`. |
 | How much warning a change gives | `CHANGE_LEAD_S` (seven tenths of a second). |
-| A longer or shorter day | `SKY_POINTS` (every thousand). |
+| A longer or shorter day | `SKY_POINTS` (every three hundred). |
+| How often the weather turns | `WEATHER_POINTS` — a full day of sky, so clear, then rain, then snow. |
+| Footsteps out of step with her legs | `STEP_PHASE`, measured off the sheet. Only if the artwork changes. |
 | More or fewer lives | `LIVES`. |
 | Different weather | `SKIES` — five flat lists of colours. Add a sixth and the cycle simply gets longer. |
 
@@ -321,6 +342,139 @@ drawing comes back, so a typo in a path is a cosmetic problem rather than a
 broken game. Animation can arrive the same way later: the renderer already
 gives a bird its wingbeat by squashing whatever it is handed and rolls the
 boulder by turning it, so a single still frame arrives moving.
+
+---
+
+## Sound
+
+Twelve sounds, built by `scripts/build-audio.py` out of `assets-src/game/sfx/`
+— **15.4MB** of 256kbps stereo in, **959KB** of mono AAC out:
+
+```
+python scripts/build-audio.py
+```
+
+| Sound | When |
+|---|---|
+| `button` | any button in the game, anywhere |
+| `main-menu` | looping while a menu card is up, stopping when it closes |
+| `jump` | a jump that actually leaves the ground |
+| `step-grass` / `step-rain` / `step-snow` | each footfall, by the weather |
+| `hurt` | a heart lost with hearts still left |
+| `gameover` | the last heart, with nothing to celebrate |
+| `winner-self` | the last heart, having beaten your own best |
+| `winner-all` | the last heart, having beaten the board |
+| `raining` / `snowing` | under everything, at whatever level the sky is at |
+
+The last three are **one sound, not three**: topping the board swallows topping
+yourself, and either of them replaces the game over rather than playing over
+it. The run ended, but that is not the news.
+
+### The menu loop follows the card
+
+It starts when the menu card appears and stops when it closes — the name card
+and the title-and-instructions card are both "the menu", and the status never
+returns to `ready`, so it plays once, at the door.
+
+**It does not wait for anybody to touch anything**, and that was a real fix
+rather than a preference. The way in is two taps on a balloon followed by
+`router.push`, which keeps the same document — so by the time the card exists
+the page has already been interacted with and the browser will allow sound.
+Waiting for a *fresh* gesture inside the game left the title card sitting in
+silence until the player prodded something, which is the one moment the music
+is for. A guest who lands on `/mikhayla/escaped` cold instead — a bookmark, a
+reload, a shared link — has no such gesture, `play()` is refused, and the
+rejection arms a one-shot listener so the music starts on their first touch.
+
+**Stopping it needs a timer as well as the fade**, which looks redundant and is
+not. `fadeAudio` ramps on `requestAnimationFrame`, and a browser stops
+delivering those to a tab that is not on screen — so the callback that pauses
+can simply never arrive. Leaving the game is a navigation, and a navigation is
+exactly when rAF stops, so without the timer the menu music follows the guest
+back out to the invitation and plays over its own.
+
+### The weather beds, and why they wait
+
+`raining` and `snowing` arrived as 2:05 and 5:01 — **13.6MB of the 15.4MB
+source**, for two sounds that play under a game nobody is listening to
+closely. They are cut to a 30-second loop each, which is 95% and 98% off.
+
+Trimming them was not only about bytes. The rain **decays**: it opens as a
+downpour and tapers to a drizzle, so looping the file whole would have snapped
+back to the downpour every two minutes under a sky that never changed. Both
+windows were chosen by measuring the level envelope — steadiest stretch, ends
+that already agree, no transient inside to become a metronome, and above the
+file's own average so the bed is weather rather than hiss.
+
+The loop is made by folding the tail back over the head with a **quarter-sine**
+crossfade, and that curve is not a detail. Rain crossfaded against rain is two
+*uncorrelated* noise sources, which sum by power rather than amplitude — a
+linear fade dips about 3dB through the middle, a hole in the rain every thirty
+seconds. Measured, against a deliberately-linear control: linear sagged
+**−31.7% (−3.31 dB)** at exactly the crossfade midpoint; quarter-sine holds to
+−4.5%, inside the wind's own variation.
+
+**Neither is downloaded until the weather turns.** They are 424KB between
+them — nearly half the game's audio — and the weather does not arrive until
+1500 points, which is two and a half minutes of running without losing three
+lives. Most guests will never hear either. The elements are created and
+unlocked on the first gesture (on `SILENCE`, the same trick the invitation's
+players use, because iOS gates the first `play()` per element) but point at
+nothing until `rain` or `snow` goes above zero — at which moment there is an
+eight-second ramp to arrive over.
+
+Verified against a logging server on the real export: holding clear weather
+fetches **no** bed and all nine effects; raising rain and snow fetches both.
+
+### Two players, on purpose
+
+The short effects are decoded once into Web Audio buffers and fired from
+memory, because a footstep lands five times a second and an `<audio>` element
+can only be in one place at a time. The three long loops — the menu and the two
+weather beds — stay elements: the menu is 42 seconds and 386KB, and Web Audio
+would need all of it decoded, 7MB of float samples, before it could play a
+note, where an element starts on the first buffer. That is not theoretical; the
+decode check written to verify this never finished decoding it inside a minute.
+
+Two warnings for anyone testing this:
+
+- **`performance.getEntriesByType("resource")` does not report `<audio>`
+  element loads in Chrome**, so an in-page probe will tell you a file was never
+  fetched when the server has plainly just served it. Check the server's log,
+  not the page's.
+- **Volume fades do not advance under headless Chrome's virtual time**, so
+  every element reads `volume 0.00` there however long you wait. That says
+  nothing about the fade; to check whether something is *sounding*, read
+  `paused`, not `volume`.
+
+### Every sound is an edge, found in the loop
+
+Nothing in `engine.ts` makes a noise, and nothing calls into `sfx.ts` from the
+place that caused the sound. The frame loop in `Game.tsx` watches the
+simulation for the transitions instead — `grounded` going false is a jump,
+`lives` going down is a hurt, `status` going `over` is an ending.
+
+That is what keeps the engine runnable in Node with no browser, which is how
+every figure in `tuning.ts` was measured. It also means there is exactly one
+place a jump can be announced from, however many ways there are to ask for one.
+
+The footsteps are counted off **distance**, not time, for the same reason the
+animation is: tie them to a clock and the sound drifts out of her legs as the
+tiers speed up. They land on `STEP_PHASE` — frames 6 and 14 of the sixteen,
+found by measuring where the silhouette is widest near the ground, which is
+where a foot is planted. Measured: 4.85 steps a second at the base speed
+against 4.86 predicted, rising to 5.45 by the third tier.
+
+### It can always fail
+
+Every entry point in `sfx.ts` returns `void`, nothing awaits anything, and no
+state in it is read from outside. A browser that refuses to make a sound, a
+file that 404s and a guest with the ringer off all produce the same outcome: a
+game that plays perfectly and says nothing.
+
+**The invitation's own music switch silences it too** — `sfx.ts` reads the same
+`mikhayla:music` preference the deck writes. There is no separate control in
+the game, so turning the sound off is done on the invitation before coming in.
 
 ---
 

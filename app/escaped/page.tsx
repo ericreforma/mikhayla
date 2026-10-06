@@ -5,18 +5,31 @@ import { useRouter } from "next/navigation";
 import { BABY_NAME } from "@/app/config";
 import { exitFullscreen } from "@/app/components/fullscreen";
 import { Crown } from "@/app/components/Ornaments";
-import { Game } from "./Game";
-import { unlockLandscape, useIsLandscape } from "./orientation";
-import { RETURN_KEY } from "./entry";
+import { Game } from "@/app/game/Game";
+import { unlockLandscape, useIsLandscape } from "@/app/game/orientation";
+import { RETURN_KEY } from "@/app/game/entry";
 
 /**
- * The game, at `/game`.
+ * The game, at `/escaped`.
  *
  * Nothing on the invitation links here. It is found by tapping the balloon
  * twice — see `RisingBalloon` — and a guest who never does will never know it
  * exists, which is the point of hiding it. The route is real rather than an
  * overlay so that it can be shared, bookmarked and reloaded like anything
- * else; `app/game/layout.tsx` keeps it out of search results.
+ * else; `layout.tsx` next to this keeps it out of search results.
+ *
+ * ---------------------------------------------------------------------------
+ * Why the route is here and the game is not
+ * ---------------------------------------------------------------------------
+ * This folder holds the route and nothing else — the game itself stays in
+ * `app/game/`, which has no `page.tsx` and so is not a route at all, just a
+ * folder of modules.
+ *
+ * The split is deliberate. `escaped` is a URL chosen to give nothing away, and
+ * that is the only place it belongs: in the codebase the thing is a game and
+ * should be filed under its own name, where it can be found by anyone looking
+ * for it. Renaming the source to match the disguise would hide it from the
+ * wrong audience.
  */
 export default function GamePage() {
   const router = useRouter();

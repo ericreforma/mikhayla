@@ -245,15 +245,19 @@ function WaysOn({
   onLeave,
   onPlay,
   onBoard,
+  onMenu,
   playLabel,
 }: {
   onLeave: () => void;
   onPlay: () => void;
   onBoard: () => void;
+  /** Given only where there is somewhere to go back to — see below. */
+  onMenu?: () => void;
   playLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-center gap-3 border-t border-gold/20 pt-3">
+    <div className="border-t border-gold/20 pt-3">
+    <div className="flex items-center justify-center gap-3">
       <button type="button" onClick={onLeave} className={SECONDARY}>
         Invitation
       </button>
@@ -284,25 +288,57 @@ function WaysOn({
         <span className="w-[5.9rem]" aria-hidden />
       )}
     </div>
+
+    {/*
+      A second row, under the play button, and only at the end of a run.
+
+      The menu is not one of the three ways on — it is a way *back*, and giving
+      it a fourth seat in that row would say otherwise. Three equals and a
+      giant play button is a row that has been designed; four equals and a
+      giant one is a row that has had something added to it.
+
+      So it sits beneath, quieter and full-width, where it reads as the way out
+      of this card rather than a rival to the thing the card is for. The start
+      card never gets one: you are already standing on the menu.
+    */}
+    {onMenu && (
+      <div className="mt-2.5 flex justify-center">
+        <button
+          type="button"
+          onClick={onMenu}
+          className={`${SECONDARY} w-full max-w-[16rem]`}
+        >
+          Back to main menu
+        </button>
+      </div>
+    )}
+    </div>
   );
 }
 
 /* ---------------------------------------------------------------
    The door: who is playing
    ---------------------------------------------------------------
-   Asked once, before the first run, and never again on this device — the same
-   bargain the RSVP makes. Everything after it is quieter for it: scores go up
-   by themselves at the end of a run, and nobody is asked to type while they
-   are still looking at the number they just got.
+   Reached from the menu, not before it — by pressing play with no name on
+   file, or by choosing *Change name*. Asked once and then never again on this
+   device, the same bargain the RSVP makes, so everything after it is quiet:
+   scores go up by themselves at the end of a run and nobody is asked to type
+   while they are still looking at the number they just got.
+
+   Because the menu is always what this was opened from, *Back* goes there.
+   The way off the site is on the menu, one step behind, where somebody who
+   wants it can find it and somebody who does not cannot hit it by accident
+   while reaching for the keyboard.
    --------------------------------------------------------------- */
 
 export function NameCard({
   onDone,
-  onLeave,
+  onBack,
   suggestion,
 }: {
   onDone: (name: string) => void;
-  onLeave: () => void;
+  /** Back to the menu, which is always what this was opened from. */
+  onBack: () => void;
   /** Whatever they RSVP'd as, if they did. Very often the only time they will
       have typed their name on this site. */
   suggestion: string;
@@ -356,7 +392,7 @@ export function NameCard({
                 scoreboard of "Mika", "Mika" and "Mika" belongs to nobody. */}
             <p className="text-center text-[clamp(0.65rem,2.7vh,0.82rem)] leading-snug text-ink/60">
               Your <b className="font-semibold text-ink/80">full name</b>, please — there will
-              be more than one Mika at this party.
+              be more than one you at this party.
             </p>
 
             {error && (
@@ -370,7 +406,7 @@ export function NameCard({
                 <Sparkle className="h-3.5 w-3.5" />
                 That&apos;s me
               </button>
-              <button type="button" onClick={onLeave} className={SECONDARY}>
+              <button type="button" onClick={onBack} className={SECONDARY}>
                 Back
               </button>
             </div>
@@ -463,20 +499,27 @@ export function StartCard({
             {best > 0 && (
               <>
                 Your best so far: <span className="font-semibold text-ink/70">{best}</span>
-                {name ? " · " : ""}
+                {" · "}
               </>
             )}
-            {/* A party is one phone passed between six children. Without this
-                every one of their scores goes up under whoever typed first. */}
-            {name && (
-              <button
-                type="button"
-                onClick={onRename}
-                className="underline underline-offset-2 transition hover:text-ink"
-              >
-                Not you?
-              </button>
-            )}
+            {/*
+              A party is one phone passed between six children, and without a
+              way to say so, every one of their scores goes up under whoever
+              typed first.
+
+              Offered whether or not there is a name yet. Before the first run
+              there is nothing to change but there is something to *set*, and
+              putting it here lets somebody decide who they are on their own
+              time rather than being stopped for it on the way into a game they
+              have just this moment found.
+            */}
+            <button
+              type="button"
+              onClick={onRename}
+              className="underline underline-offset-2 transition hover:text-ink"
+            >
+              {name ? "Change name" : "Set your name"}
+            </button>
           </p>
         </div>
       </div>
@@ -556,12 +599,14 @@ export function GameOverCard({
   best,
   name,
   onRestart,
+  onMenu,
   onLeave,
 }: {
   score: number;
   best: number;
   name: string;
   onRestart: () => void;
+  onMenu: () => void;
   onLeave: () => void;
 }) {
   const [state, setState] = useState<Saving>("sending");
@@ -656,6 +701,7 @@ export function GameOverCard({
                 onLeave={onLeave}
                 onPlay={onRestart}
                 onBoard={() => setBoard(true)}
+                onMenu={onMenu}
                 playLabel="Play again"
               />
             </div>

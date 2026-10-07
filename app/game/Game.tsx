@@ -34,7 +34,9 @@ import {
   writeName,
   type TopScore,
 } from "./scores";
-import { arm, play, startMenu, stopMenu, weather, type Sfx } from "./sfx";
+/* `play` arrives as `sound`: in a file with a play *button* in it, a bare
+   `play(...)` should mean "play the game", not "play a noise". */
+import { arm, play as sound, startMenu, stopMenu, weather, type Sfx } from "./sfx";
 import { LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
 import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
 
@@ -118,31 +120,56 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   /* ---------------------------------------------------------------
      Who is playing
      ---------------------------------------------------------------
-     Asked once, at the door, and kept on the device — the same bargain the
-     RSVP makes. Everything after it is quieter for it: a finished run uploads
-     itself, and nobody is asked to type while they are looking at the number
-     they just got.
+     Asked on the way into the first run, not on the way into the game.
 
-     `ready` is a third state rather than `name === ""`, because there is one
-     frame before the effect runs where nothing is known. Painting the name
-     card during it would flash a form at a player who has one stored.
+     The menu comes first and the question comes second, which is the right way
+     round: a guest who has just found a hidden game should see what they have
+     found before being asked to fill anything in. A form as the very first
+     thing on screen reads like a sign-up, and a sign-up is what people close.
+
+     The name is still only asked once and kept on the device, the same bargain
+     the RSVP makes — so everything after it is quiet: a finished run uploads
+     itself and nobody types while looking at the number they just got.
+
+     `nameReady` is a separate flag rather than `name === ""`, because there is
+     one frame before the effect runs where nothing is known. Painting the menu
+     during it would flash "Mind the rocks" at somebody it should be welcoming
+     back by name.
      --------------------------------------------------------------- */
+  /**
+   * Two names, and keeping them apart is the whole of the rule.
+   *
+   * `name` is what they have actually told *this game* — empty until they do,
+   * and the only thing that counts as knowing them. `suggestion` is whatever
+   * they RSVP'd as, which fills the box on the door and nothing else.
+   *
+   * Folding the two together would let an RSVP answer the question on their
+   * behalf, and the question exists precisely because an RSVP does not answer
+   * it: a card is signed "Mika" and a scoreboard needs the name on a register.
+   * Three Mikas at this party all signed the same way.
+   */
   const [name, setName] = useState("");
+  const [suggestion, setSuggestion] = useState("");
   const [nameReady, setNameReady] = useState(false);
-  const [asking, setAsking] = useState(false);
+
+  /**
+   * Whether the name card is up, and — the useful half — where to go when it
+   * is done with.
+   *
+   * There are two ways to reach it and they end in different places: pressing
+   * play without a name on file asks, then runs; choosing *Change name* on the
+   * menu asks, then goes back to the menu. Holding the destination here rather
+   * than a bare boolean is what keeps those two from having to be told apart
+   * afterwards by guesswork.
+   */
+  const [asking, setAsking] = useState<null | "play" | "menu">(null);
 
   useEffect(() => {
     const chosen = readName();
-    /* The RSVP only ever fills the box; it never answers for them. */
-    setName(chosen || suggestedName());
-    setAsking(!chosen);
-    setNameReady(true);
-  }, []);
-
-  const named = useCallback((chosen: string) => {
-    writeName(chosen);
     setName(chosen);
-    setAsking(false);
+    /* The RSVP only ever fills the box; it never answers for them. */
+    setSuggestion(chosen || suggestedName());
+    setNameReady(true);
   }, []);
 
   /* ---------------------------------------------------------------
@@ -157,15 +184,19 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   /**
    * The menu music follows the menu, and nothing else.
    *
-   * On exactly while a card is up before the first run: the one asking a name
-   * and the one with the title and the instructions on it. `nameReady` is in
-   * here because it gates the card itself — there is one frame where the
-   * status is `ready` but nothing is drawn yet, and music under a blank screen
-   * is music under a blank screen.
+   * On exactly while a card is up outside a run: the menu with the title and
+   * the instructions on it, and the one asking a name. `nameReady` is in here
+   * because it gates the card itself — there is one frame where the status is
+   * `ready` but nothing is drawn yet, and music under a blank screen is music
+   * under a blank screen.
+   *
+   * It comes back. *Back to main menu* returns the status to `ready`, so the
+   * music returns with it — which is the right answer: the menu sounds like
+   * the menu whenever you are standing on it, not only the first time.
    *
    * Starting it is allowed to be optimistic; `startMenu` falls back to the
    * first touch if the browser refuses, and gives up if the card has gone by
-   * then. The status never returns to `ready`, so this plays once, at the door.
+   * then.
    */
   const menuUp = status === "ready" && nameReady;
   useEffect(() => {
@@ -390,7 +421,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
          actually begins — so this is the jump, and a press that bought nothing
          because she was already in the air is silent, as it should be. */
       if (g.grounded !== sawGrounded) {
-        if (!g.grounded) play("jump");
+        if (!g.grounded) sound("jump");
         sawGrounded = g.grounded;
       }
 
@@ -407,7 +438,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       const beat = Math.floor((g.distance / RUN_CYCLE_BLOCKS - STEP_PHASE) * 2);
       if (beat !== sawBeat) {
         if (beat === sawBeat + 1 && g.status === "running" && g.grounded) {
-          play(footstep(g));
+          sound(footstep(g));
         }
         sawBeat = beat;
       }
@@ -416,7 +447,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         /* A heart lost, but not the last one — the last one is the game over
            below, which has its own three sounds and should not have this
            underneath it. */
-        if (g.lives < sawLives && g.lives > 0) play("hurt");
+        if (g.lives < sawLives && g.lives > 0) sound("hurt");
         sawLives = g.lives;
         setLives(g.lives);
       }
@@ -445,9 +476,9 @@ export function Game({ onLeave }: { onLeave: () => void }) {
            * player — `theirs` is null and beating yourself is the best news
            * available, which is the right answer for a guest playing alone.
            */
-          if (theirs !== null && final > theirs) play("winner-all");
-          else if (final > mine) play("winner-self");
-          else play("gameover");
+          if (theirs !== null && final > theirs) sound("winner-all");
+          else if (final > mine) sound("winner-self");
+          else sound("gameover");
         }
         setStatus(g.status);
       }
@@ -541,6 +572,65 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     setLives(LIVES);
     setStatus("running");
   }, [applyPins, loadLeader]);
+
+  /**
+   * The play button, from wherever it was pressed.
+   *
+   * The one gate between the menu and a run: somebody we have never met is
+   * asked their name first, and the run begins the moment they answer. Anyone
+   * we already know goes straight through — which is every visit after the
+   * first, and every child after the first on a shared phone who has pressed
+   * *Change name*.
+   *
+   * It is deliberately the same function the space bar calls, so the keyboard
+   * cannot sneak past the door the button leads through.
+   */
+  const play = useCallback(() => {
+    if (asking) return;
+    if (name) start();
+    else setAsking("play");
+  }, [asking, name, start]);
+
+  /**
+   * They told us who they are.
+   *
+   * `start()` is called straight from in here when that is where they were
+   * going, and it has to be: it asks for fullscreen and the orientation lock,
+   * and a browser grants those only to a hand that just moved. The submit on
+   * the name card is that hand — one tick later, in an effect watching the
+   * name change, it would already be too late.
+   */
+  const named = useCallback(
+    (chosen: string) => {
+      writeName(chosen);
+      setName(chosen);
+      setSuggestion(chosen);
+      const next = asking;
+      setAsking(null);
+      if (next === "play") start();
+    },
+    [asking, start]
+  );
+
+  /**
+   * Back to the main menu, from the end of a run.
+   *
+   * A fresh world rather than the spent one, so the menu is painted over an
+   * untouched field instead of over the wreck of the run that just ended — and
+   * so pressing play from here is the same clean start it is anywhere else.
+   *
+   * Fullscreen and the orientation lock are left exactly as they are. Somebody
+   * going back to the menu is almost always on their way to another run, and
+   * dropping them out of fullscreen to make them ask for it again would be a
+   * flicker and a second permission for nothing.
+   */
+  const toMenu = useCallback(() => {
+    const g = createGame(viewRef.current.cols);
+    applyPins(g);
+    worldRef.current = g;
+    setLives(LIVES);
+    setStatus("ready");
+  }, [applyPins]);
 
   const pause = useCallback(() => {
     const g = worldRef.current;
@@ -653,7 +743,9 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       if (e.repeat) return;
       const g = worldRef.current;
       if (g.status === "running") press(g);
-      else if (g.status === "ready") start();
+      /* `play` rather than `start`, so a space bar on the menu meets the same
+         door the button does and cannot begin a run for a nameless player. */
+      else if (g.status === "ready") play();
       else if (g.status === "paused") resume();
     };
 
@@ -669,7 +761,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [pause, resume, start]);
+  }, [pause, play, resume]);
 
   const running = status === "running";
 
@@ -679,7 +771,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       /*
         Every button in the game, caught in one place.
 
-        The alternative is a `play("button")` inside a dozen `onClick`s spread
+        The alternative is a `sound("button")` inside a dozen `onClick`s spread
         across four cards, which is a dozen chances to add a thirteenth button
         and forget. Capture, so a card that stops the event still makes a
         noise; `pointerdown` rather than `click`, because a tap that slides off
@@ -690,7 +782,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         jumping has its own sound and does not want a click under it.
       */
       onPointerDownCapture={(e) => {
-        if ((e.target as HTMLElement | null)?.closest("button")) play("button");
+        if ((e.target as HTMLElement | null)?.closest("button")) sound("button");
       }}
       className="relative h-full w-full overflow-hidden bg-[#7DC1EC]"
     >
@@ -822,15 +914,22 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         </div>
       </div>
 
+      {/* The menu first, the question second — and the question's way out is
+          back to the menu rather than off the site, because the menu is now
+          always what it was opened from. */}
       {status === "ready" &&
         nameReady &&
         (asking ? (
-          <NameCard onDone={named} onLeave={onLeave} suggestion={name} />
+          <NameCard
+            onDone={named}
+            onBack={() => setAsking(null)}
+            suggestion={suggestion}
+          />
         ) : (
           <StartCard
-            onStart={start}
+            onStart={play}
             onLeave={onLeave}
-            onRename={() => setAsking(true)}
+            onRename={() => setAsking("menu")}
             best={best}
             name={name}
           />
@@ -844,6 +943,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           best={best}
           name={name}
           onRestart={start}
+          onMenu={toMenu}
           onLeave={onLeave}
         />
       )}

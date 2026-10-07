@@ -493,24 +493,35 @@ misfiled rows and move them.
 
 ### The flow
 
-**The name is asked once, at the door.** A first-time player gets a card before
-they ever run — "Who is playing?", with one instruction: *your full name,
-please, there will be more than one Mika at this party*. It is kept on the
-device exactly as the RSVP keeps its own, and every visit after that opens on
-"Welcome back, …" instead.
+**The menu comes first; the question comes second.** The game opens on its own
+title card — the name, the three rules, and the three ways on. Only when a
+player presses **▶** without a name on file does it ask "Who is playing?", with
+one instruction: *your full name, please, there will be more than one Mika at
+this party*. They answer and the run begins in the same breath; there is no
+second stop at the menu.
 
-That one move is what makes everything after it quiet. **A finished run uploads
-itself**: no form at the end, nobody asked to type while they are still looking
-at the number they just got.
+That order matters. A guest who has just found a hidden game should see what
+they have found before being asked to fill anything in — a form as the very
+first thing on screen reads like a sign-up, and a sign-up is what people close.
 
-The RSVP name **fills the box but never answers for them**. An RSVP is signed
-the way you sign a card ("Mika") and the board needs the way you sign a
-register, so it is still presented for approval — taking it silently would
-defeat the one instruction the door gives.
+The name is still asked **once** and kept on the device exactly as the RSVP
+keeps its own, so every visit after that opens on "Welcome back, …" and goes
+straight from **▶** into a run. That one move is what makes everything after it
+quiet: **a finished run uploads itself**, with no form at the end and nobody
+asked to type while they are still looking at the number they just got.
 
-There is a **"Not you?"** on the start card, and it is not a nicety. A party is
-one phone passed between six children; without it every one of their scores
-goes up under whoever typed first.
+The RSVP name **fills the box but never answers for them**, and the code keeps
+the two apart on purpose — `name` is what they told *this game* and is empty
+until they do; `suggestion` is what they RSVP'd as and only ever prefills the
+box. Folding them together would let an RSVP walk somebody straight past the
+door, which is the one thing the door is there to stop: a card is signed "Mika"
+and a scoreboard needs the name on a register.
+
+The menu carries **Change name** (or **Set your name**, before there is one to
+change), and it is not a nicety. A party is one phone passed between six
+children; without it every one of their scores goes up under whoever typed
+first. Backing out of that card returns to the menu rather than off the site —
+the menu is always what it was opened from.
 
 **A score only goes up if it beats what the board already holds for them**, and
 that is measured against what was actually *sent*, not against their best. The
@@ -518,8 +529,8 @@ two come apart the moment a send fails — and deciding from the best would mean
 a run of 500 that never left the phone locks out every later run under 500,
 leaving the board empty for that player forever.
 
-Both the welcome card and the game-over card end on the same three ways on, in
-the same order:
+Both the menu card and the game-over card end on the same three ways on, in the
+same order:
 
 > **Invitation** · **▶** · **Scoreboard**
 
@@ -527,13 +538,23 @@ The middle one is deliberately giant rather than one of three equals. A player
 sitting in front of either card is going to press play, and making them pick it
 out of a row of look-alikes is a tax on the thing they came to do.
 
+The game-over card adds a fourth, **Back to main menu**, on its own row
+*beneath* the play button — never on the menu card, where you are already
+standing on it. Underneath rather than alongside because it is not a way on at
+all, it is a way back: three equals and a giant play button is a row that has
+been designed, four equals and a giant one is a row that has had something
+added to it. Pressing it builds a fresh world rather than reusing the spent
+one, so the menu is painted over an untouched field and the next run starts as
+clean as the first. Fullscreen and the orientation lock are left alone —
+somebody going back to the menu is usually on their way to another run.
+
 It is one component (`WaysOn`), not two rows that happen to match — the two
 cards get edited at different times for different reasons, and a row that is
 the same by coincidence stops being the same on the first of those edits.
 
-On the game-over card none of the three is drawn while the save is still in
-flight: two of them throw the card away, and a save waiting on a round trip to
-Google would go with it.
+On the game-over card none of them is drawn while the save is still in flight:
+two of them throw the card away, and a save waiting on a round trip to Google
+would go with it.
 
 **Scoreboard** reads the board back- Setting `GAME_ENDPOINT` to `""` turns all of it off. The game still plays and
   still keeps the personal best.

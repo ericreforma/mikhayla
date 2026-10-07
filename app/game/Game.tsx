@@ -935,7 +935,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           />
         ))}
       {status === "paused" && (
-        <PausedCard onResume={resume} onRestart={start} onLeave={onLeave} />
+        <PausedCard onResume={resume} onRestart={start} onMenu={toMenu} />
       )}
       {status === "over" && (
         <GameOverCard

@@ -84,6 +84,35 @@ const PLAY =
   "hover:from-[#F0DFA8] hover:to-[#D4AF37] " +
   "active:translate-y-[4px] active:shadow-[0_0_0_0_#9C7A1B,0_2px_5px_rgba(62,40,20,0.28)]";
 
+/**
+ * `PLAY` in the quieter palette, for a round button that is not the one being
+ * recommended.
+ *
+ * It does real work on the pause card, where *home* and *replay* flank
+ * *resume*: both of them throw away a run that is still waiting behind the
+ * card, so neither should be the easiest thing to hit. Same shape, so the row
+ * reads as one set of controls; quieter colour and smaller, so the gold one in
+ * the middle is plainly the way back to what you were doing.
+ */
+const ROUND =
+  `${BUTTON} flex-none bg-gradient-to-b from-white to-[#F6E8D8] text-ink/75 ` +
+  "border-2 border-gold/60 " +
+  "shadow-[0_4px_0_0_#DCC79B,0_7px_14px_rgba(62,40,20,0.22)] " +
+  "hover:from-white hover:to-mist hover:text-ink " +
+  "active:translate-y-[4px] active:shadow-[0_0_0_0_#DCC79B,0_2px_5px_rgba(62,40,20,0.18)]";
+
+/**
+ * The two round sizes: the one you want, and the two either side of it.
+ *
+ * Every stop of the smaller clamp is 78% of the matching stop of the larger —
+ * 2.5/3.2, 10/13, 3.6/4.6 — so the proportion holds at every screen height
+ * rather than only at the one it was eyeballed on. A ratio that drifts as the
+ * window changes is how a deliberate hierarchy turns into three buttons that
+ * merely happen to differ.
+ */
+const BIG_ROUND = "clamp(3.2rem, 13vh, 4.6rem)";
+const MID_ROUND = "clamp(2.5rem, 10vh, 3.6rem)";
+
 /* ---------------------------------------------------------------
    The board
    ---------------------------------------------------------------
@@ -540,36 +569,210 @@ function Rule({ children }: { children: React.ReactNode }) {
    During
    --------------------------------------------------------------- */
 
+/**
+ * Something to read while you get your breath back.
+ *
+ * A pause card is dead space — the one screen in the game with nothing to do
+ * on it — and a line that is different every time turns it into something a
+ * child will pause *on purpose* to collect. Which is the point: this is a
+ * birthday invitation, and the game is a party trick.
+ *
+ * They are about the field she is standing in rather than about pausing in
+ * general, because a joke that knows what the player was just doing is worth
+ * three that could sit on any game ever made. The birds, the boulder, the
+ * berries and the weather are all out there, waiting, and saying so is funnier
+ * than saying "take a break".
+ */
+const PAUSE_LINES = [
+  "The rocks will wait. They're very patient.",
+  "Even a princess may sit down.",
+  "The birds have agreed to hover politely.",
+  "Somewhere, a rabbit is holding its breath.",
+  "The boulder has stopped. Don't keep it waiting.",
+  "Tiara adjustment in progress.",
+  "The sun is holding still for you.",
+  "Nobody tell the bushes.",
+  "Royal decree: one short rest.",
+  "The clouds have been asked to stay put.",
+  "Time has stopped. The cake has not.",
+  "Breathe. The berries aren't going anywhere.",
+  "Even the weather is waiting.",
+  "This is the easiest part of the game.",
+  "Your legs are fine. It's the birds.",
+  "A perfectly reasonable place to stop.",
+  "The high score will keep.",
+  "The ground birds are plotting. The sky ones are smug.",
+  "One does not simply run forever.",
+  "Mind the rocks. Later.",
+  "Intermission. Refreshments at the party.",
+  "The field is holding its breath too.",
+  "No rush — the party isn't going anywhere.",
+  "Three lives, and all the time in the world.",
+];
+
+/** The last one shown, so the next pause is never the same line twice. */
+let lastLine = -1;
+
+/**
+ * One line, at random, but never the one just seen.
+ *
+ * Without the nudge a run of two dozen will repeat itself back to back often
+ * enough to notice — roughly one pause in twenty-four — and a "random" line
+ * that comes up twice running reads as broken rather than as chance.
+ */
+function pauseLine(): string {
+  let i = Math.floor(Math.random() * PAUSE_LINES.length);
+  if (i === lastLine) i = (i + 1) % PAUSE_LINES.length;
+  lastLine = i;
+  return PAUSE_LINES[i];
+}
+
+/**
+ * Three round controls, and no words on any of them.
+ *
+ * A pause card is the one place in the game where nothing has to be explained.
+ * Whoever is looking at it is already playing, already knows what the triangle
+ * does, and wants their run back — so the whole card is a house, a triangle and
+ * a circling arrow, which a child who cannot read yet can still use.
+ *
+ * Resume is the big gold one in the middle and the only one focused, because
+ * it is what nine presses in ten are reaching for. Home and replay match each
+ * other and are smaller, which is the hierarchy said twice — in size and in
+ * colour — so it survives both a glance and a sideways phone in bright sun.
+ * They are also the two that throw away a run still waiting behind the card,
+ * and a destructive button should never be the easiest thing to hit.
+ *
+ * Home leads to the menu rather than off the site. Leaving altogether is one
+ * step further on, which is the right distance for it — nobody quits a game
+ * they have paused mid-run by accident, and the menu's *Invitation* is right
+ * there for anyone who means it.
+ */
 export function PausedCard({
   onResume,
   onRestart,
-  onLeave,
+  onMenu,
 }: {
   onResume: () => void;
   onRestart: () => void;
-  onLeave: () => void;
+  onMenu: () => void;
 }) {
+  const [line] = useState(pauseLine);
+
   return (
     <div className={BACKDROP}>
       <div className={`${CARD} max-w-md`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
         <div className="relative px-5 py-[clamp(0.9rem,4vh,1.6rem)] text-center sm:px-7">
           <h2 className="font-display text-[clamp(1.1rem,5vh,1.7rem)] italic text-ink">Paused</h2>
+
+          {/* Chosen once, when the card mounts, so it holds still while it is
+              being read — picked during render rather than in an effect, which
+              is safe here because this card is never on screen at build time:
+              a run has to start before it can be paused. */}
+          <p className="mx-auto mt-1 max-w-[34ch] font-hand text-[clamp(0.78rem,3.1vh,1.02rem)] leading-snug text-berry">
+            {line}
+          </p>
+
           <div aria-hidden className="gilt-rule mx-auto mt-2 h-px w-24" />
-          <div className="mt-3 flex flex-wrap items-center justify-center gap-2.5">
-            <button type="button" onClick={onResume} className={PRIMARY} autoFocus>
-              Keep running
+
+          <div className="mt-3.5 flex items-center justify-center gap-3 sm:gap-4">
+            <button
+              type="button"
+              onClick={onMenu}
+              aria-label="Main menu"
+              className={ROUND}
+              style={{ width: MID_ROUND, height: MID_ROUND }}
+            >
+              {/* A shade smaller than the circling arrow at the same size: the
+                  house is a wider, more solid shape and matching the numbers
+                  would make it the heaviest thing in the row. */}
+              <HomeIcon className="h-[46%] w-[46%]" />
             </button>
-            <button type="button" onClick={onRestart} className={SECONDARY}>
-              Start over
+
+            <button
+              type="button"
+              onClick={onResume}
+              aria-label="Keep running"
+              autoFocus
+              className={PLAY}
+              style={{ width: BIG_ROUND, height: BIG_ROUND }}
+            >
+              {/* Offset a hair right: a triangle centred on its bounding box
+                  reads as sitting left of centre inside a circle. */}
+              <svg
+                viewBox="0 0 24 24"
+                className="h-[42%] w-[42%] translate-x-[6%]"
+                fill="currentColor"
+                aria-hidden
+              >
+                <path d="M8 5.5 L19 12 L8 18.5 Z" />
+              </svg>
             </button>
-            <button type="button" onClick={onLeave} className={SECONDARY}>
-              Leave
+
+            <button
+              type="button"
+              onClick={onRestart}
+              aria-label="Start over"
+              className={ROUND}
+              style={{ width: MID_ROUND, height: MID_ROUND }}
+            >
+              <ReplayIcon className="h-[48%] w-[48%]" />
             </button>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/** A house. Roof, walls, door — nothing else survives being drawn this small. */
+function HomeIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M3.2 11.4 L12 4.2 L20.8 11.4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M5.7 10.1 V19.8 H18.3 V10.1"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9.9 19.8 V14.4 H14.1 V19.8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * Round again: three quarters of a circle with an arrowhead carrying on round.
+ *
+ * The arc runs from the right, under the bottom and up the left, finishing at
+ * the top — so the head at the top is travelling rightwards and the whole
+ * thing turns clockwise, which is the direction this glyph is read in
+ * everywhere else it appears.
+ */
+function ReplayIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <path
+        d="M19.5 12 A7.5 7.5 0 1 1 12 4.5"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+      />
+      <path d="M12 1.9 L12 7.1 L15.4 4.5 Z" fill="currentColor" />
+    </svg>
   );
 }
 

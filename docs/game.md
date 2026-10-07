@@ -552,6 +552,38 @@ It is one component (`WaysOn`), not two rows that happen to match — the two
 cards get edited at different times for different reasons, and a row that is
 the same by coincidence stops being the same on the first of those edits.
 
+**The pause card is three round buttons and no words at all:**
+
+> 🏠 · **▶** · ↻
+
+A house to the menu, a triangle to carry on, a circling arrow to start over.
+Nothing on it needs explaining — whoever is looking at it is already playing
+and already knows what a triangle does, so it is the one card in the game that
+a child who cannot read yet can still use.
+
+Resume is the big gold one in the middle and the only one focused. Home and
+replay match each other and are **78% of its size** — the hierarchy said twice,
+in size and in colour, so it survives both a glance and a sideways phone in
+bright sun. Those two are also the ones that throw away a run still waiting
+behind the card, and a destructive button should never be the easiest thing to
+hit. Every stop of the smaller clamp is 78% of the matching stop of the larger
+(2.5/3.2, 10/13, 3.6/4.6), so the proportion holds at every screen height
+rather than only at the one it was eyeballed on.
+
+Under the title sits **one of two dozen lines, picked at random** — *"The birds
+have agreed to hover politely."*, *"Your legs are fine. It's the birds."*,
+*"Time has stopped. The cake has not."* A pause card is the one screen in the
+game with nothing to do on it, and a line that changes every time turns dead
+space into something a child will pause *on purpose* to collect. They are about
+the field she is standing in rather than about pausing in general: a joke that
+knows what the player was just doing is worth three that would fit any game
+ever made. The same line never comes up twice running — across 40 mounts, 23 of
+the 24 appeared and none repeated back to back.
+
+Home goes to the **menu**, not off the site. Leaving altogether is one step
+further on, which is the right distance for it — nobody quits a paused run by
+accident, and the menu's *Invitation* is right there for anyone who means it.
+
 On the game-over card none of them is drawn while the save is still in flight:
 two of them throw the card away, and a save waiting on a round trip to Google
 would go with it.

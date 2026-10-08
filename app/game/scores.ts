@@ -118,12 +118,65 @@ export function suggestedName(): string {
   }
 }
 
+/**
+ * Compare two names the way a person would.
+ *
+ * Case and runs of whitespace are typing, not identity: "juan  dela cruz" and
+ * "Juan Dela Cruz" are one child. This is the same judgement the Apps Script
+ * makes when it folds the sheet to one row per person, so the two ends of the
+ * board agree about who somebody is.
+ */
+function sameName(a: string, b: string): boolean {
+  const tidy = (v: string) => v.trim().replace(/\s+/g, " ").toLowerCase();
+  return tidy(a) === tidy(b);
+}
+
+/**
+ * Remember who is playing — and, if that is somebody new, forget the scores.
+ *
+ * The best and the sent-high-water mark are not this *device's*, they are this
+ * *player's*: a phone passed to the next child at a party carries the last
+ * one's 900 with it, and without this the new player is told their best is 900,
+ * is never offered the chance to beat it, and has every run below it judged
+ * not worth uploading. Their own scoreboard row would stay empty for the rest
+ * of the party.
+ *
+ * So changing the name clears both. Nothing is lost that mattered: whatever the
+ * previous player achieved is already on the board under their own name, and
+ * `adoptBoard` hands it straight back if they take the phone again.
+ */
 export function writeName(name: string) {
   try {
+    if (!sameName(name, readName())) {
+      window.localStorage.removeItem(BEST_KEY);
+      window.localStorage.removeItem(SENT_KEY);
+    }
     window.localStorage.setItem(NAME_KEY, name);
   } catch {
     /* Nothing is lost but the convenience. */
   }
+}
+
+/**
+ * Take back whatever the board already holds for whoever is playing.
+ *
+ * The board is the real record and this device's copy is a cache of it, so
+ * every refresh is a chance to correct the cache: a player on a second phone,
+ * one who cleared their browser, or one who has just typed their name back in
+ * after lending the game to a friend, all get their own best returned to them
+ * rather than starting from nothing.
+ *
+ * It only ever raises, which is the half that matters. A local 900 that never
+ * reached the sheet must not be pulled down to the 500 the sheet knows about —
+ * that would un-send a score and then refuse to send it again.
+ */
+function adoptBoard(top: TopScore[]) {
+  const me = readName();
+  if (!me) return;
+  const mine = top.find((row) => sameName(row.name, me));
+  if (!mine) return;
+  writeBest(mine.score);
+  writeSent(mine.score);
 }
 
 /** Whether there is anywhere to post at all — see `GAME_ENDPOINT` in config. */
@@ -306,6 +359,7 @@ export async function fetchTopScores(): Promise<BoardResult> {
     }
 
     board = top;
+    adoptBoard(top);
     return { ok: true, top };
   } catch {
     return {

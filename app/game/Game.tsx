@@ -6,6 +6,7 @@ import {
   GAME_BOULDER_SPRITE,
   GAME_HURT_SPRITE,
   GAME_JUMP_SPRITE,
+  GAME_MAD_SPRITE,
   GAME_RUN_SPRITE,
   GAME_RABBIT_SPRITE,
   GAME_ROCK_SPRITE,
@@ -36,8 +37,15 @@ import {
 } from "./scores";
 /* `play` arrives as `sound`: in a file with a play *button* in it, a bare
    `play(...)` should mean "play the game", not "play a noise". */
-import { arm, play as sound, startMenu, stopMenu, weather, type Sfx } from "./sfx";
-import { LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
+import {
+  arm,
+  play as sound,
+  startMenu,
+  stopMenu,
+  weather,
+  type Sfx,
+} from "./sfx";
+import { BRAKE_S, LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
 import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
 
 /**
@@ -47,6 +55,22 @@ import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
  * test for zero: the sound swaps once, half way through the change, instead of
  * alternating between two footsteps for the length of it.
  */
+/**
+ * How long the HUD takes to arrive, and how long it takes to leave.
+ *
+ * It arrives briskly and leaves at the pace of the brake, because leaving is
+ * part of the same movement — the score travels off the top while she is still
+ * rolling to a halt, and is gone by the time the card has finished coming
+ * down. A half-second exit had it disappear while the world was still at speed.
+ *
+ * Inline rather than a `duration-[…]` class, and that is not a style
+ * preference: Tailwind finds its classes by reading the source as text, so a
+ * class name built from `BRAKE_S` at runtime is a class it never generates.
+ * Written this way the exit cannot drift from the brake it is matching.
+ */
+const ENTER = { transitionDuration: "500ms" };
+const LEAVE = { transitionDuration: `${BRAKE_S * 1000}ms` };
+
 function footstep(g: World): Sfx {
   if (g.snow > 0.5) return "step-snow";
   if (g.rain > 0.5) return "step-rain";
@@ -78,16 +102,26 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
   const leaderRef = useRef<HTMLSpanElement>(null);
+  /* The game over card, so the loop can bring it down with her. */
+  const overCardRef = useRef<HTMLDivElement>(null);
 
   /* The simulation, the screen it is drawn on, and the artwork — all refs,
      because the loop reads them every frame and none of them is allowed to
      cause a render. */
   const viewRef = useRef<View>(measure(960, 420));
-  const worldRef = useRef<World>(createGame(viewRef.current.cols));
+  /* The world behind the menu turns from the first frame — see `demo`. */
+  const worldRef = useRef<World>(
+    (() => {
+      const g = createGame(viewRef.current.cols);
+      g.demo = true;
+      return g;
+    })()
+  );
   const spritesRef = useRef<Sprites>({
     run: null,
     jump: null,
     hurt: null,
+    mad: null,
     rock: null,
     bird: null,
     rabbit: null,
@@ -301,6 +335,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       ["run", GAME_RUN_SPRITE],
       ["jump", GAME_JUMP_SPRITE],
       ["hurt", GAME_HURT_SPRITE],
+      ["mad", GAME_MAD_SPRITE],
       ["rock", GAME_ROCK_SPRITE],
       ["bird", GAME_BIRD_SPRITE],
       ["rabbit", GAME_RABBIT_SPRITE],
@@ -367,7 +402,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       const elapsed = (now - last) / 1000;
       last = now;
 
-      if (g.status === "running") {
+      if (g.status === "running" || g.status === "stopping" || g.demo) {
         /*
          * A fixed step, with the leftover carried to the next frame.
          *
@@ -396,8 +431,43 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       /* The rain and the wind, held at whatever the sky is doing. The engine
          already eases these two over eight seconds, so handing them straight
          to the speaker crossfades the sound on the same curve as the picture. */
-      gate += ((g.status === "running" ? 1 : 0) - gate) * Math.min(1, elapsed * 6);
+      /* Open through the brake as well as the run: the world is still moving
+         and still raining while it stops, and cutting the weather on the frame
+         she is hit would take the ground out from under the sound. */
+      const want = g.status === "running" || g.status === "stopping" ? 1 : 0;
+      gate += (want - gate) * Math.min(1, elapsed * 6);
       weather(g.rain * gate, g.snow * gate);
+
+      /*
+       * The card comes down with her.
+       *
+       * Driven here rather than by a transition of its own, because the thing
+       * it has to agree with is the bounce, and the bounce lives in the
+       * simulation. A CSS transition is a second clock, and it showed: the
+       * card used to wait for the brake to finish and arrive a second and a
+       * half after she had landed.
+       *
+       * `settle` is the very envelope her bounces decay on, so the card
+       * finishes arriving exactly as she stops moving. The second term is her
+       * own height, which lets each bounce tug at the card — it rises as she
+       * rises and hurries as she drops, so the two read as one movement rather
+       * than as two things that happen to take the same time.
+       *
+       * The decay always outweighs the tug — swept up to four times this
+       * coupling and the card never once reverses — so it breathes with her
+       * without ever going backwards. Both terms are zero at the end, so it
+       * lands exactly in place: measured, 0.0000%.
+       */
+      const card = overCardRef.current;
+      if (card) {
+        if (g.status === "stopping") {
+          const k = Math.min(1, g.brake / BRAKE_S);
+          const settle = Math.pow(1 - k, 1.5);
+          card.style.transform = `translateY(${-180 * settle - g.y * 28}%)`;
+        } else if (card.style.transform) {
+          card.style.transform = "";
+        }
+      }
 
       /* The HUD, written straight onto the DOM — see the note at the top. */
       const shown = shownScore(g);
@@ -454,18 +524,26 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
       if (g.status !== sawStatus) {
         sawStatus = g.status;
-        if (g.status === "over") {
-          const final = shownScore(g);
 
-          /* Both read *before* the write, which is what makes beating your own
-             record detectable at all — a moment later this run is the record. */
+        /*
+         * The ending sound goes with the *impact*, not with the card.
+         *
+         * The brake puts a second and a half between the two, and a sting that
+         * waited for the card would land after the world had already come to
+         * rest — answering a question the player stopped asking. Played here it
+         * is the sound of the hit that ended it, and the card arrives into the
+         * tail of it.
+         */
+        if (g.status === "stopping") {
+          const final = shownScore(g);
+          /* Read before the write, which is what makes beating your own record
+             detectable at all — a moment later this run is the record. */
           const mine = readBest();
           const theirs = leaderScoreRef.current;
 
           writeBest(final);
           setScore(final);
           setBest(readBest());
-
           /*
            * One sound, in this order. Topping the board is the bigger thing
            * and swallows topping yourself; either of them replaces the game
@@ -480,6 +558,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           else if (final > mine) sound("winner-self");
           else sound("gameover");
         }
+
         setStatus(g.status);
       }
     };
@@ -626,6 +705,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
    */
   const toMenu = useCallback(() => {
     const g = createGame(viewRef.current.cols);
+    g.demo = true;
     applyPins(g);
     worldRef.current = g;
     setLives(LIVES);
@@ -765,6 +845,18 @@ export function Game({ onLeave }: { onLeave: () => void }) {
 
   const running = status === "running";
 
+  /*
+   * Whether the HUD is on screen.
+   *
+   * It belongs to a run and arrives with one: before the first press there is
+   * nothing to pause, no lives spent and no score, so three pieces of furniture
+   * announcing all three would be answering questions nobody has asked — and
+   * they would sit on top of the one thing the menu is showing, which is the
+   * field. Each piece leaves the way it came in, so the end of a run clears the
+   * screen for the card coming down over it.
+   */
+  const hud = running || status === "paused";
+
   return (
     <div
       ref={wrapRef}
@@ -808,8 +900,16 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         aria-hidden
       >
         <div
-          className="pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/30 text-white backdrop-blur-[2px] shadow-[0_4px_0_0_rgba(0,0,0,0.3),0_8px_18px_rgba(0,0,0,0.3)]"
-          style={{ width: "clamp(3.5rem, 13vh, 5.5rem)", height: "clamp(3.5rem, 13vh, 5.5rem)" }}
+          /* In and out with the rest of the HUD. It is the control for a run,
+             and before one begins there is nothing it could do. */
+          className={`pointer-events-none absolute bottom-[8%] right-[6%] flex items-center justify-center rounded-full border-[3px] border-white/80 bg-white/30 text-white backdrop-blur-[2px] shadow-[0_4px_0_0_rgba(0,0,0,0.3),0_8px_18px_rgba(0,0,0,0.3)] transition-all ease-out ${
+            hud ? "translate-y-0 opacity-100" : "translate-y-[160%] opacity-0"
+          }`}
+          style={{
+            width: "clamp(3.5rem, 13vh, 5.5rem)",
+            height: "clamp(3.5rem, 13vh, 5.5rem)",
+            ...(hud ? ENTER : LEAVE),
+          }}
         >
           <svg viewBox="0 0 24 24" className="h-1/2 w-1/2" fill="none" aria-hidden>
             <path
@@ -846,7 +946,16 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           paddingRight: "max(0.75rem, env(safe-area-inset-right))",
         }}
       >
-        <div className="flex flex-1 items-center gap-2.5">
+        {/* Each column comes in from the edge it lives on, so nothing crosses
+            the middle of the screen on its way to its corner. Transform and
+            opacity only — both are composited, so a HUD arriving does not cost
+            the first half-second of a run any frames. */}
+        <div
+          style={hud ? ENTER : LEAVE}
+          className={`flex flex-1 items-center gap-2.5 transition-all ease-out ${
+            hud ? "translate-x-0 opacity-100" : "-translate-x-[130%] opacity-0"
+          }`}
+        >
           <button
             type="button"
             onClick={pause}
@@ -874,10 +983,24 @@ export function Game({ onLeave }: { onLeave: () => void }) {
             the only number anybody is playing for. On a dark pill because the
             sky under it runs from a white noon to a navy midnight over the
             course of a long run, and no one colour of text is legible on both. */}
-        <div className="flex-none rounded-2xl bg-black/30 px-4 py-1 text-center font-mono tabular-nums leading-none text-white backdrop-blur-[2px]">
+        <div
+          style={hud ? ENTER : LEAVE}
+          className={`flex-none rounded-2xl bg-black/30 px-4 pb-1 pt-0.5 text-center text-white backdrop-blur-[2px] transition-all ease-out ${
+            hud ? "translate-y-0 opacity-100" : "-translate-y-[160%] opacity-0"
+          }`}
+        >
+          {/* Whose run this is, over the number it is earning. Small and quiet:
+              it is here so a phone going round a party always says who it
+              currently thinks it belongs to, which is the one thing nobody
+              checks until the score has already gone up under the wrong name. */}
+          {name && (
+            <span className="block max-w-[34vw] truncate text-[clamp(0.6rem,2.2vh,0.8rem)] font-semibold uppercase leading-tight tracking-[0.1em] text-white/70">
+              {name}
+            </span>
+          )}
           <span
             ref={scoreRef}
-            className="block text-[clamp(2rem,9.5vh,3.6rem)] font-bold tracking-tight"
+            className="block font-mono text-[clamp(2rem,9.5vh,3.6rem)] font-bold leading-none tracking-tight tabular-nums"
           >
             0
           </span>
@@ -893,7 +1016,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           given a hard ceiling and allowed to ellipsise rather than pushing the
           score off its centre.
         */}
-        <div className="flex flex-1 justify-end">
+        <div
+          style={hud ? ENTER : LEAVE}
+          className={`flex flex-1 justify-end transition-all ease-out ${
+            hud ? "translate-x-0 opacity-100" : "translate-x-[130%] opacity-0"
+          }`}
+        >
           {leader ? (
             <span
               ref={leaderRef}
@@ -937,8 +1065,9 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       {status === "paused" && (
         <PausedCard onResume={resume} onRestart={start} onMenu={toMenu} />
       )}
-      {status === "over" && (
+      {(status === "stopping" || status === "over") && (
         <GameOverCard
+          slideRef={overCardRef}
           score={score}
           best={best}
           name={name}

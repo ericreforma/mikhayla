@@ -367,6 +367,15 @@ export const GAME_HURT_SPRITE = asset("/game/hurt.webp");
  * squashing whatever it is handed and rolls the boulder by turning it, so a
  * single still frame arrives moving.
  */
+/**
+ * Her sulk: arms folded on the grass, when the last life has gone.
+ *
+ * One still rather than a strip — she is not doing anything, which is the
+ * point of it. Built by `scripts/build-player.py` with the rest of her, so it
+ * is keyed and scaled to exactly the child who was running a moment ago.
+ */
+export const GAME_MAD_SPRITE = asset("/game/mad.webp");
+
 export const GAME_ROCK_SPRITE = asset("");
 export const GAME_BIRD_SPRITE = asset("");
 export const GAME_RABBIT_SPRITE = asset("");

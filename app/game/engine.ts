@@ -23,6 +23,9 @@ import {
   BIRD_SHARE,
   BIRD_GROUND,
   BOULDER_ACC,
+  BOUNCE_H,
+  BOUNCES,
+  BRAKE_S,
   BOULDER_FROM,
   BOULDER_INSET,
   BOULDER_LEAD,
@@ -74,7 +77,12 @@ import {
  */
 export const STEP = 1 / 120;
 
-export type Status = "ready" | "running" | "paused" | "over";
+/**
+ * `stopping` is the brake: the last life is gone, but the world is still
+ * moving and has a second or so to come to rest. Nothing can be hit during it,
+ * nothing spawns and the score does not move — see `step`.
+ */
+export type Status = "ready" | "running" | "paused" | "stopping" | "over";
 
 export type ObstacleKind = "rock" | "bird" | "rabbit" | "boulder";
 
@@ -185,6 +193,24 @@ export type Game = {
   rain: number;
   snow: number;
 
+  /**
+   * Whether the world is turning for show rather than being played.
+   *
+   * True behind the menu: she runs, the ground scrolls, the sky holds its hour,
+   * and nothing else happens — no obstacles are spawned, nothing can be hit,
+   * and the score does not move. It is the same simulation at the same fixed
+   * step, with the three lines that make it a *game* switched off, which is why
+   * the menu's background is the real thing rather than a second renderer that
+   * would have to be kept in step with the first.
+   */
+  demo: boolean;
+
+  /** Seconds into the brake, or -1 when the world is not stopping. */
+  brake: number;
+
+  /** How fast it was going when the brake started, so it can reach exactly 0. */
+  brakeFrom: number;
+
   /* ---------------------------------------------------------------
      Pinned, for looking at things
      ---------------------------------------------------------------
@@ -252,6 +278,9 @@ export function createGame(cols: number, seed = Date.now()): Game {
 
     rain: 0,
     snow: 0,
+    demo: false,
+    brake: -1,
+    brakeFrom: 0,
 
     forceSky: null,
     forceWeather: null,
@@ -319,27 +348,67 @@ function cutJump(g: Game) {
    --------------------------------------------------------------- */
 
 export function step(g: Game) {
-  if (g.status !== "running") return;
+  /*
+   * Two ways to be moving: a run, or the attract loop behind the menu.
+   *
+   * Everything below is shared except the three lines marked `live` — spawning,
+   * collision and the score. Those are the whole of the difference between
+   * watching her run and playing, and keeping them as conditions inside the one
+   * function is what stops the menu's world drifting away from the game's.
+   */
+  const live = g.status === "running";
+  const braking = g.status === "stopping";
+  if (!live && !braking && !g.demo) return;
 
   g.t += STEP;
 
-  /* The tier, and the speed it wants. Eased rather than stepped — see
-     `SPEED_EASE_MS` for the jump this would otherwise land in the middle of. */
-  const tier = Math.floor(g.score / TIER_POINTS);
-  const target = SPEED_BASE * Math.min(SPEED_MAX, 1 + SPEED_STEP * tier);
-  const ease = STEP / (SPEED_EASE_MS / 1000);
-  g.speed += (target - g.speed) * Math.min(1, ease);
+  if (braking) {
+    /*
+     * The brake, and the bounce that goes with it.
+     *
+     * Speed falls on a square, so it sheds most of it early and then glides
+     * the last of the way — a car stopping, rather than a tape being cut. It
+     * is driven from elapsed time against `brakeFrom` instead of being decayed
+     * step by step, because a decay approaches zero without ever arriving and
+     * the world has to actually stop.
+     *
+     * Her bounce is scripted rather than simulated, and deliberately: this is
+     * a animation of a landing, not a jump she took, and three arcs of a sine
+     * with a decaying amplitude says "settling" more clearly in four lines than
+     * a restitution coefficient would in twenty.
+     */
+    g.brake += STEP;
+    const k = Math.min(1, g.brake / BRAKE_S);
+    g.speed = g.brakeFrom * (1 - k) * (1 - k);
+    g.y = BOUNCE_H * Math.abs(Math.sin(Math.PI * BOUNCES * k)) * Math.pow(1 - k, 1.5);
+    g.grounded = g.y <= 0;
+    g.vy = 0;
+    g.rising = false;
+    g.held = false;
+    if (g.brake >= BRAKE_S) {
+      g.speed = 0;
+      g.y = 0;
+      g.status = "over";
+    }
+  } else {
+    /* The tier, and the speed it wants. Eased rather than stepped — see
+       `SPEED_EASE_MS` for the jump this would otherwise land in the middle of. */
+    const tier = Math.floor(g.score / TIER_POINTS);
+    const target = SPEED_BASE * Math.min(SPEED_MAX, 1 + SPEED_STEP * tier);
+    const ease = STEP / (SPEED_EASE_MS / 1000);
+    g.speed += (target - g.speed) * Math.min(1, ease);
+  }
 
   const moved = g.speed * STEP;
   g.distance += moved;
-  g.score += SCORE_RATE * (g.speed / SPEED_BASE) * STEP;
+  if (live) g.score += SCORE_RATE * (g.speed / SPEED_BASE) * STEP;
   g.run += STEP;
 
   /* A jump held past the window has bought everything it can; settle it now
      rather than waiting for a release that may come after the apex. */
-  if (g.rising && (g.t - g.heldSince) * 1000 >= JUMP_HOLD_MS) cutJump(g);
+  if (!braking && g.rising && (g.t - g.heldSince) * 1000 >= JUMP_HOLD_MS) cutJump(g);
 
-  if (!g.grounded) {
+  if (!g.grounded && !braking) {
     /*
      * Position from the velocity it had, *then* the new velocity — with the
      * half-step of gravity written into the position term. That is exact for a
@@ -361,8 +430,10 @@ export function step(g: Game) {
   }
 
   moveObstacles(g, moved);
-  spawn(g, moved);
-  collide(g);
+  if (live) {
+    spawn(g, moved);
+    collide(g);
+  }
   advanceSky(g);
   advanceWeather(g);
 
@@ -604,7 +675,11 @@ function hit(g: Game, o: Obstacle) {
 
   if (g.lives <= 0) {
     g.lives = 0;
-    g.status = "over";
+    /* Not over yet — braking. The world keeps turning for `BRAKE_S` while it
+       slows, she bounces to a halt, and `step` ends it from there. */
+    g.status = "stopping";
+    g.brake = 0;
+    g.brakeFrom = g.speed;
   }
 }
 

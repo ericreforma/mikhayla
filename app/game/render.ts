@@ -18,6 +18,9 @@ import {
   GROUND_ROWS,
   JUMP_FRAMES,
   JUMP_MAX,
+  MAD_CELL,
+  MAD_DRAW_H,
+  MAD_SINK,
   MAX_COLS,
   MIN_COLS,
   PLAYER_CELL,
@@ -299,6 +302,8 @@ export type Sprites = {
   run: CanvasImageSource | null;
   jump: CanvasImageSource | null;
   hurt: CanvasImageSource | null;
+  /** Her sulk, one still, for when the last life has gone. */
+  mad: CanvasImageSource | null;
   rock: CanvasImageSource | null;
   bird: CanvasImageSource | null;
   rabbit: CanvasImageSource | null;
@@ -1270,8 +1275,51 @@ function paintRabbit(
    note over that constant for why the overlap is deliberate.
    --------------------------------------------------------------- */
 
-/** Which strip and which frame of it this moment wants. */
-function pose(g: Game, sprites: Sprites) {
+/**
+ * Which strip, which frame of it, and the cell it is drawn in.
+ *
+ * The cell travels with the pose because the sulk does not share one. The
+ * three strips are the same child in the same stance and fit a single cell by
+ * construction; she is sat on the floor with her arms folded, a different
+ * shape with a different ground line, and squeezing that into the running cell
+ * would mean either a shrunken sulk or an inflated everything-else.
+ */
+type Pose = {
+  strip: CanvasImageSource | null;
+  frames: number;
+  frame: number;
+  /** How tall the drawing stands, in blocks. */
+  drawH: number;
+  /** `fill` is the figure's share of the cell; `foot`, the ground line down it. */
+  cell: { aspect: number; fill: number; foot: number };
+  /** How far below the ground line to settle the drawing, in blocks. */
+  sink: number;
+};
+
+const RUNNING_CELL = {
+  aspect: PLAYER_CELL.aspect,
+  fill: PLAYER_CELL.runFill,
+  foot: PLAYER_CELL.foot,
+};
+
+function pose(g: Game, sprites: Sprites): Pose {
+  /*
+   * The sulk outranks everything, and it has to: the hurt pose is chosen by
+   * the mercy window, which is still open on the frame the last life goes, so
+   * tested the other way round she would spend the whole brake crying and only
+   * sit down once the card was already up.
+   */
+  if ((g.status === "stopping" || g.status === "over") && sprites.mad) {
+    return {
+      strip: sprites.mad,
+      frames: 1,
+      frame: 0,
+      drawH: MAD_DRAW_H,
+      cell: MAD_CELL,
+      sink: MAD_SINK,
+    };
+  }
+
   /*
    * Hurt wins over everything, including being in the air.
    *
@@ -1281,7 +1329,14 @@ function pose(g: Game, sprites: Sprites) {
    * of the two wrongs — and she is blinking throughout anyway.
    */
   if (g.t < g.invulnUntil) {
-    return { strip: sprites.hurt ?? sprites.run, frames: RUN_FRAMES, frame: strideFrame(g) };
+    return {
+      strip: sprites.hurt ?? sprites.run,
+      frames: RUN_FRAMES,
+      frame: strideFrame(g),
+      drawH: PLAYER_DRAW_H,
+      cell: RUNNING_CELL,
+      sink: 0,
+    };
   }
 
   if (!g.grounded && sprites.jump) {
@@ -1294,10 +1349,24 @@ function pose(g: Game, sprites: Sprites) {
      */
     const v = g.vy / Math.sqrt(2 * GRAVITY * JUMP_MAX);
     const frame = v > 0.8 ? 0 : v > 0.3 ? 1 : v > -0.3 ? 2 : v > -0.8 ? 3 : 4;
-    return { strip: sprites.jump, frames: JUMP_FRAMES, frame };
+    return {
+      strip: sprites.jump,
+      frames: JUMP_FRAMES,
+      frame,
+      drawH: PLAYER_DRAW_H,
+      cell: RUNNING_CELL,
+      sink: 0,
+    };
   }
 
-  return { strip: sprites.run, frames: RUN_FRAMES, frame: strideFrame(g) };
+  return {
+    strip: sprites.run,
+    frames: RUN_FRAMES,
+    frame: strideFrame(g),
+    drawH: PLAYER_DRAW_H,
+    cell: RUNNING_CELL,
+    sink: 0,
+  };
 }
 
 /** Where she is in her stride, measured in ground covered rather than in time. */
@@ -1338,18 +1407,18 @@ function paintPlayer(
 
   if (!playerVisible(g)) return;
 
-  const { strip, frames, frame } = pose(g, sprites);
+  const { strip, frames, frame, drawH, cell, sink } = pose(g, sprites);
 
-  /* The cell: taller than she is, because it holds the tallest of the three
-     poses and carries a transparent gutter besides. See `PLAYER_CELL`. */
-  const cellH = (b * PLAYER_DRAW_H) / PLAYER_CELL.runFill;
-  const cellW = cellH * PLAYER_CELL.aspect;
+  /* The cell: taller than she is, because it holds the tallest pose of its set
+     and carries a transparent gutter besides. See `PLAYER_CELL`. */
+  const cellH = (b * drawH) / cell.fill;
+  const cellW = cellH * cell.aspect;
 
   /* Centred on her hitbox, with the cell's *ground line* on the grass — which
      is not the cell's bottom edge, because of that gutter. */
   const left = x + b / 2 - cellW / 2;
   const feet = view.groundY - g.y * b;
-  const top = feet - cellH * PLAYER_CELL.foot;
+  const top = feet - cellH * cell.foot + sink * b;
 
   if (!strip) {
     /* Nothing has loaded yet. A plain marker rather than an empty field —

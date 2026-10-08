@@ -277,6 +277,8 @@ def main():
     build(hurt_sheet, hurt_boxes, out_scale * run_head / hurt_head, cell, anchor_x, "hurt")
     build(jump_sheet, jump_boxes, out_scale * run_head / jump_head, cell, anchor_x, "jump")
 
+    mad(run_head, run_h, out_scale)
+
     print()
     # Everything the game is told is measured against the *padded* cell, since
     # that is the rectangle it draws.
@@ -290,6 +292,58 @@ def main():
     print(f"    runFill: {run_h * out_scale / ph:.4f},   // run pose height, as a share of the cell")
     print(f"    foot:    {(PAD + cell[1]) / ph:.4f},   // how far down the cell the ground line is")
     print("  }")
+
+
+def mad(run_head, run_pose_h, out_scale):
+    """
+    The sulk she does when the last life goes: one still, in its own cell.
+
+    Deliberately *not* in the shared cell the three strips use. Those three are
+    the same child in the same stance seen from the same place, so one cell and
+    one anchor keeps her from changing size between them. This is a different
+    pose entirely — sat on the ground with her arms folded — and forcing it into
+    a cell measured for a standing run would either shrink the sulk or inflate
+    everything else to fit it.
+
+    What it does share is the *scale*, and that is the part that has to be
+    right. Her head is normalised to the run sheet's head exactly as the jump
+    and the crying sheets are, so the girl who sits down is the same size as the
+    girl who was running a moment ago. The game is then told how tall she is
+    sitting as a share of her running height, and works the rest out itself.
+    """
+    sheet = load(SRC / "mad.png")
+    boxes = frames(sheet)
+    if not boxes:
+        raise SystemExit("Nothing found on mad.png")
+    # The keying can leave specks; the sulk is the biggest thing on the sheet.
+    box = max(boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]))
+
+    head = head_width(sheet, box)
+    scale = run_head / head
+    pose_h = (box[3] - box[1]) * scale
+    pose_w = (box[2] - box[0]) * scale
+    print()
+    print(f"mad: head {head:.0f}px -> scaled by {scale:.3f}, "
+          f"sitting {pose_h / run_pose_h:.3f} of her running height")
+
+    w = max(1, round(pose_w * out_scale))
+    h = max(1, round(pose_h * out_scale))
+    figure = sheet.crop(box).resize((w, h), Image.LANCZOS)
+
+    cell = Image.new("RGBA", (w + PAD * 2, h + PAD * 2), (0, 0, 0, 0))
+    cell.alpha_composite(figure, (PAD, PAD))
+    cell.save(OUT / "mad.webp", "WEBP", quality=90, method=6)
+
+    pw, ph = cell.size
+    print(f"  mad.webp {cell.size[0]}x{cell.size[1]}, "
+          f"{(OUT / 'mad.webp').stat().st_size / 1024:.0f}KB")
+    print("  MAD_CELL = {")
+    print(f"    aspect: {pw / ph:.4f},   // cell width / cell height")
+    print(f"    fill:   {h / ph:.4f},   // the sulk's height, as a share of the cell")
+    print(f"    foot:   {(PAD + h) / ph:.4f},   // how far down the cell the ground is")
+    print("  }")
+    print(f"  MAD_DRAW_H = PLAYER_DRAW_H * {pose_h / run_pose_h:.3f}"
+          f"  // = {1.3 * pose_h / run_pose_h:.3f} blocks")
 
 
 if __name__ == "__main__":

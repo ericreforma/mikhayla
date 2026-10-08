@@ -491,6 +491,118 @@ deployment that predates the game files scores into `RSVPs` instead, which is
 the one failure anybody actually meets; that document says how to spot the
 misfiled rows and move them.
 
+### Coming to a stop
+
+The last life does not end the game on the frame it is spent. `status` goes to
+**`stopping`** and the world brakes: nothing can be hit, nothing spawns, the
+score stops moving, and over `BRAKE_S` (1.4s) the speed falls to zero while she
+lands on the grass and **bounces three times** before settling into her sulk.
+Only then does `over` arrive and the card come down.
+
+An instant freeze reads as a crash — the browser locking up, not the run
+ending. A game that *decelerates* says what happened with the picture instead
+of with a panel.
+
+Measured, from the engine run headless:
+
+| | |
+|---|---|
+| stop | 1.41s against the 1.4 asked for, ending at speed exactly 0 |
+| speed curve | 6.72 → 3.76 → 1.66 → 0.41 → 0.00, falling monotonically |
+| bounces | 3, at 0.387, 0.185 and 0.046 blocks |
+| the hit's screen shake | finishes 0.31s in — **during** the brake, while things are still moving fast |
+
+Speed falls on a square, so it sheds most of it early and glides the last of
+the way. It is driven from elapsed time against the speed at impact rather than
+decayed step by step, because a decay approaches zero without arriving and the
+world has to actually stop. Her bounce is scripted rather than simulated —
+three arcs of a sine with a decaying amplitude — because this is an animation
+of a landing, not a jump she took.
+
+**Everything on screen moves on that same clock.** The HUD leaves the moment
+`stopping` begins and takes exactly `BRAKE_S` to go, so the score travels off
+the top while she is still rolling. The ending sting plays at the *impact*
+rather than with the card — a second and a half later it would be answering a
+question the player had stopped asking.
+
+And the card comes down **with the bounce**, not after it. Its position is
+written straight onto the node from the frame loop:
+
+```
+translateY( -180% · (1 − k)^1.5  −  28 · her height )
+```
+
+The first term is the very envelope her bounces decay on, so the card finishes
+arriving exactly as she stops moving. The second is her own height, which lets
+each bounce tug at the card — it rises as she rises and hurries as she drops,
+so the two read as one movement rather than two things that happen to take the
+same time. The decay always outweighs the tug (swept to four times this
+coupling and the card never once reverses), so it breathes with her without
+ever going backwards, and both terms are zero at the end: measured, it starts
+at −178.7% and lands at 0.0000%.
+
+A CSS transition would have been a second clock, and it showed — the card used
+to wait for the brake to finish and arrive a second and a half after she had
+landed. The only clock that knows about the bounce is the simulation's.
+
+**Her sulk is one still with its own cell.** The three strips are the same
+child in the same stance and share one cell by construction; sat on the floor
+with her arms folded she is a different shape with a different ground line, so
+`pose()` hands the cell back along with the frame. It is scaled to the run
+sheet's own head by `scripts/build-player.py`, so the girl who sits down is the
+same child who was running — 0.841 of her running height, which is simply how
+much shorter a sitting toddler is.
+
+She also settles **`MAD_SINK` into the grass** rather than resting on top of
+it. Her lowest drawn pixel on the ground line is geometrically right and looks
+wrong: a seated child presses into what she is sitting on, and a silhouette
+that merely touches the line reads as hovering a finger's width above it.
+Running she gets away with it — feet meet the floor at a point, and half of
+them are off it at any moment — but a whole skirt resting on grass has to
+overlap it. The sulk is also tested *before* the hurt
+pose: the mercy window is still open on the frame the last life goes, so the
+other way round she would cry through the whole brake and only sit down once
+the card was already up.
+
+### What is on screen, and when
+
+**The menu plays over a live game.** The world behind it is the real
+simulation at the real fixed step, with the three lines that make it a *game*
+switched off — `demo` in `engine.ts` suppresses spawning, collision and the
+score, and nothing else. She runs, the ground scrolls, the sky holds its hour.
+A second renderer for an attract screen would be a second thing to keep in step
+with the first; this cannot drift because it *is* the first.
+
+Nothing is dimmed or blurred over it. The pause card still is — pausing is the
+one moment the player is being asked to stop looking at the game, and taking
+the world out of focus says so without a word — but the menu, the door and the
+end of a run all sit over a field that is still moving, because that field is
+the best thing on the screen while you decide what to do next.
+
+**The HUD belongs to a run and arrives with one.** Before the first press there
+is nothing to pause, no lives spent and no score, so the pause button, the
+hearts, the score and the jump button all sit off their own edges and slide in
+when play begins — each from the side it lives on, so nothing crosses the
+middle on its way to a corner. They leave the same way, which clears the screen
+for the card coming down over it. Transform and opacity only, so a HUD arriving
+costs the first half-second of a run no frames.
+
+**The score carries the player's name above it.** A phone goes round a party;
+this is the one thing nobody checks until a score has already gone up under the
+wrong name.
+
+**The end of a run slides down** over the field it ended in, rather than
+appearing in the middle of it — a card that simply materialises reads as a
+dialog box, where one that arrives reads as the run ending.
+
+That entrance is triggered by **a frame and a timer, whichever comes first.**
+The animation frames are the right trigger, because a transition needs the
+browser to have painted the starting state to have something to move *from*;
+the timer is the one that has to be there, because a browser throttles frames
+when it feels like it and a card whose entrance never fires is a card stuck off
+the top of the screen with the score on it. That is not hypothetical — on
+frames alone it sat at `translate(0, -324px)` indefinitely in testing.
+
 ### The flow
 
 **The menu comes first; the question comes second.** The game opens on its own
@@ -522,6 +634,25 @@ change), and it is not a nicety. A party is one phone passed between six
 children; without it every one of their scores goes up under whoever typed
 first. Backing out of that card returns to the menu rather than off the site —
 the menu is always what it was opened from.
+
+**A stored score belongs to a name, not to a device.** Change the name and the
+best and the sent-high-water mark are both cleared, because they were the last
+player's: a phone handed to the next child at a party otherwise tells them
+their best is 900, never offers them the chance to beat it, and judges every
+run below it not worth uploading — their own row would stay empty for the whole
+party. Nothing is lost by clearing: whatever the previous player did is already
+on the board under their own name.
+
+**And the board hands it back.** Every refresh looks for the current player's
+name among the rows and takes back whatever it finds, so a player on a second
+phone, one who cleared their browser, or one who has just typed their name back
+in after lending the game to a friend gets their own best returned rather than
+starting from nothing. Names are matched the way a person would match them —
+case and runs of whitespace are typing, not identity — which is the same
+judgement the Apps Script makes when it folds the sheet to one row per person.
+It only ever *raises*: a local 900 that never reached the sheet must not be
+pulled down to the 500 the sheet knows about, which would un-send a score and
+then refuse to send it again.
 
 **A score only goes up if it beats what the board already holds for them**, and
 that is measured against what was actually *sent*, not against their best. The
@@ -587,6 +718,32 @@ accident, and the menu's *Invitation* is right there for anyone who means it.
 On the game-over card none of them is drawn while the save is still in flight:
 two of them throw the card away, and a save waiting on a round trip to Google
 would go with it.
+
+### The board
+
+Ten rows, and the top three wear a crown rather than a number — gold, silver,
+bronze, in the slot the rank would have used, so the name still starts on the
+same line as every other. Silver is pushed cooler and darker than a real medal:
+a true grey all but vanishes on cream, and it only has to say *silver* next to
+the other two.
+
+**The card takes the width of its longest name.** Pinned narrow, a party full
+of full names ellipsises down to "Maria Cristina D…" and the board stops naming
+anybody; given the width of the other cards, a name and its score sit at
+opposite ends of a long empty line and nobody reads across it. So `w-auto`
+between a floor and a ceiling — measured, it opens at **280px** for a board of
+three-letter names and **368px** for a board of full ones, and only past the
+ceiling does a name truncate. The name deliberately has no `flex-1`: that is
+what lets it contribute its own width to the card, with the score sent to the
+far side by its own margin instead.
+
+Ten rows at a readable size is a tight fit in landscape, so the numbers are
+worth recording. At a **390px viewport — a phone on its side — all ten are
+visible without scrolling**, with nothing to spare. Below that the card
+scrolls, as it always has: at 320px it is about two thirds of a row over. The
+`clamp()` minimums are what bite on the short screens, and the type's minimum
+is set so that lowering it costs nothing at 390px and up, where the `vh` term
+already wins.
 
 **Scoreboard** reads the board back- Setting `GAME_ENDPOINT` to `""` turns all of it off. The game still plays and
   still keeps the personal best.

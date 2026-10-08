@@ -27,12 +27,48 @@ import {
  */
 
 /* The parchment card every one of them is built on — the same page the
-   invitation is printed on, so the game reads as part of the same book. */
-const CARD =
-  "relative w-full max-w-xl overflow-hidden rounded-3xl border border-gold/40 bg-parchment shadow-2xl";
+   invitation is printed on, so the game reads as part of the same book.
 
-const BACKDROP =
-  "absolute inset-0 z-20 flex items-center justify-center bg-night/70 p-[max(0.75rem,env(safe-area-inset-left))] backdrop-blur-sm";
+   The look is kept apart from the width because the scoreboard needs the one
+   without the other: it sizes itself to its contents rather than filling the
+   space, and `w-full` and `w-auto` on the same element is a coin toss decided
+   by whichever Tailwind happened to emit last. */
+const CARD_LOOK =
+  "relative overflow-hidden rounded-3xl border border-gold/40 bg-parchment shadow-2xl";
+
+const CARD = `${CARD_LOOK} w-full max-w-xl`;
+
+/**
+ * The three that get a crown, in the metal they earned.
+ *
+ * Silver is the awkward one — a true grey all but disappears on cream — so it
+ * is pushed cooler and darker than a medal really is. Read next to the gold
+ * and the bronze it still says silver, which is the only place it has to work.
+ */
+const MEDALS = ["#C9A227", "#8A94A1", "#B0702B"];
+
+const BACKDROP_BOX =
+  "absolute inset-0 z-20 flex items-center justify-center p-[max(0.75rem,env(safe-area-inset-left))]";
+
+/**
+ * Over a game that has stopped: dimmed and blurred, so the eye goes to the card.
+ *
+ * Only the pause card now. Pausing is the one moment the player is being asked
+ * to stop looking at the game, and taking the world out of focus says so
+ * without a word.
+ */
+const BACKDROP = `${BACKDROP_BOX} bg-night/70 backdrop-blur-sm`;
+
+/**
+ * Over a game that is still moving: nothing at all.
+ *
+ * The menu, the door and the end of a run all sit over a world that is running
+ * — she is out there jogging along an empty field before the first press, and
+ * still standing in the one she just lost in afterwards. Dimming that would
+ * throw away the only thing on screen worth looking at while you decide, and
+ * blurring it costs a full-screen filter every frame for the privilege.
+ */
+const BACKDROP_CLEAR = BACKDROP_BOX;
 
 /* ---------------------------------------------------------------
    Buttons that look like buttons
@@ -156,12 +192,24 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={`${BACKDROP} z-30`}>
-      {/* Narrow, unlike every other card here, and that is the whole layout
-          decision. A name and its score belong next to each other — read at
-          the width of the rest of the cards they sat at opposite ends of a
-          long empty line, and a leaderboard you have to track across is not
-          one anybody reads. */}
-      <div className={`${CARD} max-w-[19rem] max-h-full overflow-y-auto sm:max-w-xs`}>
+      {/*
+        Sized by its own contents, unlike every other card here, and that is
+        the whole layout decision.
+
+        A name and its score belong next to each other. Given the width of the
+        other cards they sit at opposite ends of a long empty line, and a
+        leaderboard you have to track across is not one anybody reads — but
+        pinned narrow instead, a party full of full names ellipsises down to
+        "Maria Cristina D…" and the board stops naming anybody.
+
+        So: `w-auto`, and it takes the width of its longest row. A floor so a
+        board of three-letter names is not a sliver, and a ceiling so one guest
+        typing a hundred characters cannot push it off the screen — past that
+        the name truncates, which by then is the right answer.
+      */}
+      <div
+        className={`${CARD_LOOK} w-auto min-w-[17.5rem] max-w-[min(92vw,34rem)] max-h-full overflow-y-auto`}
+      >
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
         <button
@@ -173,11 +221,15 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
           <CloseIcon className="h-4 w-4" />
         </button>
 
-        <div className="relative px-5 py-[clamp(0.6rem,3vh,1.2rem)] sm:px-7">
-          <h2 className="text-center font-display text-[clamp(0.95rem,4vh,1.4rem)] italic text-ink">
+        <div className="relative px-5 py-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
+          {/* Padded past the close button on both sides, so the title stays
+              honestly centred instead of centring on a line the button is
+              sitting in — which at the card's narrowest, with a board full of
+              three-letter names, it otherwise runs straight into. */}
+          <h2 className="px-7 text-center font-display text-[clamp(0.95rem,4vh,1.4rem)] italic text-ink">
             The royal scoreboard
           </h2>
-          <div aria-hidden className="gilt-rule mx-auto mt-1 h-px w-20" />
+          <div aria-hidden className="gilt-rule mx-auto mt-1.5 h-px w-20" />
 
           {rows === null ? (
             <p className="flex items-center justify-center gap-2 py-6 text-[clamp(0.7rem,2.9vh,0.88rem)] text-ink/55">
@@ -198,20 +250,47 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
              * are a notch tighter than the other cards'. The card scrolls if a
              * screen is shorter still.
              */
-            <ol className="mt-2">
+            <ol className="mt-[clamp(0.5rem,2.6vh,1.15rem)]">
               {rows.map((row, i) => (
                 <li
                   key={`${row.name}-${i}`}
-                  className="flex items-baseline gap-2.5 border-b border-gold/15 py-[clamp(0.1rem,0.6vh,0.3rem)] text-[clamp(0.68rem,2.7vh,0.88rem)] last:border-0"
+                  className="flex items-baseline gap-3 border-b border-gold/15 py-[clamp(0.07rem,0.75vh,0.4rem)] text-[clamp(0.7rem,3.2vh,1.08rem)] leading-snug last:border-0"
                 >
-                  <span className="w-5 flex-none text-right font-display font-semibold text-goldDeep">
-                    {i + 1}
+                  {/*
+                    A crown for the first three, a number for the rest, both in
+                    the same slot so every name starts on the same line.
+
+                    The slot is sized in `em`, so it keeps its proportion to the
+                    type rather than drifting as the rows grow on a taller
+                    screen. The crown is nudged down a touch because it sits in
+                    a baseline-aligned row and has no baseline of its own — left
+                    alone it floats above the name beside it.
+                  */}
+                  <span
+                    className="flex w-[1.7em] flex-none justify-center"
+                    /* On the slot rather than the crown: `Crown` is drawn in
+                       `currentColor` precisely so the caller can set it with
+                       ordinary inheritance and the icon needs no prop for it. */
+                    style={i < 3 ? { color: MEDALS[i] } : undefined}
+                  >
+                    {i < 3 ? (
+                      <Crown className="h-[0.88em] w-auto translate-y-[0.1em]" />
+                    ) : (
+                      <span className="font-display font-semibold text-goldDeep">{i + 1}</span>
+                    )}
                   </span>
-                  {/* The name is a guest's own typing arriving from a public
-                      endpoint, so it is allowed to ellipsise rather than being
-                      trusted to be short enough to leave room for the score. */}
-                  <span className="min-w-0 flex-1 truncate text-ink/80">{row.name}</span>
-                  <span className="flex-none font-mono tabular-nums font-semibold text-ink">
+
+                  {/*
+                    No `flex-1`. The name contributes its own width to the card,
+                    which is what lets the board size itself to the longest name
+                    rather than to a figure picked in advance; the score is sent
+                    to the far side by its own margin instead. `truncate` still
+                    has the last word once the card hits its ceiling — the name
+                    is a guest's own typing from a public endpoint and may be a
+                    hundred characters.
+                  */}
+                  <span className="min-w-0 truncate text-ink/80">{row.name}</span>
+                  <span className="ml-auto flex-none pl-2 font-mono tabular-nums font-semibold text-ink">
                     {row.score}
                   </span>
                 </li>
@@ -228,7 +307,7 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          <div className="mt-2.5 flex justify-center">
+          <div className="mt-[clamp(0.4rem,1.6vh,0.7rem)] flex justify-center">
             <button
               type="button"
               onClick={load}
@@ -392,7 +471,7 @@ export function NameCard({
   }
 
   return (
-    <div className={BACKDROP}>
+    <div className={BACKDROP_CLEAR}>
       <div className={`${CARD} max-w-md max-h-full overflow-y-auto`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
@@ -467,8 +546,12 @@ export function StartCard({
   if (board) return <Leaderboard onClose={() => setBoard(false)} />;
 
   return (
-    <div className={BACKDROP}>
-      <div className={`${CARD} max-h-full overflow-y-auto`}>
+    /* Nudged up off the true centre. The field behind this card is running —
+       she is down on the grass in the lower third — and a card sitting dead
+       centre lands squarely on her. Bottom padding rather than a transform, so
+       on a short screen the card loses the gap instead of the top of itself. */
+    <div className={`${BACKDROP_CLEAR} pb-[9vh]`}>
+      <div className={`${CARD} max-w-lg max-h-full overflow-y-auto`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
         <div className="relative flex flex-col gap-3 px-5 py-[clamp(0.75rem,3.5vh,1.5rem)] sm:px-7">
@@ -485,37 +568,6 @@ export function StartCard({
               {name ? `Welcome back, ${name}` : "Mind the rocks. Mind the birds."}
             </p>
           </header>
-
-          {/*
-            The rules, and all three of them.
-
-            A hidden game gets one explanation and no second chance at it — a
-            guest who does not understand the button inside ten seconds closes
-            the tab. The third line is the one that is not obvious from
-            playing: a bird is passed by *not* jumping, which is the opposite
-            of what every other obstacle has taught them.
-          */}
-          {/* The second line is the one that earns its place now. A tap clears
-              an ordinary rock in a window of about a tenth of a second; a hold
-              more than doubles that, and the wide rocks take nothing else. */}
-          <ul className="mx-auto grid w-full max-w-md gap-1.5 text-left">
-            <Rule>
-              <b className="font-semibold text-ink">Tap</b> the right of the screen for a quick
-              hop.
-            </Rule>
-            <Rule>
-              <b className="font-semibold text-ink">Hold</b> it for a bigger jump — the wide
-              rocks need one.
-            </Rule>
-            {/* The birds are two rules wearing one drawing, and which one
-                applies is the lane. Said as a pair, because said as either one
-                alone it is worse than saying nothing. */}
-            <Rule>
-              <b className="font-semibold text-ink">Jump</b> a bird on the ground.{" "}
-              <b className="font-semibold text-ink">Don&apos;t</b> jump at one in the air —
-              run under it.
-            </Rule>
-          </ul>
 
           <WaysOn
             onLeave={onLeave}
@@ -553,15 +605,6 @@ export function StartCard({
         </div>
       </div>
     </div>
-  );
-}
-
-function Rule({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2 text-[clamp(0.7rem,2.9vh,0.9rem)] leading-snug text-ink/70">
-      <Sparkle className="mt-[0.3em] h-2.5 w-2.5 flex-none text-gold" />
-      <span>{children}</span>
-    </li>
   );
 }
 
@@ -804,6 +847,7 @@ export function GameOverCard({
   onRestart,
   onMenu,
   onLeave,
+  slideRef,
 }: {
   score: number;
   best: number;
@@ -811,10 +855,22 @@ export function GameOverCard({
   onRestart: () => void;
   onMenu: () => void;
   onLeave: () => void;
+  /**
+   * The card itself, for the loop to move.
+   *
+   * Its entrance is not this component's to time. It comes down while the
+   * world is still braking and she is still bouncing, and the only clock that
+   * knows about either is the simulation's — so `Game.tsx` writes the transform
+   * straight onto this node every frame, the same way it writes the score.
+   * A timer in here would be a second clock to keep in step with the first,
+   * and it was: the card used to arrive a second and a half after she landed.
+   */
+  slideRef?: React.Ref<HTMLDivElement>;
 }) {
   const [state, setState] = useState<Saving>("sending");
   const [error, setError] = useState("");
   const [board, setBoard] = useState(false);
+
   /* What the board already holds for them, read in the effect rather than in
      render — `localStorage` has no business being touched while rendering. */
   const [standing, setStanding] = useState(0);
@@ -860,8 +916,12 @@ export function GameOverCard({
   const saving = state === "sending";
 
   return (
-    <div className={BACKDROP}>
-      <div className={`${CARD} max-w-md max-h-full overflow-y-auto`}>
+    /* Clear, and the card comes down over it. The world behind is the field she
+       just lost in and it is still moving — dimming it would throw away the one
+       thing on screen, and a card that simply appears in the middle of a
+       running game reads as a dialog box rather than as the run ending. */
+    <div className={BACKDROP_CLEAR}>
+      <div ref={slideRef} className={`${CARD} max-w-md max-h-full overflow-y-auto`}>
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
         <div className="relative px-5 py-[clamp(0.75rem,3.5vh,1.5rem)] text-center sm:px-7">

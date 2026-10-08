@@ -141,6 +141,70 @@ export const RUN_CYCLE_BLOCKS = 2.8;
 export const STEP_PHASE = 0.375;
 
 /* ---------------------------------------------------------------
+   Coming to a stop
+   ---------------------------------------------------------------
+   The last life does not end the game on the frame it is spent. The world
+   brakes, she lands on the grass and bounces to a halt, and only then does the
+   card come down.
+
+   The reason is that an instant freeze reads as a crash — the browser locking
+   up, not the run ending. A game that *decelerates* tells the player what
+   happened with the picture instead of with a panel: everything they were
+   looking at a moment ago is still there, it is simply stopping.
+   --------------------------------------------------------------- */
+
+/**
+ * How long the world takes to come to rest, in seconds.
+ *
+ * Long enough for three bounces and for the hit's own screen shake to run
+ * itself out — the shake decays over about a third of a second, so it finishes
+ * inside the first quarter of this, while everything is still moving fast. A
+ * shake that ended with the world already still would read as a second,
+ * unexplained jolt.
+ *
+ * It is also how long the HUD has to get off the screen. The score slides down
+ * through the brake and is gone by the time the card arrives, so the two never
+ * share the screen.
+ */
+export const BRAKE_S = 1.4;
+
+/** How many times she bounces before she settles. */
+export const BOUNCES = 3;
+
+/**
+ * How high the first bounce goes, in blocks.
+ *
+ * Half a block, against a jump of 1.3 — she is landing, not leaping. Each
+ * bounce after it is markedly smaller: the decay below takes the second to
+ * about a third of the first and the third to a twentieth, which is what a
+ * thing with weight does when it is dropped.
+ */
+export const BOUNCE_H = 0.5;
+
+/**
+ * Her sulk, and how it sits.
+ *
+ * Printed by `scripts/build-player.py`, which scales the drawing to the run
+ * sheet's own head so the girl who sits down is the same child who was running
+ * a moment ago. She is 0.841 of her running height once she is on the floor,
+ * which is simply how much shorter a sitting toddler is.
+ */
+export const MAD_CELL = { aspect: 0.75, fill: 0.9091, foot: 0.9545 };
+export const MAD_DRAW_H = PLAYER_DRAW_H * 0.841;
+
+/**
+ * How far into the grass she settles, in blocks.
+ *
+ * Her lowest drawn pixel sits exactly on the ground line without this, which
+ * is geometrically right and looks wrong: a seated child presses into what she
+ * is sitting on, and a silhouette that merely touches the line reads as
+ * hovering a finger's width above it. Running she gets away with it — feet
+ * meet the floor at a point, and half of them are off it at any moment — but a
+ * whole skirt resting on the grass has to overlap it.
+ */
+export const MAD_SINK = 0.11;
+
+/* ---------------------------------------------------------------
    The jump
    ---------------------------------------------------------------
    Held longer, it goes higher: the only control the game has, so it carries

@@ -272,7 +272,10 @@ const BEDS = ["raining", "snowing"] as const;
 export type Bed = (typeof BEDS)[number];
 
 /** Loud enough to be weather, quiet enough to run over. */
-const BED_LEVEL = 0.45;
+const BED_LEVEL: Record<Bed, number> = {
+  raining: 0.45,
+  snowing: 0.45,
+};
 
 const beds = new Map<Bed, HTMLAudioElement>();
 const pointed = new Set<Bed>();
@@ -301,11 +304,11 @@ const pointed = new Set<Bed>();
  */
 export function weather(rain: number, snow: number): void {
   const on = wanted();
-  level("raining", on ? rain : 0);
-  level("snowing", on ? snow : 0);
+  hold("raining", on ? rain : 0);
+  hold("snowing", on ? snow : 0);
 }
 
-function level(name: Bed, amount: number): void {
+function hold(name: Bed, amount: number): void {
   const el = beds.get(name);
   if (!el) return;
 
@@ -321,7 +324,7 @@ function level(name: Bed, amount: number): void {
     el.load();
   }
 
-  el.volume = Math.min(1, amount * BED_LEVEL);
+  el.volume = Math.min(1, amount * BED_LEVEL[name]);
   if (el.paused) el.play()?.catch(() => {});
 }
 

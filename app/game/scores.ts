@@ -183,6 +183,23 @@ function adoptBoard(top: TopScore[]) {
 export const CAN_SUBMIT = Boolean(GAME_ENDPOINT);
 
 /**
+ * How much of the board is asked for, and how much of it is shown at first.
+ *
+ * Twenty are fetched and ten are drawn, with the rest a button away. The ten
+ * are what fits a phone on its side without scrolling; the other ten cost
+ * nothing to carry — a couple of dozen bytes each, arriving in the same
+ * request — so opening the rest of the list is a render rather than another
+ * trip to Google.
+ *
+ * The script decides what it actually sends. A deployment that predates the
+ * `limit` parameter answers with ten whatever is asked, which is not a
+ * failure: the board simply has no second page and `Leaderboard` does not
+ * offer one. See `docs/rsvp-setup.md`.
+ */
+export const BOARD_MAX = 20;
+export const BOARD_TOP = 10;
+
+/**
  * The longest name the board will take.
  *
  * Stated once and enforced three times — the input's `maxLength`, the trim
@@ -317,7 +334,7 @@ export function cachedLeader(): TopScore | null {
 }
 
 /**
- * The ten best, for the board the "Scoreboard" button opens.
+ * The best of them, for the board the "Scoreboard" button opens.
  *
  * A plain `GET` with no headers of our own, which matters for the same reason
  * the POST sends `text/plain`: anything that would make this a non-simple
@@ -334,7 +351,7 @@ export async function fetchTopScores(): Promise<BoardResult> {
   if (!GAME_ENDPOINT) return { ok: false, error: "No leaderboard is set up yet." };
 
   try {
-    const res = await fetch(`${GAME_ENDPOINT}?board=game`);
+    const res = await fetch(`${GAME_ENDPOINT}?board=game&limit=${BOARD_MAX}`);
     const data = (await res.json().catch(() => null)) as
       | { ok?: boolean; error?: string; top?: unknown }
       | null;

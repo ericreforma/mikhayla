@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { BABY_FULL_NAME, HERO_PORTRAITS } from "@/app/config";
 import { Hint } from "./Hint";
 import { Crown, Sparkle } from "./Ornaments";
+import { BirthdayPopup } from "./BirthdayPopup";
 import { useSlideIsActive } from "./SlideActive";
 
 export function HeroSection() {
@@ -46,6 +47,11 @@ That holds on an iPad held upright too: 768px across and 1024px
     */
     <div className="royal-dawn relative flex min-h-full flex-col overflow-hidden px-gutter pb-nav pt-6 text-center sm:pt-8 wide:flex-row wide:items-stretch wide:pt-0">
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
+
+      {/* Nothing at all on 364 days of the year — see `BirthdayPopup`, which
+          checks the guest's own calendar after mount and renders nothing when
+          it is not the day. */}
+      <BirthdayPopup />
 
       <HeroPortraits active={isActive} />
 

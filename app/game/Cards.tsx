@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BABY_NAME } from "@/app/config";
 import { Crown, Sparkle, Spinner, CheckIcon, CloseIcon } from "@/app/components/Ornaments";
 import {
+  BOARD_TOP,
   cachedTop,
   CAN_SUBMIT,
   fetchTopScores,
@@ -168,6 +169,16 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
+  /**
+   * Whether the second page is open.
+   *
+   * Shut by default, because the first ten are what fits a phone on its side
+   * without scrolling and they are the ten anybody came to see. The rest are
+   * already here — they arrived in the same request — so opening them is a
+   * render and nothing else.
+   */
+  const [deep, setDeep] = useState(false);
+
   const load = useCallback(() => {
     setBusy(true);
     setError("");
@@ -208,7 +219,18 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
         the name truncates, which by then is the right answer.
       */}
       <div
-        className={`${CARD_LOOK} w-auto min-w-[17.5rem] max-w-[min(92vw,34rem)] max-h-full overflow-y-auto`}
+        /*
+         * A column, not a scrolling box.
+         *
+         * The whole card used to scroll, which took the title and the buttons
+         * away with the names — so twenty rows meant scrolling back up to find
+         * out what you were looking at and back down to close it. Only the list
+         * moves now; the heading and the buttons are pinned either side of it.
+         *
+         * `overflow-hidden` here and the scrolling one layer in, so the card's
+         * rounded corners still clip the rows that pass behind them.
+         */
+        className={`${CARD_LOOK} flex max-h-full w-auto min-w-[17.5rem] max-w-[min(92vw,34rem)] flex-col overflow-hidden`}
       >
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
@@ -221,7 +243,7 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
           <CloseIcon className="h-4 w-4" />
         </button>
 
-        <div className="relative px-5 py-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
+        <div className="relative flex-none px-5 pt-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
           {/* Padded past the close button on both sides, so the title stays
               honestly centred instead of centring on a line the button is
               sitting in — which at the card's narrowest, with a board full of
@@ -230,7 +252,15 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
             The royal scoreboard
           </h2>
           <div aria-hidden className="gilt-rule mx-auto mt-1.5 h-px w-20" />
+        </div>
 
+        {/*
+          The only part that moves. `min-h-0` is not decoration: a flex child
+          defaults to `min-height: auto`, which refuses to shrink below its
+          content — so without it the list simply makes the card taller than
+          the screen and nothing scrolls at all.
+        */}
+        <div className="board-scroll relative min-h-0 flex-1 overflow-y-auto px-5 sm:px-7">
           {rows === null ? (
             <p className="flex items-center justify-center gap-2 py-6 text-[clamp(0.7rem,2.9vh,0.88rem)] text-ink/55">
               <Spinner className="h-4 w-4" />
@@ -251,10 +281,27 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
              * screen is shorter still.
              */
             <ol className="mt-[clamp(0.5rem,2.6vh,1.15rem)]">
-              {rows.map((row, i) => (
+              {(deep ? rows : rows.slice(0, BOARD_TOP)).map((row, i) => (
                 <li
                   key={`${row.name}-${i}`}
-                  className="flex items-baseline gap-3 border-b border-gold/15 py-[clamp(0.07rem,0.75vh,0.4rem)] text-[clamp(0.7rem,3.2vh,1.08rem)] leading-snug last:border-0"
+                  /*
+                   * Past the tenth the list carries on quieter: a wash of ink
+                   * behind it and a size down, so the page everybody came for
+                   * stays the one the eye lands on and the rest reads as the
+                   * tail of the same list rather than as more of the same.
+                   *
+                   * The negative margins are what let that wash reach the
+                   * card's edges. Without them it stops where the text does and
+                   * leaves a parchment margin down both sides, which turns one
+                   * shaded section into ten shaded rectangles.
+                   */
+                  className={
+                    "flex items-baseline gap-3 border-b border-gold/15 leading-snug last:border-0 " +
+                    (i < BOARD_TOP
+                      ? "py-[clamp(0.07rem,0.75vh,0.4rem)] text-[clamp(0.7rem,3.2vh,1.08rem)]"
+                      : "-mx-5 bg-ink/[0.055] px-5 py-[clamp(0.05rem,0.6vh,0.32rem)] " +
+                        "text-[clamp(0.62rem,2.7vh,0.92rem)] sm:-mx-7 sm:px-7")
+                  }
                 >
                   {/*
                     A crown for the first three, a number for the rest, both in
@@ -298,6 +345,9 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
             </ol>
           )}
 
+        </div>
+
+        <div className="relative flex-none px-5 pb-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
           {error && (
             <p
               role="alert"
@@ -307,7 +357,18 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          <div className="mt-[clamp(0.4rem,1.6vh,0.7rem)] flex justify-center">
+          {/*
+            Both buttons on one row, and that is a height decision rather than
+            a tidiness one: ten rows and a single button fill a phone on its
+            side exactly, so a second row of its own would push the collapsed
+            board into scrolling before anybody had asked for more of it.
+          */}
+          <div className="mt-[clamp(0.4rem,1.6vh,0.7rem)] flex flex-wrap items-center justify-center gap-2">
+            {rows !== null && rows.length > BOARD_TOP && (
+              <button type="button" onClick={() => setDeep((v) => !v)} className={SECONDARY}>
+                {deep ? `Top ${BOARD_TOP}` : `Top ${rows.length}`}
+              </button>
+            )}
             <button
               type="button"
               onClick={load}

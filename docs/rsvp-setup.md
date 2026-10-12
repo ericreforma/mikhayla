@@ -13,7 +13,7 @@ change it, or reach anything else in your Drive with it.
 
 **One script does two jobs.** The invitation also hides a small game — two taps
 on the balloon, see `docs/game.md` — and its scores go into the *same*
-spreadsheet, on a tab of their own. The script below reads a `kind` field off
+spreadsheet, on a tab each. The script below reads a `kind` field off
 each post and files the row accordingly, so there is one deployment to keep
 public and one URL to keep right, rather than two of each.
 
@@ -58,12 +58,21 @@ score build it — headers, frozen row and all.
 **Extensions → Apps Script.** Delete whatever's in the editor, paste this in,
 and save.
 
+> **Two changes since this was first deployed**, and both need the script
+> pasted in again and redeployed before they do anything: `doGet` now honours
+> `&limit=` (the scoreboard asks for twenty and shows ten), and `doPost` now
+> routes `kind: "greeting"` into a **Wishes** tab of its own. Until you
+> redeploy, the board has no second page and birthday wishes land in `RSVPs`
+> among the headcount — which is the one place they do not belong.
+
 ```js
 const RSVP_SHEET = "RSVPs";
 const GAME_SHEET = "Game";
+const WISH_SHEET = "Wishes";
 
 const RSVP_HEADERS = ["Timestamp", "Name", "Guest type", "Message", "Public", "Approved"];
 const GAME_HEADERS = ["Timestamp", "Name", "Score"];
+const WISH_HEADERS = ["Timestamp", "Name", "Guest type", "Message", "Public", "Approved"];
 
 // The form sends the key, not the wording, so the sheet stays readable even
 // if the labels on the page are reworded later.
@@ -126,7 +135,12 @@ function doPost(e) {
     // doesn't send one — it predates the game — so anything without it is an
     // RSVP. That is also what lets an older build of the page keep working
     // against this script unchanged.
-    return data.kind === "game" ? saveScore(data) : saveRsvp(data);
+    if (data.kind === "game") return saveScore(data);
+    // Birthday wishes carry the same fields as an RSVP and mean something
+    // entirely different — they are not a headcount. Their own tab keeps the
+    // one you actually count people from clean.
+    if (data.kind === "greeting") return saveWish(data);
+    return saveRsvp(data);
   } catch (err) {
     return json({ ok: false, error: String(err) });
   } finally {
@@ -134,13 +148,21 @@ function doPost(e) {
   }
 }
 
+function saveWish(data) {
+  return saveInto(WISH_SHEET, WISH_HEADERS, data);
+}
+
 function saveRsvp(data) {
+  return saveInto(RSVP_SHEET, RSVP_HEADERS, data);
+}
+
+function saveInto(sheet, headers, data) {
   const name = String(data.name || "").trim();
   if (!name) return json({ ok: false, error: "Name is required" });
 
   const guestType = GUEST_TYPES[String(data.guestType || "")] || "";
 
-  getSheet(RSVP_SHEET, RSVP_HEADERS).appendRow([
+  getSheet(sheet, headers).appendRow([
     new Date(),
     name.slice(0, 100),
     guestType,
@@ -205,18 +227,25 @@ function topScores(limit) {
 /**
  * Read requests: the leaderboard, and a health check.
  *
- * `?board=game` returns the top ten. Anything else returns the health check —
- * visiting the /exec URL in an incognito window should print it. If you get a
- * Google sign-in page instead, the deployment is not public; see "403
- * Forbidden" below. The two flags confirm both tabs resolved; no counts are
- * reported, since this URL is public.
+ * `?board=game` returns the leaderboard, `&limit=` deciding how much of it —
+ * ten if it is not asked for, and never more than fifty however large a number
+ * turns up. The cap is not politeness: this URL is public, and the limit
+ * arrives in a stranger's query string.
+ *
+ * Anything else returns the health check — visiting the /exec URL in an
+ * incognito window should print it. If you get a Google sign-in page instead,
+ * the deployment is not public; see "403 Forbidden" below. The two flags
+ * confirm both tabs resolved; no counts are reported, since this URL is public.
  */
 function doGet(e) {
-  const what = e && e.parameter ? String(e.parameter.board || "") : "";
+  const p = (e && e.parameter) || {};
+  const what = String(p.board || "");
 
   if (what === "game") {
     try {
-      return json({ ok: true, top: topScores(10) });
+      const asked = Math.floor(Number(p.limit));
+      const limit = isFinite(asked) && asked > 0 ? Math.min(asked, 50) : 10;
+      return json({ ok: true, top: topScores(limit) });
     } catch (err) {
       return json({ ok: false, error: String(err) });
     }

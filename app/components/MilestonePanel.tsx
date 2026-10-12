@@ -473,7 +473,7 @@ export function MilestonePanel({ m }: { m: Milestone }) {
               variants={line}
               className={`font-hand text-xl leading-none xs:text-2xl wide:text-3xl ${accent.text}`}
             >
-              Month {m.month}
+              {m.label ?? `Month ${m.month}`}
               {m.princess ? ` · ${m.princess}` : ""}
             </motion.p>
 

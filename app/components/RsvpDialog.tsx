@@ -3,14 +3,101 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { BABY_NAME, RSVP_BY, RSVP_EMAIL, RSVP_ENDPOINT } from "@/app/config";
+import { BABY_NAME, BIRTH_DATE, RSVP_BY, RSVP_EMAIL, RSVP_ENDPOINT } from "@/app/config";
 import { Crown, Sparkle, CheckIcon, CloseIcon, Spinner } from "./Ornaments";
 import { useCloseOnBack } from "./backButton";
 
-/** Remembers, on this device only, that an RSVP already went in. */
-const STORE_KEY = "mikhayla-rsvp";
-
 type Status = "idle" | "sending" | "sent" | "error";
+
+/**
+ * The same form, asked twice.
+ *
+ * An RSVP and a birthday wish want identical fields — who you are, which side
+ * you are from, what you would like to say, and whether it may be shown — and
+ * everything that makes the form *work* is identical too: the honeypot, the
+ * text/plain post that dodges a preflight, the already-sent panel, the mailto
+ * fallback. The only thing that differs is the wording, so the wording is the
+ * only thing that is written twice.
+ *
+ * Keeping it one component rather than two is not just less code. The RSVP is
+ * load-bearing — it is how a hundred people get counted — and a copy of it
+ * made for her birthday would be a copy that stops getting the next fix.
+ */
+export type Mode = "rsvp" | "greeting";
+
+type Copy = {
+  /** Its own corner of localStorage, so one form never speaks for the other. */
+  store: string;
+  /** What the script is told this is. The RSVP sends nothing and is the default. */
+  kind?: string;
+  eyebrow: string;
+  heading: string;
+  nameMissing: string;
+  typeLegend: string;
+  typeMissing: string;
+  /** The two-seats note, which only an invitation has any business making. */
+  plusOne: boolean;
+  messageLabel: string;
+  messageHint: string;
+  messagePlaceholder: string;
+  submit: string;
+  footnote: string;
+  mailSubject: string;
+  thanksTitle: string;
+  thanksBody: (name: string) => string;
+  thanksFoot: string;
+  alreadyTitle: string;
+  alreadyBody: string;
+  alreadyAgain: string;
+};
+
+const COPY: Record<Mode, Copy> = {
+  rsvp: {
+    store: "mikhayla-rsvp",
+    eyebrow: "Will you join us?",
+    heading: "Reply to the royal invitation",
+    nameMissing: "Please tell us who's coming.",
+    typeLegend: "Guest type",
+    typeMissing: "Please choose which court you're joining us from.",
+    plusOne: true,
+    messageLabel: "A message",
+    messageHint: `For ${BABY_NAME} and her family`,
+    messagePlaceholder: "Happy first birthday, little princess…",
+    submit: "Send my RSVP",
+    footnote: `Kindly reply before ${RSVP_BY}.`,
+    mailSubject: `RSVP — ${BABY_NAME}'s First Birthday`,
+    thanksTitle: "You're on the list",
+    thanksBody: (name) =>
+      `Thank you${name ? `, ${name}` : ""} — ${BABY_NAME} can't wait to see you at the ball.`,
+    thanksFoot: "See you there 👑",
+    alreadyTitle: "Already on the list",
+    alreadyBody: "We have you down.",
+    alreadyAgain: "Send another reply",
+  },
+  greeting: {
+    store: "mikhayla-birthday-wish",
+    kind: "greeting",
+    eyebrow: "She is one today",
+    heading: `Send ${BABY_NAME} a birthday wish`,
+    nameMissing: "Please tell us who this is from.",
+    typeLegend: "How you know her",
+    typeMissing: "Please choose which court you're writing from.",
+    plusOne: false,
+    messageLabel: "Your birthday wish",
+    messageHint: "For her to read when she is older",
+    messagePlaceholder: "Happy first birthday, little princess…",
+    submit: "Send my wish",
+    footnote: `Born ${BIRTH_DATE}.`,
+    mailSubject: `Birthday wishes — ${BABY_NAME}`,
+    thanksTitle: "Your wish is sent",
+    thanksBody: (name) =>
+      `Thank you${name ? `, ${name}` : ""} — ${BABY_NAME} will have this one to keep.`,
+    thanksFoot: "Happy birthday, little princess 👑",
+    alreadyTitle: "Your wish is in",
+    alreadyBody: "She has it.",
+    alreadyAgain: "Send another wish",
+  },
+};
 
 /**
  * Which court a guest arrives from. It settles the seat count without asking
@@ -27,50 +114,64 @@ const GUEST_TYPES: { value: GuestType; label: string }[] = [
 type Sent = { name: string; at: string };
 
 /** localStorage throws outright in some privacy modes, so every touch is guarded. */
-function readSent(): Sent | null {
+function readSent(store: string): Sent | null {
   try {
-    const raw = window.localStorage.getItem(STORE_KEY);
+    const raw = window.localStorage.getItem(store);
     return raw ? (JSON.parse(raw) as Sent) : null;
   } catch {
     return null;
   }
 }
 
-function writeSent(value: Sent) {
+function writeSent(store: string, value: Sent) {
   try {
-    window.localStorage.setItem(STORE_KEY, JSON.stringify(value));
+    window.localStorage.setItem(store, JSON.stringify(value));
   } catch {
     /* A guest in a private window simply doesn't get the reminder. */
   }
 }
 
-export function RsvpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function RsvpDialog({
+  open,
+  onClose,
+  mode = "rsvp",
+}: {
+  open: boolean;
+  onClose: () => void;
+  mode?: Mode;
+}) {
   const [host, setHost] = useState<HTMLElement | null>(null);
   useEffect(() => setHost(document.body), []);
 
   if (!host) return null;
   return createPortal(
-    <AnimatePresence>{open && <Form onClose={onClose} />}</AnimatePresence>,
+    <AnimatePresence>{open && <Form onClose={onClose} mode={mode} />}</AnimatePresence>,
     host
   );
 }
 
-function Form({ onClose }: { onClose: () => void }) {
+function Form({ onClose, mode }: { onClose: () => void; mode: Mode }) {
+  const c = COPY[mode];
   const [name, setName] = useState("");
   const [guestType, setGuestType] = useState<GuestType | null>(null);
   const [message, setMessage] = useState("");
   /*
-   * Opt-in, not opt-out. Publishing what someone wrote to the family is not
-   * a default anyone should be handed — and a guest who does want it on the
-   * wall only has to tap "Yes".
+   * Starts on "Yes", for both the RSVP and the birthday wish.
+   *
+   * What makes that fair rather than presumptuous is the second gate behind
+   * it: nothing written here reaches the guestbook on its own. The row lands
+   * in the sheet with its *Approved* column empty and stays unpublished until
+   * somebody in the family ticks it — see `saveInto` in `docs/rsvp-setup.md`.
+   * So this answer is a guest saying they do not mind, not a guest publishing
+   * something, and the two buttons are right there for anyone who does mind.
    */
-  const [share, setShare] = useState(false);
+  const [share, setShare] = useState(true);
   /** Hidden from real users; anything that fills it is a bot. */
   const [website, setWebsite] = useState("");
 
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
-  const [already, setAlready] = useState<Sent | null>(() => readSent());
+  const [already, setAlready] = useState<Sent | null>(() => readSent(c.store));
 
   const nameRef = useRef<HTMLInputElement>(null);
   const firstOpen = useRef(true);
@@ -111,7 +212,7 @@ function Form({ onClose }: { onClose: () => void }) {
 
   /** The same details as an email, for when the endpoint is unreachable. */
   const mailto = `mailto:${RSVP_EMAIL}?subject=${encodeURIComponent(
-    `RSVP — ${BABY_NAME}'s First Birthday`
+    c.mailSubject
   )}&body=${encodeURIComponent(
     `Name: ${name}\nGuest type: ${guestTypeLabel}\n\n${message}`.trim()
   )}`;
@@ -120,12 +221,12 @@ function Form({ onClose }: { onClose: () => void }) {
     e.preventDefault();
     if (status === "sending") return;
     if (!name.trim()) {
-      setError("Please tell us who's coming.");
+      setError(c.nameMissing);
       nameRef.current?.focus();
       return;
     }
     if (!guestType) {
-      setError("Please choose which court you're joining us from.");
+      setError(c.typeMissing);
       return;
     }
 
@@ -143,6 +244,9 @@ function Form({ onClose }: { onClose: () => void }) {
          */
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify({
+          /* Absent for an RSVP, which is what the script treats as its
+             default — see `doPost` in docs/rsvp-setup.md. */
+          kind: c.kind,
           name: name.trim(),
           guestType,
           message: message.trim(),
@@ -154,7 +258,7 @@ function Form({ onClose }: { onClose: () => void }) {
       const data = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
       if (!res.ok || !data?.ok) throw new Error(data?.error || `The server said ${res.status}.`);
 
-      writeSent({ name: name.trim(), at: new Date().toISOString() });
+      writeSent(c.store, { name: name.trim(), at: new Date().toISOString() });
       setStatus("sent");
     } catch (err) {
       setStatus("error");
@@ -203,19 +307,24 @@ function Form({ onClose }: { onClose: () => void }) {
 
           <div className="relative px-5 pb-6 pt-7 sm:px-8 sm:pb-8">
             {status === "sent" ? (
-              <Thanks name={name.trim()} shared={share} onClose={onClose} />
+              <Thanks c={c} name={name.trim()} shared={share} onClose={onClose} />
             ) : already ? (
-              <AlreadyIn sent={already} onAnother={() => setAlready(null)} onClose={onClose} />
+              <AlreadyIn
+                c={c}
+                sent={already}
+                onAnother={() => setAlready(null)}
+                onClose={onClose}
+              />
             ) : (
               <>
                 <header className="text-center">
                   <Crown className="mx-auto h-7 w-auto text-gold sm:h-8" />
-                  <p className="mt-2 font-hand text-lg text-berry sm:text-xl">Will you join us?</p>
+                  <p className="mt-2 font-hand text-lg text-berry sm:text-xl">{c.eyebrow}</p>
                   <h2
                     id="rsvp-heading"
                     className="mt-0.5 font-display text-2xl italic leading-snug text-ink sm:text-3xl"
                   >
-                    Reply to the royal invitation
+                    {c.heading}
                   </h2>
                   <div aria-hidden className="gilt-rule mx-auto mt-3 h-px w-24 sm:w-32" />
                 </header>
@@ -237,7 +346,7 @@ function Form({ onClose }: { onClose: () => void }) {
 
                   <fieldset className="text-left">
                     <legend className="text-xs font-semibold uppercase tracking-[0.14em] text-goldDeep">
-                      Guest type
+                      {c.typeLegend}
                     </legend>
                     <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
                       {GUEST_TYPES.map((type) => (
@@ -255,7 +364,7 @@ function Form({ onClose }: { onClose: () => void }) {
                         it arrives with that answer rather than sitting there
                         confusing everyone else. */}
                     <AnimatePresence initial={false}>
-                      {guestType === "friends" && (
+                      {c.plusOne && guestType === "friends" && (
                         <motion.div
                           key="plus-one"
                           initial={{ opacity: 0, height: 0 }}
@@ -276,11 +385,7 @@ function Form({ onClose }: { onClose: () => void }) {
                     </AnimatePresence>
                   </fieldset>
 
-                  <Field
-                    label="A message"
-                    htmlFor="rsvp-message"
-                    hint={`For ${BABY_NAME} and her family`}
-                  >
+                  <Field label={c.messageLabel} htmlFor="rsvp-message" hint={c.messageHint}>
                     <textarea
                       id="rsvp-message"
                       name="message"
@@ -288,7 +393,7 @@ function Form({ onClose }: { onClose: () => void }) {
                       onChange={(e) => setMessage(e.target.value)}
                       rows={3}
                       maxLength={1000}
-                      placeholder="Happy first birthday, little princess…"
+                      placeholder={c.messagePlaceholder}
                       className={`${INPUT} w-full resize-none`}
                     />
                   </Field>
@@ -349,12 +454,12 @@ function Form({ onClose }: { onClose: () => void }) {
                         Sending…
                       </>
                     ) : (
-                      "Send my RSVP"
+                      c.submit
                     )}
                   </button>
 
                   <p className="text-center text-[11px] leading-relaxed text-ink/45 sm:text-xs">
-                    Kindly reply before {RSVP_BY}.
+                    {c.footnote}
                   </p>
                 </form>
               </>
@@ -371,10 +476,12 @@ function Form({ onClose }: { onClose: () => void }) {
    --------------------------------------------------------------- */
 
 function Thanks({
+  c,
   name,
   shared,
   onClose,
 }: {
+  c: Copy;
   name: string;
   shared: boolean;
   onClose: () => void;
@@ -395,17 +502,17 @@ function Thanks({
       </motion.div>
 
       <h2 id="rsvp-heading" className="mt-4 font-display text-2xl italic text-ink sm:text-3xl">
-        You&apos;re on the list
+        {c.thanksTitle}
       </h2>
       <p className="mx-auto mt-2 max-w-[30ch] text-sm leading-relaxed text-ink/70">
-        Thank you{name ? `, ${name}` : ""} — {BABY_NAME} can&apos;t wait to see you at the ball.
+        {c.thanksBody(name)}
       </p>
       {shared && (
         <p className="mx-auto mt-2 max-w-[32ch] text-xs leading-relaxed text-ink/50">
           Your message will appear on her guestbook once her family has read it.
         </p>
       )}
-      <p className="mt-4 font-hand text-lg text-berry sm:text-xl">See you there 👑</p>
+      <p className="mt-4 font-hand text-lg text-berry sm:text-xl">{c.thanksFoot}</p>
 
       <button
         type="button"
@@ -419,10 +526,12 @@ function Thanks({
 }
 
 function AlreadyIn({
+  c,
   sent,
   onAnother,
   onClose,
 }: {
+  c: Copy;
   sent: Sent;
   onAnother: () => void;
   onClose: () => void;
@@ -436,11 +545,11 @@ function AlreadyIn({
     <div className="py-4 text-center">
       <Crown className="mx-auto h-8 w-auto text-gold" />
       <h2 id="rsvp-heading" className="mt-3 font-display text-2xl italic text-ink sm:text-3xl">
-        Already on the list
+        {c.alreadyTitle}
       </h2>
       <p className="mx-auto mt-2 max-w-[32ch] text-sm leading-relaxed text-ink/70">
         You replied as <span className="font-semibold text-ink">{sent.name}</span>
-        {date ? ` on ${date}` : ""}. We have you down.
+        {date ? ` on ${date}` : ""}. {c.alreadyBody}
       </p>
 
       <div className="mt-5 flex flex-col gap-2">
@@ -456,7 +565,7 @@ function AlreadyIn({
           onClick={onAnother}
           className="min-h-[2.75rem] rounded-full border border-gold/40 px-7 font-display text-sm text-ink/70 transition active:scale-[0.98] hover:bg-mist hover:text-ink"
         >
-          Send another reply
+          {c.alreadyAgain}
         </button>
       </div>
     </div>

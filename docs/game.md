@@ -719,6 +719,29 @@ On the game-over card none of them is drawn while the save is still in flight:
 two of them throw the card away, and a save waiting on a round trip to Google
 would go with it.
 
+### Her birthday, in here too
+
+On the fourteenth of October the game's menu carries the same greeting the
+invitation does — see `BirthdayPopup` — with the wish form behind it.
+
+Two things it does differently here. It wears the **compact** shape: the
+standing card is right for a phone held upright and lands squarely on top of
+the title and the play button on a landscape screen 400px high, so the game
+gets the same words laid along the top in a sixth of the height, with the menu
+still visible and reachable underneath. And it keeps its **own** once-a-visit
+counter: shared with the invitation's, the greeting shown on the hero would
+silently use up the game's turn, and a child who went straight from the balloon
+into the game would be told nothing at all.
+
+It is mounted only while the menu is up — during a run it would be covering the
+game, and after one the card is already busy.
+
+Adding it also exposed a gap: every overlay on this site raises
+`document.body.dataset.modal`, the deck has always honoured it, and **the game
+never learned to**. The game's keyboard guard caught typing *into* a field but
+not a space pressed while the focus sat on a dialog's own panel — which would
+have started a run behind the wish form somebody was halfway through writing.
+
 ### The board
 
 Ten rows, and the top three wear a crown rather than a number — gold, silver,
@@ -736,6 +759,36 @@ three-letter names and **368px** for a board of full ones, and only past the
 ceiling does a name truncate. The name deliberately has no `flex-1`: that is
 what lets it contribute its own width to the card, with the score sent to the
 far side by its own margin instead.
+
+**Twenty are fetched and ten are drawn.** The rest are a button away — *Top
+20* sits beside *Refresh*, and the tail continues under a wash of ink at a size
+down, so the page everybody came for stays the one the eye lands on and the
+rest reads as the end of the same list rather than as more of the same. The
+band reaches the card's edges through negative margins; without them it stops
+where the text does and ten shaded rows become ten shaded rectangles.
+
+The other ten cost nothing to carry — a couple of dozen bytes each, arriving in
+the same request — so opening them is a render rather than another trip to
+Google. Both buttons share one row, which is a height decision: ten rows and a
+single button fill a phone on its side exactly.
+
+**It needs the script deployed with `&limit=`.** A deployment that predates it
+answers with ten whatever is asked, in which case there is no second page and
+no button offering one.
+
+**The card is a column, not a scrolling box.** The heading and the buttons are
+pinned either side of a list that scrolls on its own — the whole card used to
+scroll, which took the title and the buttons away with the names, so twenty
+rows meant scrolling back up to see what you were looking at and down again to
+close it. Measured: with the list scrolled 207px, the title and the buttons
+both moved 0px.
+
+The list's `min-h-0` is load-bearing rather than decorative — a flex child
+defaults to `min-height: auto` and refuses to shrink below its content, so
+without it the card simply grows taller than the screen and nothing scrolls at
+all. Its scrollbar is drawn thin and in the card's own ink (`.board-scroll`),
+in both the Firefox and the WebKit syntaxes, because those are not
+alternatives: each browser understands only one of them.
 
 Ten rows at a readable size is a tight fit in landscape, so the numbers are
 worth recording. At a **390px viewport — a phone on its side — all ten are

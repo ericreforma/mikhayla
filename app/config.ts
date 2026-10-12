@@ -255,6 +255,35 @@ export const COLUMN_SEPARATOR = asset("/frames/column-separator.svg");
 export const FINALE_PORTRAIT = picture("/images/mikhayla-cake.png");
 
 export const SWIMWEAR_ICON = asset("/icons/swimwear.png");
+/**
+ * The day she was actually born, which is not the day of the party.
+ *
+ * She arrived on a Tuesday; the ball is on the Saturday that follows her
+ * first birthday, because that is when a hall and a hundred relatives can
+ * both be had. Both dates matter and they are three days apart, so they are
+ * kept as separate facts rather than one being quietly used for the other.
+ *
+ * Written as three numbers rather than a string or a `Date`, and both of
+ * those alternatives were worse. A `Date` built at module scope is fixed to
+ * the timezone of whoever's machine evaluated it, which during a static
+ * export is a build server — so "is it her birthday" would be answered in the
+ * wrong country. These three are compared against the *guest's* own clock, so
+ * it is her birthday when it is her birthday where you are standing.
+ *
+ * `BIRTH_DATE` is spelled out from the same numbers, so the sentence under
+ * month zero can never drift from the day the pop-up fires on.
+ */
+export const BIRTH_YEAR = 2025;
+export const BIRTH_MONTH = 10; // October, written the way a human counts
+export const BIRTH_DAY = 14;
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+export const BIRTH_DATE = `${MONTH_NAMES[BIRTH_MONTH - 1]} ${BIRTH_DAY}, ${BIRTH_YEAR}`;
+
 export const PARTY_DATE = "Saturday, October 17, 2026";
 export const PARTY_TIME = "10:00 AM – 2:00 PM";
 /**
@@ -307,7 +336,7 @@ export const RSVP_BY = "October 10";
  * invitation works perfectly well before the sheet exists. Nothing else has
  * to change when you fill it in.
  */
-export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzS7KwNFdcg7avWe0kPgc5ddtYK7v_5FS288LVQCuYzmsZnP1qwBBS8F4BOrFJACkiB4A/exec";
+export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEsYfwlwZE72bWklzODxmTyZ1njOvzT0rYbK8RsGqHRb2p5W43Bkm6Lyu5dN4fdiO4sw/exec";
 
 /* ---------------------------------------------------------------
    The game hidden behind the balloon
@@ -611,6 +640,15 @@ export type Ambience =
 
 export type Milestone = {
   month: number;
+  /**
+   * What the little hand-written line says instead of "Month 0".
+   *
+   * Only month zero has one. "Month 0" is a true but strange way to describe
+   * being born, and the date itself is the thing anyone reading that page
+   * actually wants — so the page that opens her year opens with the day it
+   * began.
+   */
+  label?: string;
   /** The gown she wore that month. */
   princess: string;
   title: string;
@@ -688,7 +726,7 @@ export type Milestone = {
  * worth rewriting in your own words.
  */
 const MILESTONE_PAGES: Milestone[] = [
-  { month: 0,  princess: "",           title: "A princess is born",            note: "Before the gowns and the crowns — the day your kingdom met you.",         tint: "#EAE2E1", accent: "newborn",                                            photo: "/milestones/00-newborn.png",    ambience: "flower-fall",  music: "/audio/newborn.mp3" },
+  { month: 0,  princess: "", label: BIRTH_DATE, title: "A princess is born",            note: "Before the gowns and the crowns — the day your kingdom met you.",         tint: "#EAE2E1", accent: "newborn",                                            photo: "/milestones/00-newborn.png",    ambience: "flower-fall",  music: "/audio/newborn.mp3" },
   { month: 1,  princess: "Snow White", title: "Fairest of them all",           note: "One month old, and already able to hush a room full of admirers.",        tint: "#F1E9DA", accent: "snow",       character: "/princesses/snowwhite.png", photo: "/milestones/01-snowwhite.png",  ambience: "apple-fall",   music: "/audio/snow-white.MP3" },
   { month: 2,  princess: "Aurora",     title: "Once upon a dream",             note: "Your first real smile arrived mid-nap, like something you'd dreamt up.",  tint: "#F1DADD", accent: "aurora",     character: "/princesses/aurora.png",    photo: "/milestones/02-aurora.png",     ambience: "butterflies",  music: "/audio/aurora.MP3" },
   { month: 3,  princess: "Elsa",       title: "The cold never bothered you",   note: "You found your own hands this month and would not let them go.",          tint: "#DEE4ED", accent: "elsa",       character: "/princesses/elsa.png",      photo: "/milestones/03-elsa.png",       ambience: "snow-fall",    music: "/audio/elsa.MP3" },

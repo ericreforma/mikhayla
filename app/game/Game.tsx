@@ -23,6 +23,7 @@ import {
 } from "./engine";
 import { enterFullscreen } from "@/app/components/fullscreen";
 import { Crown } from "@/app/components/Ornaments";
+import { BirthdayPopup } from "@/app/components/BirthdayPopup";
 import { lockLandscape } from "./orientation";
 import { draw, measure, type Sprites, type View } from "./render";
 import {
@@ -49,13 +50,6 @@ import { BRAKE_S, LIVES, RUN_CYCLE_BLOCKS, SKIES, STEP_PHASE } from "./tuning";
 import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
 
 /**
- * Which surface she is running on.
- *
- * The two weathers cross-fade over eight seconds, so a threshold rather than a
- * test for zero: the sound swaps once, half way through the change, instead of
- * alternating between two footsteps for the length of it.
- */
-/**
  * How long the HUD takes to arrive, and how long it takes to leave.
  *
  * It arrives briskly and leaves at the pace of the brake, because leaving is
@@ -71,6 +65,13 @@ import { GameOverCard, NameCard, PausedCard, StartCard } from "./Cards";
 const ENTER = { transitionDuration: "500ms" };
 const LEAVE = { transitionDuration: `${BRAKE_S * 1000}ms` };
 
+/**
+ * Which surface she is running on.
+ *
+ * The two weathers cross-fade over eight seconds, so a threshold rather than a
+ * test for zero: the sound swaps once, half way through the change, instead of
+ * alternating between two footsteps for the length of it.
+ */
 function footstep(g: World): Sfx {
   if (g.snow > 0.5) return "step-snow";
   if (g.rain > 0.5) return "step-rain";
@@ -796,6 +797,17 @@ export function Game({ onLeave }: { onLeave: () => void }) {
      * start a second run underneath it.
      */
     const theirs = (e: KeyboardEvent) => {
+      /*
+       * A dialog over the game owns the keyboard entirely.
+       *
+       * The tag test below catches typing *into* a field, but not a space
+       * pressed while the focus is sitting on a dialog's own panel — and that
+       * would start a run behind the birthday wish form somebody is halfway
+       * through writing. Every overlay on this site raises the same flag, and
+       * the deck has always honoured it; the game never learned to.
+       */
+      if (document.body.dataset.modal === "open") return true;
+
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName;
       return (
@@ -1062,6 +1074,13 @@ export function Game({ onLeave }: { onLeave: () => void }) {
             name={name}
           />
         ))}
+      {/* Her birthday, said again in the one place a child is most likely to
+          be standing on the day. Only over the menu: during a run it would be
+          covering the game, and after one the card is already busy. */}
+      {status === "ready" && nameReady && !asking && (
+        <BirthdayPopup where="game" compact />
+      )}
+
       {status === "paused" && (
         <PausedCard onResume={resume} onRestart={start} onMenu={toMenu} />
       )}

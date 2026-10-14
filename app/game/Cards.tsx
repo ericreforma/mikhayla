@@ -1,18 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { BABY_NAME } from "@/app/config";
+import { useEffect, useRef, useState } from "react";
+import { BABY_NAME, PARTY_DATE } from "@/app/config";
 import { Crown, Sparkle, Spinner, CheckIcon, CloseIcon } from "@/app/components/Ornaments";
 import {
-  BOARD_TOP,
-  cachedTop,
   CAN_SUBMIT,
-  fetchTopScores,
   NAME_MAX,
   readSent,
   submitScore,
   worthSending,
-  type TopScore,
 } from "./scores";
 
 /**
@@ -46,8 +42,6 @@ const CARD = `${CARD_LOOK} w-full max-w-xl`;
  * is pushed cooler and darker than a medal really is. Read next to the gold
  * and the bronze it still says silver, which is the only place it has to work.
  */
-const MEDALS = ["#C9A227", "#8A94A1", "#B0702B"];
-
 const BACKDROP_BOX =
   "absolute inset-0 z-20 flex items-center justify-center p-[max(0.75rem,env(safe-area-inset-left))]";
 
@@ -151,48 +145,25 @@ const BIG_ROUND = "clamp(3.2rem, 13vh, 4.6rem)";
 const MID_ROUND = "clamp(2.5rem, 10vh, 3.6rem)";
 
 /* ---------------------------------------------------------------
-   The board
+   The board, sealed
    ---------------------------------------------------------------
-   Opened from a button on both the start and the game-over card, because
-   those are the two moments anybody wants to know where they stand: before
-   they try, and straight after they have.
+   There is no board in the game any more, and that is the feature.
+
+   The standings belong to the host, who reads the top ten out at the party.
+   A panel that printed them here would spoil that twice over: the answer
+   would be common knowledge before it was announced, and a guest who looked
+   half an hour before the reading would know whether it was worth listening.
+
+   So the button still exists — "where do I stand" is the first thing anybody
+   wants after a run, and a button that vanished would read as something
+   broken — and what it opens is the reason they cannot know yet. The scores
+   are still saved; see `submitScore`. Only the reading of them is withheld.
+
+   `/royal-ledger` is where they can actually be read, by whoever holds that
+   link. Nothing here points at it.
    --------------------------------------------------------------- */
 
-function Leaderboard({ onClose }: { onClose: () => void }) {
-  /*
-   * Opens on whatever the background fetch already found — see `cachedTop` —
-   * and refreshes behind that. The spinner is therefore only ever seen by the
-   * first person to open the panel before the game's own request has landed,
-   * which on any normal connection is nobody.
-   */
-  const [rows, setRows] = useState<TopScore[] | null>(() => cachedTop());
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  /**
-   * Whether the second page is open.
-   *
-   * Shut by default, because the first ten are what fits a phone on its side
-   * without scrolling and they are the ten anybody came to see. The rest are
-   * already here — they arrived in the same request — so opening them is a
-   * render and nothing else.
-   */
-  const [deep, setDeep] = useState(false);
-
-  const load = useCallback(() => {
-    setBusy(true);
-    setError("");
-    fetchTopScores().then((result) => {
-      setBusy(false);
-      /* The old list is left on screen if the refresh fails. A board that was
-         right a minute ago is better than an error where the board was. */
-      if (result.ok) setRows(result.top);
-      else setError(result.error);
-    });
-  }, []);
-
-  useEffect(load, [load]);
-
+function SealedBoard({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -203,34 +174,8 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
 
   return (
     <div className={`${BACKDROP} z-30`}>
-      {/*
-        Sized by its own contents, unlike every other card here, and that is
-        the whole layout decision.
-
-        A name and its score belong next to each other. Given the width of the
-        other cards they sit at opposite ends of a long empty line, and a
-        leaderboard you have to track across is not one anybody reads — but
-        pinned narrow instead, a party full of full names ellipsises down to
-        "Maria Cristina D…" and the board stops naming anybody.
-
-        So: `w-auto`, and it takes the width of its longest row. A floor so a
-        board of three-letter names is not a sliver, and a ceiling so one guest
-        typing a hundred characters cannot push it off the screen — past that
-        the name truncates, which by then is the right answer.
-      */}
       <div
-        /*
-         * A column, not a scrolling box.
-         *
-         * The whole card used to scroll, which took the title and the buttons
-         * away with the names — so twenty rows meant scrolling back up to find
-         * out what you were looking at and back down to close it. Only the list
-         * moves now; the heading and the buttons are pinned either side of it.
-         *
-         * `overflow-hidden` here and the scrolling one layer in, so the card's
-         * rounded corners still clip the rows that pass behind them.
-         */
-        className={`${CARD_LOOK} flex max-h-full w-auto min-w-[17.5rem] max-w-[min(92vw,34rem)] flex-col overflow-hidden`}
+        className={`${CARD_LOOK} flex max-h-full w-full max-w-[min(92vw,26rem)] flex-col overflow-hidden`}
       >
         <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
 
@@ -243,140 +188,46 @@ function Leaderboard({ onClose }: { onClose: () => void }) {
           <CloseIcon className="h-4 w-4" />
         </button>
 
-        <div className="relative flex-none px-5 pt-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
-          {/* Padded past the close button on both sides, so the title stays
-              honestly centred instead of centring on a line the button is
-              sitting in — which at the card's narrowest, with a board full of
-              three-letter names, it otherwise runs straight into. */}
-          <h2 className="px-7 text-center font-display text-[clamp(0.95rem,4vh,1.4rem)] italic text-ink">
-            The royal scoreboard
-          </h2>
-          <div aria-hidden className="gilt-rule mx-auto mt-1.5 h-px w-20" />
-        </div>
+        <div className="relative overflow-y-auto px-6 py-[clamp(0.9rem,4vh,1.6rem)] text-center sm:px-8">
+          {/*
+            A wax seal, more or less: a crown pressed into a gold disc.
 
-        {/*
-          The only part that moves. `min-h-0` is not decoration: a flex child
-          defaults to `min-height: auto`, which refuses to shrink below its
-          content — so without it the list simply makes the card taller than
-          the screen and nothing scrolls at all.
-        */}
-        <div className="board-scroll relative min-h-0 flex-1 overflow-y-auto px-5 sm:px-7">
-          {rows === null ? (
-            <p className="flex items-center justify-center gap-2 py-6 text-[clamp(0.7rem,2.9vh,0.88rem)] text-ink/55">
-              <Spinner className="h-4 w-4" />
-              Reading the board…
-            </p>
-          ) : rows.length === 0 ? (
-            <p className="py-6 text-center text-[clamp(0.72rem,2.9vh,0.9rem)] leading-snug text-ink/60">
-              Nobody has made it onto the board yet. Be first.
-            </p>
-          ) : (
-            /*
-             * Ten numbered rows, one under the other.
-             *
-             * They fit a phone on its side with nothing to spare — ten rows at
-             * about 22px, plus the heading and the button, against the 390px
-             * such a screen has — which is why the type and the padding here
-             * are a notch tighter than the other cards'. The card scrolls if a
-             * screen is shorter still.
-             */
-            <ol className="mt-[clamp(0.5rem,2.6vh,1.15rem)]">
-              {(deep ? rows : rows.slice(0, BOARD_TOP)).map((row, i) => (
-                <li
-                  key={`${row.name}-${i}`}
-                  /*
-                   * Past the tenth the list carries on quieter: a wash of ink
-                   * behind it and a size down, so the page everybody came for
-                   * stays the one the eye lands on and the rest reads as the
-                   * tail of the same list rather than as more of the same.
-                   *
-                   * The negative margins are what let that wash reach the
-                   * card's edges. Without them it stops where the text does and
-                   * leaves a parchment margin down both sides, which turns one
-                   * shaded section into ten shaded rectangles.
-                   */
-                  className={
-                    "flex items-baseline gap-3 border-b border-gold/15 leading-snug last:border-0 " +
-                    (i < BOARD_TOP
-                      ? "py-[clamp(0.07rem,0.75vh,0.4rem)] text-[clamp(0.7rem,3.2vh,1.08rem)]"
-                      : "-mx-5 bg-ink/[0.055] px-5 py-[clamp(0.05rem,0.6vh,0.32rem)] " +
-                        "text-[clamp(0.62rem,2.7vh,0.92rem)] sm:-mx-7 sm:px-7")
-                  }
-                >
-                  {/*
-                    A crown for the first three, a number for the rest, both in
-                    the same slot so every name starts on the same line.
-
-                    The slot is sized in `em`, so it keeps its proportion to the
-                    type rather than drifting as the rows grow on a taller
-                    screen. The crown is nudged down a touch because it sits in
-                    a baseline-aligned row and has no baseline of its own — left
-                    alone it floats above the name beside it.
-                  */}
-                  <span
-                    className="flex w-[1.7em] flex-none justify-center"
-                    /* On the slot rather than the crown: `Crown` is drawn in
-                       `currentColor` precisely so the caller can set it with
-                       ordinary inheritance and the icon needs no prop for it. */
-                    style={i < 3 ? { color: MEDALS[i] } : undefined}
-                  >
-                    {i < 3 ? (
-                      <Crown className="h-[0.88em] w-auto translate-y-[0.1em]" />
-                    ) : (
-                      <span className="font-display font-semibold text-goldDeep">{i + 1}</span>
-                    )}
-                  </span>
-
-                  {/*
-                    No `flex-1`. The name contributes its own width to the card,
-                    which is what lets the board size itself to the longest name
-                    rather than to a figure picked in advance; the score is sent
-                    to the far side by its own margin instead. `truncate` still
-                    has the last word once the card hits its ceiling — the name
-                    is a guest's own typing from a public endpoint and may be a
-                    hundred characters.
-                  */}
-                  <span className="min-w-0 truncate text-ink/80">{row.name}</span>
-                  <span className="ml-auto flex-none pl-2 font-mono tabular-nums font-semibold text-ink">
-                    {row.score}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-
-        </div>
-
-        <div className="relative flex-none px-5 pb-[clamp(0.45rem,3vh,1.2rem)] sm:px-7">
-          {error && (
-            <p
-              role="alert"
-              className="mt-2 text-center text-[clamp(0.62rem,2.4vh,0.76rem)] leading-snug text-snow"
-            >
-              {error}
-            </p>
-          )}
+            It carries the whole message on its own for anybody who shuts the
+            panel before reading a word — this is closed, deliberately, and by
+            somebody with the authority to close it. A padlock would have said
+            the same thing in the wrong fairytale.
+          */}
+          <span className="mx-auto flex h-[clamp(2.4rem,9vh,3.2rem)] w-[clamp(2.4rem,9vh,3.2rem)] items-center justify-center rounded-full border-2 border-gold/50 bg-gradient-to-b from-[#F3E3B5] to-[#D9BC6A] shadow-[0_2px_6px_rgba(62,40,20,0.25)]">
+            <Crown className="h-[clamp(1.1rem,4vh,1.5rem)] w-auto text-goldDeep" />
+          </span>
 
           {/*
-            Both buttons on one row, and that is a height decision rather than
-            a tidiness one: ten rows and a single button fill a phone on its
-            side exactly, so a second row of its own would push the collapsed
-            board into scrolling before anybody had asked for more of it.
+            Plain words on purpose.
+
+            This card is read standing up, by guests of every age, many of them
+            reading English as a second language. The first thing it has to do
+            is stop somebody thinking the game lost their score — so that is
+            the first sentence, in the shortest words there are.
           */}
-          <div className="mt-[clamp(0.4rem,1.6vh,0.7rem)] flex flex-wrap items-center justify-center gap-2">
-            {rows !== null && rows.length > BOARD_TOP && (
-              <button type="button" onClick={() => setDeep((v) => !v)} className={SECONDARY}>
-                {deep ? `Top ${BOARD_TOP}` : `Top ${rows.length}`}
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={load}
-              disabled={busy}
-              className={`${SECONDARY} gap-2 disabled:opacity-60`}
-            >
-              {busy ? <Spinner className="h-3.5 w-3.5" /> : null}
-              {busy ? "Refreshing…" : "Refresh"}
+          <h2 className="mt-[clamp(0.5rem,2vh,0.9rem)] font-display text-[clamp(1rem,4.2vh,1.45rem)] italic leading-snug text-ink">
+            Scores are hidden
+          </h2>
+          <div aria-hidden className="gilt-rule mx-auto mt-1.5 h-px w-20" />
+
+          <p className="mt-[clamp(0.5rem,2.2vh,0.95rem)] text-[clamp(0.74rem,3vh,0.95rem)] leading-relaxed text-ink/75">
+            Don&apos;t worry — your score is saved. We&apos;re just keeping the
+            list a secret until the party.
+          </p>
+
+          <p className="mt-[clamp(0.35rem,1.6vh,0.7rem)] text-[clamp(0.72rem,2.8vh,0.9rem)] leading-relaxed text-ink/65">
+            The top 10 will be announced on{" "}
+            <span className="whitespace-nowrap font-semibold text-ink">{PARTY_DATE}</span>. Keep
+            playing — someone may have beaten you already!
+          </p>
+
+          <div className="mt-[clamp(0.6rem,2.4vh,1.05rem)] flex justify-center">
+            <button type="button" onClick={onClose} className={SECONDARY}>
+              Back to the game
             </button>
           </div>
         </div>
@@ -604,7 +455,7 @@ export function StartCard({
   name: string;
 }) {
   const [board, setBoard] = useState(false);
-  if (board) return <Leaderboard onClose={() => setBoard(false)} />;
+  if (board) return <SealedBoard onClose={() => setBoard(false)} />;
 
   return (
     /* Nudged up off the true centre. The field behind this card is running —
@@ -972,7 +823,7 @@ export function GameOverCard({
     });
   }, [name, score]);
 
-  if (board) return <Leaderboard onClose={() => setBoard(false)} />;
+  if (board) return <SealedBoard onClose={() => setBoard(false)} />;
 
   const saving = state === "sending";
 

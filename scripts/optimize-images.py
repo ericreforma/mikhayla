@@ -68,7 +68,8 @@ class Group:
     name: str
     widths: tuple[int, int, int]
     quality: int
-    #: Whether the source carries transparency worth keeping (the cut-outs do).
+    #: Whether this whole folder is cut-outs. Individual pictures that carry
+    #: transparency keep it either way — see `transparent`.
     alpha: bool = False
 
 
@@ -125,13 +126,32 @@ def stale(src: Path, dest: Path) -> bool:
     return not dest.exists() or dest.stat().st_mtime < src.stat().st_mtime
 
 
+def transparent(im: Image.Image) -> bool:
+    """Whether this picture actually has anything see-through in it.
+
+    Asked of the source rather than assumed from the folder, because a group
+    is a folder of pictures and transparency is a property of a picture. The
+    portraits group is photographs — until somebody drops a cut-out in beside
+    them, and `convert("RGB")` on a cut-out does not flatten it onto the page,
+    it simply throws the alpha channel away and leaves whatever colour happened
+    to be hiding underneath: a black rectangle where the background was
+    supposed to be nothing at all.
+    """
+    if im.mode in ("RGBA", "LA"):
+        lo, _ = im.getchannel("A").getextrema()
+        return lo < 255
+    return "transparency" in im.info
+
+
 def render(src: Path, dest: Path, width: int, quality: int, alpha: bool) -> int:
     """Writes one tier of one picture, and returns what it weighs."""
     with Image.open(src) as im:
-        # An alpha group keeps its transparency; everything else is flattened
-        # to RGB, which spares WebP an alpha channel it would otherwise encode
-        # for a photograph that has nothing to say in it.
-        im = im.convert("RGBA" if alpha else "RGB")
+        # A cut-out keeps its transparency; a photograph is flattened to RGB,
+        # which spares WebP an alpha channel it would otherwise encode for a
+        # picture that has nothing to say in it. The group's flag declares the
+        # intent for a whole folder; the picture itself gets the last word, so
+        # one cut-out among the photographs survives.
+        im = im.convert("RGBA" if (alpha or transparent(im)) else "RGB")
 
         # Never upscale — see `Group.widths`.
         target = min(width, im.width)

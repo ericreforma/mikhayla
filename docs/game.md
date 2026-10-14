@@ -186,13 +186,18 @@ app/escaped/      the route, and only the route
   page.tsx      the page, and the turn-your-phone gate.
   layout.tsx    the title, and the `noindex` that keeps it out of search.
 
+app/royal-ledger/ the standings, for the host alone.
+  page.tsx      the top twenty, behind `?seal=`.
+  layout.tsx    the title, and the `noindex` that matters most here.
+
 app/game/         the game itself. No page.tsx, so not a route at all.
   tuning.ts     every number, in blocks and seconds. Start here.
   engine.ts     the simulation. No DOM, no React, no pixels.
   render.ts     the canvas. The only file that knows what a pixel is.
   Game.tsx      canvas sizing, the loop, the HUD, the controls.
-  Cards.tsx     the panels: before, paused, after, and the scoreboard.
+  Cards.tsx     the panels: before, paused, after, and the sealed board.
   scores.ts     posting to the sheet, and the personal best on the device.
+  ledger.ts     reading the board back. Imported only by /royal-ledger.
   sfx.ts        the noises. Nothing else in the game knows it makes any.
   orientation.ts   landscape, and asking to stay that way.
   entry.ts      the two constants the balloon and the game have to agree on.
@@ -742,61 +747,126 @@ never learned to**. The game's keyboard guard caught typing *into* a field but
 not a space pressed while the focus sat on a dialog's own panel — which would
 have started a run behind the wish form somebody was halfway through writing.
 
-### The board
+### The board is sealed
 
-Ten rows, and the top three wear a crown rather than a number — gold, silver,
-bronze, in the slot the rank would have used, so the name still starts on the
-same line as every other. Silver is pushed cooler and darker than a real medal:
-a true grey all but vanishes on cream, and it only has to say *silver* next to
-the other two.
+**The game shows no standings at all, and that is the feature.** Scores are
+recorded the whole way through the party and read out by the host at the end of
+it. A panel that printed them would spoil that twice over: the answer would be
+common knowledge before it was announced, and a guest checking half an hour
+beforehand would know whether the reading was worth listening to.
 
-**The card takes the width of its longest name.** Pinned narrow, a party full
-of full names ellipsises down to "Maria Cristina D…" and the board stops naming
-anybody; given the width of the other cards, a name and its score sit at
-opposite ends of a long empty line and nobody reads across it. So `w-auto`
-between a floor and a ceiling — measured, it opens at **280px** for a board of
-three-letter names and **368px** for a board of full ones, and only past the
-ceiling does a name truncate. The name deliberately has no `flex-1`: that is
-what lets it contribute its own width to the card, with the score sent to the
-far side by its own margin instead.
+So three things came out of the game together:
 
-**Twenty are fetched and ten are drawn.** The rest are a button away — *Top
-20* sits beside *Refresh*, and the tail continues under a wash of ink at a size
-down, so the page everybody came for stays the one the eye lands on and the
-rest reads as the end of the same list rather than as more of the same. The
-band reaches the card's edges through negative margins; without them it stops
-where the text does and ten shaded rows become ten shaded rectangles.
+* **The scoreboard panel.** *Scoreboard* still sits in the row of ways on —
+  "where do I stand" is the first thing anybody wants after a run, and a button
+  that vanished would read as something broken. What it opens is a wax seal and
+  the reason, in the plainest words available: *Scores are hidden. Don't worry
+  — your score is saved. We're just keeping the list a secret until the party.
+  The top 10 will be announced on Saturday, October 17, 2026. Keep playing —
+  someone may have beaten you already!*
 
-The other ten cost nothing to carry — a couple of dozen bytes each, arriving in
-the same request — so opening them is a render rather than another trip to
-Google. Both buttons share one row, which is a height decision: ten rows and a
-single button fill a phone on its side exactly.
+  The register is deliberate. This card is read standing up by guests of every
+  age, many of them reading English as a second language, and its first job is
+  to stop somebody concluding the game lost their score — so that is the first
+  sentence, in the shortest words there are. An earlier draft opened with
+  "Every run is written into the royal ledger"; it was prettier and it buried
+  the one thing the reader needs.
+* **The leader pill in the HUD.** The far corner used to name whoever was top
+  of the board and turn gold when you went past them. It now shows your own
+  personal best and nothing else — which was already the fallback for a guest
+  with no signal, and is the honest thing to put in front of somebody mid-run:
+  the score to beat is yours.
+* **The *you have beaten everyone* sting.** `winner-all` is still in the sound
+  folder and is no longer played. It told a guest they were top of a board
+  nobody is allowed to see, which is the announcement arriving early and
+  through the wrong mouth. `winner-self` — beating your own record — still
+  plays, and is the feedback that actually matters to the person holding the
+  phone.
 
-**It needs the script deployed with `&limit=`.** A deployment that predates it
-answers with ten whatever is asked, in which case there is no second page and
-no button offering one.
+**Hiding the pill would not have been enough.** The number would still have
+been fetched to every guest's phone on every run and sat in plain view in the
+network tab. So `fetchTopScores` was moved out of `scores.ts` — which the game
+imports for the personal best and for posting a score — and into
+`app/game/ledger.ts`, which only `/royal-ledger` imports. The game's bundle
+cannot name the board at all now, which is checkable rather than a claim:
 
-**The card is a column, not a scrolling box.** The heading and the buttons are
-pinned either side of a list that scrolls on its own — the whole card used to
-scroll, which took the title and the buttons away with the names, so twenty
-rows meant scrolling back up to see what you were looking at and down again to
-close it. Measured: with the list scrolled 207px, the title and the buttons
-both moved 0px.
+```
+$ grep -rl "board=game" out/
+out/_next/static/chunks/app/royal-ledger/page-*.js
+```
 
-The list's `min-h-0` is load-bearing rather than decorative — a flex child
-defaults to `min-height: auto` and refuses to shrink below its content, so
-without it the card simply grows taller than the screen and nothing scrolls at
-all. Its scrollbar is drawn thin and in the card's own ink (`.board-scroll`),
-in both the Firefox and the WebKit syntaxes, because those are not
-alternatives: each browser understands only one of them.
+One chunk, and it is not one the game loads. Confirmed at runtime too — loading
+`/escaped` and listing what it requested gives four sprite sheets and the menu
+music, and nothing from Google.
 
-Ten rows at a readable size is a tight fit in landscape, so the numbers are
-worth recording. At a **390px viewport — a phone on its side — all ten are
-visible without scrolling**, with nothing to spare. Below that the card
-scrolls, as it always has: at 320px it is about two thirds of a row over. The
-`clamp()` minimums are what bite on the short screens, and the type's minimum
-is set so that lowering it costs nothing at 390px and up, where the `vh` term
-already wins.
+A side effect worth knowing: `adoptBoard` went with it. The board used to hand
+a returning player their own best back — a second phone, a cleared browser —
+and nothing fetches the board for a guest any more, so it cannot. A player who
+clears their browser starts their *local* best from nothing. Their scores are
+all still in the sheet under their name, and that is what gets read out.
 
-**Scoreboard** reads the board back- Setting `GAME_ENDPOINT` to `""` turns all of it off. The game still plays and
-  still keeps the personal best.
+### The ledger
+
+`/royal-ledger?seal=…` is the one page that still prints the scores, and it
+exists for exactly one person: whoever is reading the names out.
+
+It is titled **The Royal Scoreboard** on screen; `royal-ledger` is only the
+address, kept vague on purpose.
+
+Built for that job rather than for a guest — **all twenty names at once** with
+no *show more* button, crowns on the first three, and rows eleven to twenty
+quieter beneath a wash of ink so the ten being announced are the ten the eye
+lands on. It refreshes itself every minute and has a *Refresh* button besides,
+because runs will still be arriving while the host is walking to the
+microphone, and it stamps the time it last read so a stale screen says so.
+
+**`?seal=` has to match `LEDGER_KEY` in `app/config.ts`.** The address alone is
+not enough; the link that was handed over is. Without the right word the page
+shows exactly what the game shows — the sealed card, not "wrong key", because
+one of those ends the matter and the other is an invitation. Measured: with no
+seal and with a wrong seal the page makes **no request to the endpoint at
+all**, so the gate stops the fetch rather than just the rendering.
+
+To withdraw a link that has been forwarded too far, change `LEDGER_KEY` and
+rebuild. Every old link stops working.
+
+`layout.tsx` beside it sets `noindex`, as `/escaped` does. This page is handed
+round as a link, nothing points at it, and a search result would undo both.
+
+**It is the first route on this site that has to scroll, and that took a fix.**
+`globals.css` locks `html, body` to `height: 100%; overflow: hidden` — the
+invitation is a deck with one moving track rather than a document, and that
+lock is what stops iOS rubber-banding the page behind it. Every other route
+either fits the screen exactly (the game, the guestbook) or scrolls inside a
+box of its own. Twenty names do not fit a phone, so written as an ordinary tall
+`<main>` the list was simply clipped at the bottom with no way to reach it.
+
+The fix is `fixed inset-0 overflow-y-auto overscroll-contain` on the `<main>`:
+it takes the viewport directly and becomes the scrolling element itself, which
+the body lock cannot reach. The parchment grain inside it is `fixed` rather
+than `absolute` for the same reason — an absolutely-positioned child of a
+scroll container scrolls away with the content and would leave the grain
+covering only the first screenful. Measured after the fix, with the real board
+loaded:
+
+| viewport | page height | scrolls | row 20 reachable |
+|---|---|---|---|
+| 390x844 (phone) | 1162px in 844 | 318px | yes |
+| 844x390 (phone, sideways) | 1216px in 390 | 826px | yes |
+| 768x1024 (tablet) | 1512px in 1024 | 488px | yes |
+| 1280x800 (laptop) | 1058px in 800 | 258px | yes |
+
+The sealed card centres with `min-h-full` on an inner box rather than
+`items-center` on a fixed-height one. Flex centring inside a scroll container
+puts the overflow *above* the top of the scrollable area, where nothing can
+reach it — on a landscape phone that would have cut the card's heading off with
+no way to scroll up to it.
+
+**It is a latch, not a lock.** The rows come from the same public Apps Script
+URL the game posts scores to, so somebody willing to open a network tab and
+take the invitation apart can still read them. What this stops is the guessed
+address and the forwarded screenshot, which is the whole of what happens at a
+birthday party.
+
+Setting `GAME_ENDPOINT` to `""` turns all of it off. The game still plays and
+still keeps the personal best on the device.

@@ -22,19 +22,15 @@ import {
   type Status,
 } from "./engine";
 import { enterFullscreen } from "@/app/components/fullscreen";
-import { Crown } from "@/app/components/Ornaments";
 import { BirthdayPopup } from "@/app/components/BirthdayPopup";
 import { lockLandscape } from "./orientation";
 import { draw, measure, type Sprites, type View } from "./render";
 import {
-  cachedLeader,
-  fetchTopScores,
   readBest,
   readName,
   suggestedName,
   writeBest,
   writeName,
-  type TopScore,
 } from "./scores";
 /* `play` arrives as `sound`: in a file with a play *button* in it, a bare
    `play(...)` should mean "play the game", not "play a noise". */
@@ -102,7 +98,6 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLSpanElement>(null);
-  const leaderRef = useRef<HTMLSpanElement>(null);
   /* The game over card, so the loop can bring it down with her. */
   const overCardRef = useRef<HTMLDivElement>(null);
 
@@ -135,20 +130,20 @@ export function Game({ onLeave }: { onLeave: () => void }) {
   const [score, setScore] = useState(0);
   const [best, setBest] = useState(0);
 
-  /**
-   * Who is top of the board, shown under the score while the run is on.
+  /*
+   * There is no leader on screen and no board behind one.
    *
-   * Seeded from the cache so a second run paints it on the first frame, then
-   * refreshed. See `loadLeader` for when that happens.
+   * The standings are the host's to announce at the party — see `SealedBoard`
+   * in `Cards.tsx` — and a corner of the HUD naming whoever is top would
+   * announce them first, a few hundred times, to every guest holding a phone.
+   * Hiding the pill alone would not have been enough either: the number would
+   * still be fetched to a guest's device on every run and sit in plain sight
+   * in the network tab. So the game no longer asks for the board at all.
+   *
+   * What the corner shows instead is this device's own best, which was already
+   * the fallback for a guest with no signal and is the honest thing to put in
+   * front of somebody mid-run: the score to beat is yours.
    */
-  const [leader, setLeader] = useState<TopScore | null>(() => cachedLeader());
-
-  /* The leader's score, where the loop can reach it. The loop is built once
-     with no dependencies, so it cannot close over the state above. */
-  const leaderScoreRef = useRef<number | null>(leader?.score ?? null);
-  useEffect(() => {
-    leaderScoreRef.current = leader?.score ?? null;
-  }, [leader]);
 
   useEffect(() => setBest(readBest()), []);
 
@@ -249,26 +244,6 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     },
     []
   );
-
-  /**
-   * Fetch the board in the background and keep the top name.
-   *
-   * Nothing waits on it and nothing reports it failing. A leaderboard is a
-   * nice-to-have on a page whose actual job is to run at sixty frames a
-   * second, so it is allowed to simply not arrive — the line under the score
-   * falls back to this device's own best, and the Scoreboard panel says so
-   * properly if someone opens it.
-   *
-   * Called again at the start of every run, which is also what refreshes it
-   * after a score has just been saved.
-   */
-  const loadLeader = useCallback(() => {
-    fetchTopScores().then((result) => {
-      if (result.ok) setLeader(result.top[0] ?? null);
-    });
-  }, []);
-
-  useEffect(loadLeader, [loadLeader]);
 
   /* ---------------------------------------------------------------
      The canvas, kept the size of the window
@@ -475,17 +450,6 @@ export function Game({ onLeave }: { onLeave: () => void }) {
       if (shown !== sawScore) {
         sawScore = shown;
         if (scoreRef.current) scoreRef.current.textContent = String(shown);
-
-        /* Passing the person at the top of the board is the one thing worth
-           reacting to mid-run, so the corner goes gold when it happens.
-           Written straight onto the node for the same reason the score is —
-           this is inside the frame loop. */
-        const top = leaderScoreRef.current;
-        const el = leaderRef.current;
-        if (top !== null && el) {
-          const ahead = String(shown > top);
-          if (el.dataset.ahead !== ahead) el.dataset.ahead = ahead;
-        }
       }
 
       /* Up. `grounded` only ever goes false in `press`, and only when a jump
@@ -540,23 +504,21 @@ export function Game({ onLeave }: { onLeave: () => void }) {
           /* Read before the write, which is what makes beating your own record
              detectable at all — a moment later this run is the record. */
           const mine = readBest();
-          const theirs = leaderScoreRef.current;
 
           writeBest(final);
           setScore(final);
           setBest(readBest());
           /*
-           * One sound, in this order. Topping the board is the bigger thing
-           * and swallows topping yourself; either of them replaces the game
-           * over rather than playing over it — the run ended, but that is not
-           * the news.
+           * One sound. Beating your own record replaces the game over rather
+           * than playing over it — the run ended, but that is not the news.
            *
-           * With no board to compare against — no signal, or the very first
-           * player — `theirs` is null and beating yourself is the best news
-           * available, which is the right answer for a guest playing alone.
+           * There is deliberately no "you have beaten everyone" sting any
+           * more, even though the sound for it still exists. Playing it would
+           * tell a guest they were top of a board nobody is allowed to see
+           * until the host reads it out, which is the announcement arriving
+           * early and through the wrong mouth.
            */
-          if (theirs !== null && final > theirs) sound("winner-all");
-          else if (final > mine) sound("winner-self");
+          if (final > mine) sound("winner-self");
           else sound("gameover");
         }
 
@@ -643,7 +605,6 @@ export function Game({ onLeave }: { onLeave: () => void }) {
      */
     enterFullscreen();
     lockLandscape();
-    loadLeader();
 
     const g = createGame(viewRef.current.cols);
     applyPins(g);
@@ -651,7 +612,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
     worldRef.current = g;
     setLives(LIVES);
     setStatus("running");
-  }, [applyPins, loadLeader]);
+  }, [applyPins]);
 
   /**
    * The play button, from wherever it was pressed.
@@ -1019,14 +980,12 @@ export function Game({ onLeave }: { onLeave: () => void }) {
         </div>
 
         {/*
-          Who there is to beat, in the far corner.
+          What there is to beat, in the far corner: your own best, and only
+          ever your own. The board that used to be named here is sealed until
+          the host reads it out — see the note beside `setBest` above.
 
-          The board's leader when we have one, and this device's own best when
-          we don't — which covers a guest with no signal, a sheet that isn't set
-          up, and the very first player, for whom there is no board yet. The
-          name is a guest's own typing and can be a hundred characters, so it is
-          given a hard ceiling and allowed to ellipsise rather than pushing the
-          score off its centre.
+          Nothing at all before the first finished run, rather than a `0` to be
+          beaten. A score you have not set yet is not a target.
         */}
         <div
           style={hud ? ENTER : LEAVE}
@@ -1034,19 +993,7 @@ export function Game({ onLeave }: { onLeave: () => void }) {
             hud ? "translate-x-0 opacity-100" : "translate-x-[130%] opacity-0"
           }`}
         >
-          {leader ? (
-            <span
-              ref={leaderRef}
-              data-ahead="false"
-              className="flex min-w-0 items-center gap-1.5 rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.85rem,3.4vh,1.25rem)] leading-none text-white/85 backdrop-blur-[2px] transition-colors data-[ahead=true]:text-gold"
-            >
-              <Crown className="h-[0.95em] w-auto flex-none" />
-              <span className="max-w-[24vw] truncate">{leader.name}</span>
-              <span className="flex-none font-mono font-semibold tabular-nums">
-                {leader.score}
-              </span>
-            </span>
-          ) : best > 0 ? (
+          {best > 0 ? (
             <span className="rounded-xl bg-black/30 px-2.5 py-1.5 text-[clamp(0.8rem,3vh,1.1rem)] uppercase leading-none tracking-[0.14em] text-white/85 backdrop-blur-[2px]">
               Best <span className="font-mono font-semibold tabular-nums">{best}</span>
             </span>

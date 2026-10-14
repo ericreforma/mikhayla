@@ -205,6 +205,10 @@ const config: Config = {
         hand: ["var(--font-hand)"],
       },
       keyframes: {
+        drift: {
+          "0%, 100%": { transform: "translate3d(0,0,0)" },
+          "50%": { transform: "translate3d(0,-18px,0)" },
+        },
         "balloon-sway": {
           "0%, 100%": { transform: "translateX(0px)" },
           "50%": { transform: "translateX(-14px)" },
@@ -223,6 +227,13 @@ const config: Config = {
         },
       },
       animation: {
+        /* The guestbook's furniture. Slow on purpose: this plays on a
+           television for hours, and anything brisk enough to notice once is
+           exhausting by the fourth hour. */
+        "spin-slow": "spin 26s linear infinite",
+        "spin-slower": "spin 44s linear infinite reverse",
+        drift: "drift 13s ease-in-out infinite",
+        "drift-slow": "drift 19s ease-in-out infinite",
         "balloon-sway": "balloon-sway 6s ease-in-out infinite",
         twinkle: "twinkle 3.5s ease-in-out infinite",
         turn: "turn 3.4s cubic-bezier(0.22, 1, 0.36, 1) infinite",

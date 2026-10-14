@@ -58,14 +58,69 @@ score build it — headers, frozen row and all.
 **Extensions → Apps Script.** Delete whatever's in the editor, paste this in,
 and save.
 
+> **Four changes since this was first deployed**, and each needs the script
+> pasted in again and redeployed before it does anything:
+>
+> 1. `doGet` honours `&limit=` — the royal ledger asks for twenty.
+> 2. `doPost` routes `kind: "greeting"` into a **Wishes** tab of its own, so
+>    birthday wishes stay out of the headcount.
+> 3. `doGet` answers `?board=wall` — the guestbook screen at `/guestbook`.
+> 4. `?board=wall` reads **both** tabs, so the guestbook shows RSVP messages
+>    and birthday wishes together rather than only one of them.
+>
+> **Which of them you already have is now a question the URL answers.** Open
+> the `/exec` link in a browser: it prints `"version": 4` when the deployment
+> is current, and a lower number — or none at all — when it is behind. That is
+> the first thing to check whenever something expected does not appear.
+
+## The guestbook screen
+
+`/mikhayla/guestbook` is a wall of messages for a television: one at a time,
+the sender's name above, fifteen seconds each, arrow keys or a click to move.
+It asks the script again every two minutes, so messages sent *during* the party
+appear on it without anybody touching the laptop.
+
+It reads **two tabs**, not one: `RSVPs` and `Wishes`, so a message left with an
+RSVP and a birthday wish sent from the pop-up stand side by side on the same
+wall. If one of the two is missing from the screen, that is the first thing to
+suspect — see the version note below, and check the right tab's columns.
+
+**Two gates decide what reaches it**, and both are deliberate, because this is
+a screen in a room full of relatives and children:
+
+* the guest ticked **Yes** to *Share this message publicly?*
+* somebody in the family has ticked the **Approved** column
+
+**Approved starts empty on every row, in both tabs** — `saveInto` writes `""`
+into it deliberately. So a tab nobody has been through yet contributes nothing,
+however many messages are sitting in it, and a guestbook that shows RSVPs but
+no wishes usually means exactly that: the `Wishes` tab has never been ticked.
+
+That second one is the promise the form itself makes — *shown on her guestbook
+once her family has read it* — so nothing unread by a person goes on a
+television. The practical consequence is worth knowing in advance: **until you
+tick Approved, the screen is empty**. It says so rather than showing a blank
+page, but it is the thing to do before the party rather than during it.
+
+A tick can be a checkbox, the word Yes, an x, or a tick mark. An *unchecked*
+checkbox is the boolean `false`, which is why `ticked()` exists rather than a
+test for "not empty".
+
 > **Two changes since this was first deployed**, and both need the script
 > pasted in again and redeployed before they do anything: `doGet` now honours
-> `&limit=` (the scoreboard asks for twenty and shows ten), and `doPost` now
-> routes `kind: "greeting"` into a **Wishes** tab of its own. Until you
-> redeploy, the board has no second page and birthday wishes land in `RSVPs`
+> `&limit=` (the ledger asks for twenty), and `doPost` now routes
+> `kind: "greeting"` into a **Wishes** tab of its own. Until you redeploy, the
+> ledger shows ten names instead of twenty and birthday wishes land in `RSVPs`
 > among the headcount — which is the one place they do not belong.
 
 ```js
+// Bumped whenever this script changes in a way a deployment has to catch up
+// with. The health check prints it, so "is the deployed copy current?" stops
+// being a thing you have to remember and becomes a thing the /exec URL tells
+// you. If the number below is higher than the one your deployment prints,
+// paste this file in again and redeploy.
+const SCRIPT_VERSION = 4;
+
 const RSVP_SHEET = "RSVPs";
 const GAME_SHEET = "Game";
 const WISH_SHEET = "Wishes";
@@ -188,7 +243,11 @@ function saveScore(data) {
 }
 
 /**
- * The leaderboard the game's "Scoreboard" button reads.
+ * The leaderboard, which only `/royal-ledger` reads.
+ *
+ * The game's own "Scoreboard" button shows a sealed card instead — the
+ * standings are announced by the host rather than looked up. See
+ * `docs/game.md`.
  *
  * One row per *person*, not per run — their best. A leaderboard is a list of
  * who is good at this, and without the fold one determined ten-year-old fills
@@ -225,9 +284,68 @@ function topScores(limit) {
 }
 
 /**
- * Read requests: the leaderboard, and a health check.
+ * Whether a cell in the Approved column counts as ticked.
  *
- * `?board=game` returns the leaderboard, `&limit=` deciding how much of it —
+ * A tick arrives as three different things depending on how the column was
+ * made: a real checkbox gives the boolean true, a typed answer gives "Yes",
+ * and an x or a tick mark gives those. Anything non-empty would have done,
+ * except that an *unchecked* checkbox is the boolean false — which stringifies
+ * to "false" and is very much not empty. Those three words are the whole
+ * reason this is a function.
+ */
+function ticked(v) {
+  if (v === true) return true;
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  if (!s) return false;
+  return s !== "false" && s !== "no" && s !== "0";
+}
+
+/**
+ * The messages for the guestbook wall.
+ *
+ * Two gates, and both are deliberate. The guest has to have said yes to
+ * "Share this message publicly?", and somebody in the family has to have
+ * ticked Approved. That is exactly the promise the form makes — *shown on her
+ * guestbook once her family has read it* — and this is the screen it was
+ * promising about: a television in a room full of relatives and children.
+ * Anything that has not been read by a person does not go on it.
+ *
+ * RSVPs and wishes come back as one list. They are the same thing to a reader
+ * on the night; only the tab they arrived in differs.
+ */
+function wallMessages() {
+  const out = [];
+  const tabs = [[RSVP_SHEET, RSVP_HEADERS], [WISH_SHEET, WISH_HEADERS]];
+
+  for (let t = 0; t < tabs.length; t++) {
+    const sheet = getSheet(tabs[t][0], tabs[t][1]);
+    const last = sheet.getLastRow();
+    if (last < 2) continue;
+
+    // Columns A-F: timestamp, name, guest type, message, public, approved.
+    const rows = sheet.getRange(2, 1, last - 1, 6).getValues();
+    for (let i = 0; i < rows.length; i++) {
+      const who = String(rows[i][1] || "").trim();
+      const says = String(rows[i][3] || "").trim();
+      // Both columns are read the same forgiving way. The form writes the
+      // words "Yes" and "No", but a column somebody later turned into a
+      // checkbox sends true and false — and an exact test for "yes" quietly
+      // rejects every ticked box, which looks exactly like a screen that is
+      // broken rather than a column that is the wrong type.
+      if (!who || !says || !ticked(rows[i][4]) || !ticked(rows[i][5])) continue;
+      out.push({ name: who.slice(0, 100), message: says.slice(0, 1000) });
+    }
+  }
+
+  return out;
+}
+
+/**
+ * Read requests: the leaderboard, the guestbook, and a health check.
+ *
+ * `?board=wall` returns every approved public message, for the guestbook
+ * screen. `?board=game` returns the leaderboard, `&limit=` deciding how much
+ * of it —
  * ten if it is not asked for, and never more than fifty however large a number
  * turns up. The cap is not politeness: this URL is public, and the limit
  * arrives in a stranger's query string.
@@ -251,15 +369,32 @@ function doGet(e) {
     }
   }
 
+  if (what === "wall") {
+    try {
+      return json({ ok: true, messages: wallMessages() });
+    } catch (err) {
+      return json({ ok: false, error: String(err) });
+    }
+  }
+
   let rsvpOk = false;
   let gameOk = false;
+  let wishOk = false;
   try {
     rsvpOk = Boolean(getSheet(RSVP_SHEET, RSVP_HEADERS));
     gameOk = Boolean(getSheet(GAME_SHEET, GAME_HEADERS));
+    wishOk = Boolean(getSheet(WISH_SHEET, WISH_HEADERS));
   } catch (err) {
     // Whichever threw stays false, which is the thing worth reporting.
   }
-  return json({ ok: true, service: "rsvp", rsvpOk: rsvpOk, gameOk: gameOk });
+  return json({
+    ok: true,
+    service: "rsvp",
+    version: SCRIPT_VERSION,
+    rsvpOk: rsvpOk,
+    gameOk: gameOk,
+    wishOk: wishOk,
+  });
 }
 
 function json(obj) {

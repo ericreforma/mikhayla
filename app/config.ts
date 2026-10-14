@@ -252,6 +252,23 @@ export const COLUMN_SEPARATOR = asset("/frames/column-separator.svg");
  * wanted: her high in a tall shot, since the top is faded out and written
  * over and the bottom runs off the screen.
  */
+/**
+ * The portrait that stands in the corner of the guestbook screen.
+ *
+ * A **cut-out** rather than one of the rectangular studio shots, which is what
+ * lets her simply stand in the room: the photographs needed a radial fade to
+ * stop them reading as a picture stuck onto a slide, and a fade is a
+ * compromise — it dims her as well as her background. With no background to
+ * hide there is nothing to fade.
+ *
+ * She fills her own frame almost exactly (the figure runs from 4% to 100%
+ * across it), so whatever height the screen gives her, she is about 0.78 of
+ * that wide — which is where the guestbook's left padding comes from. Replace
+ * her with a differently-proportioned cut-out and that padding wants
+ * re-measuring, or the message will run across her.
+ */
+export const GUESTBOOK_PORTRAIT = picture("/images/khayla-cutout.png");
+
 export const FINALE_PORTRAIT = picture("/images/mikhayla-cake.png");
 
 export const SWIMWEAR_ICON = asset("/icons/swimwear.png");
@@ -284,7 +301,33 @@ const MONTH_NAMES = [
 
 export const BIRTH_DATE = `${MONTH_NAMES[BIRTH_MONTH - 1]} ${BIRTH_DAY}, ${BIRTH_YEAR}`;
 
-export const PARTY_DATE = "Saturday, October 17, 2026";
+/**
+ * The day of the ball, as three numbers and as a sentence.
+ *
+ * The numbers are what the code compares against — the scoreboard stays sealed
+ * until this date, see `scoresRevealed` — and the sentence is what a guest
+ * reads. Both come from the same three values so they cannot drift apart, and
+ * the weekday is worked out rather than typed, which removes the one part of
+ * that sentence a human would get wrong after changing the date.
+ *
+ * The weekday is read off a UTC date with UTC getters. That pairing matters: a
+ * calendar date has no timezone, and asking a local `Date` what day it falls
+ * on gives a different answer either side of the dateline. UTC in and UTC out
+ * is the same everywhere.
+ */
+export const PARTY_YEAR = 2026;
+export const PARTY_MONTH = 10;
+export const PARTY_DAY = 17;
+
+const DAY_NAMES = [
+  "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+];
+
+const PARTY_WEEKDAY =
+  DAY_NAMES[new Date(Date.UTC(PARTY_YEAR, PARTY_MONTH - 1, PARTY_DAY)).getUTCDay()];
+
+export const PARTY_DATE =
+  `${PARTY_WEEKDAY}, ${MONTH_NAMES[PARTY_MONTH - 1]} ${PARTY_DAY}, ${PARTY_YEAR}`;
 export const PARTY_TIME = "10:00 AM – 2:00 PM";
 /**
  * The venue, in its two halves.
@@ -336,7 +379,7 @@ export const RSVP_BY = "October 10";
  * invitation works perfectly well before the sheet exists. Nothing else has
  * to change when you fill it in.
  */
-export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEsYfwlwZE72bWklzODxmTyZ1njOvzT0rYbK8RsGqHRb2p5W43Bkm6Lyu5dN4fdiO4sw/exec";
+export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbxk7SoK6MmOw_16HAq4Vs2KDo1kVNc8ryGR8caRmIXfd1zfTfmK9xzmDoSpf11jb6tqaA/exec";
 
 /* ---------------------------------------------------------------
    The game hidden behind the balloon
@@ -364,6 +407,27 @@ export const RSVP_ENDPOINT = "https://script.google.com/macros/s/AKfycbzEsYfwlwZ
  * device — it simply stops asking for a name at the end.
  */
 export const GAME_ENDPOINT = RSVP_ENDPOINT;
+
+/**
+ * The word that opens the royal ledger.
+ *
+ * The scoreboard is sealed everywhere a guest can reach it — the standings are
+ * the host's to announce, not something anybody can look up between runs — and
+ * `/royal-ledger` is the one page that still prints them. It asks for this in
+ * the query string, `?seal=...`, so that knowing the address is not enough;
+ * the link handed to the host carries it and nothing else does.
+ *
+ * Change it and every old link stops working, which is the way to withdraw one
+ * that has been forwarded too far.
+ *
+ * It is a door latch rather than a lock, and worth being clear-eyed about:
+ * the sheet is read through a public Apps Script URL that the game itself
+ * calls, so a guest determined enough to open the network tab can still read
+ * the rows. What this stops is the ordinary case — somebody guessing the
+ * address, or a forwarded screenshot of it — which at a birthday party is the
+ * whole of the threat.
+ */
+export const LEDGER_KEY = "midnight-carriage";
 
 /**
  * Her three animations, as horizontal sprite strips.

@@ -141,9 +141,9 @@ function sameName(a: string, b: string): boolean {
  * not worth uploading. Their own scoreboard row would stay empty for the rest
  * of the party.
  *
- * So changing the name clears both. Nothing is lost that mattered: whatever the
- * previous player achieved is already on the board under their own name, and
- * `adoptBoard` hands it straight back if they take the phone again.
+ * So changing the name clears both. Nothing is lost that matters much: whatever
+ * the previous player achieved is already on the board under their own name,
+ * safe in the sheet, and counted when the host reads it out.
  */
 export function writeName(name: string) {
   try {
@@ -157,56 +157,9 @@ export function writeName(name: string) {
   }
 }
 
-/**
- * Take back whatever the board already holds for whoever is playing.
- *
- * The board is the real record and this device's copy is a cache of it, so
- * every refresh is a chance to correct the cache: a player on a second phone,
- * one who cleared their browser, or one who has just typed their name back in
- * after lending the game to a friend, all get their own best returned to them
- * rather than starting from nothing.
- *
- * It only ever raises, which is the half that matters. A local 900 that never
- * reached the sheet must not be pulled down to the 500 the sheet knows about —
- * that would un-send a score and then refuse to send it again.
- */
-function adoptBoard(top: TopScore[]) {
-  const me = readName();
-  if (!me) return;
-  const mine = top.find((row) => sameName(row.name, me));
-  if (!mine) return;
-  writeBest(mine.score);
-  writeSent(mine.score);
-}
-
 /** Whether there is anywhere to post at all — see `GAME_ENDPOINT` in config. */
 export const CAN_SUBMIT = Boolean(GAME_ENDPOINT);
 
-/**
- * How much of the board is asked for, and how much of it is shown at first.
- *
- * Twenty are fetched and ten are drawn, with the rest a button away. The ten
- * are what fits a phone on its side without scrolling; the other ten cost
- * nothing to carry — a couple of dozen bytes each, arriving in the same
- * request — so opening the rest of the list is a render rather than another
- * trip to Google.
- *
- * The script decides what it actually sends. A deployment that predates the
- * `limit` parameter answers with ten whatever is asked, which is not a
- * failure: the board simply has no second page and `Leaderboard` does not
- * offer one. See `docs/rsvp-setup.md`.
- */
-export const BOARD_MAX = 20;
-export const BOARD_TOP = 10;
-
-/**
- * The longest name the board will take.
- *
- * Stated once and enforced three times — the input's `maxLength`, the trim
- * below, and again in the Apps Script. The first is a courtesy, the second
- * stops a paste going out, and only the third actually guarantees anything,
- * because the endpoint is public and anyone can post to it directly.
- */
 export const NAME_MAX = 100;
 
 export type SubmitResult =
@@ -270,7 +223,7 @@ export async function submitScore(name: string, score: number): Promise<SubmitRe
     return {
       ok: false,
       certain: false,
-      error: "We couldn't reach the scoreboard — your connection may have dropped.",
+      error: "We couldn't reach the ledger — your connection may have dropped.",
     };
   }
 
@@ -296,92 +249,4 @@ export async function submitScore(name: string, score: number): Promise<SubmitRe
     certain: false,
     error: `The scoreboard answered with ${res.status} and nothing we could read.`,
   };
-}
-
-/* ---------------------------------------------------------------
-   Reading the board back
-   --------------------------------------------------------------- */
-
-export type TopScore = { name: string; score: number };
-
-export type BoardResult =
-  | { ok: true; top: TopScore[] }
-  | { ok: false; error: string };
-
-/**
- * The last board the server gave us, kept for as long as the tab is open.
- *
- * It is what makes the fetch a background job rather than a wait. The game
- * asks for the board when it mounts — long before anybody opens the Scoreboard
- * panel — so by the time that panel opens the answer is usually already here,
- * and it opens on a list instead of a spinner. The HUD reads the same copy for
- * the name it shows under the score.
- *
- * Module-level rather than React state because it outlives the components that
- * use it: the panel is mounted and thrown away every time it is opened, and
- * the game is remade on every run.
- */
-let board: TopScore[] | null = null;
-
-/** Whatever we last heard, or null if we have not heard yet. */
-export function cachedTop(): TopScore[] | null {
-  return board;
-}
-
-/** The one name worth putting on screen during a run. */
-export function cachedLeader(): TopScore | null {
-  return board && board.length > 0 ? board[0] : null;
-}
-
-/**
- * The best of them, for the board the "Scoreboard" button opens.
- *
- * A plain `GET` with no headers of our own, which matters for the same reason
- * the POST sends `text/plain`: anything that would make this a non-simple
- * request earns a CORS preflight, and an Apps Script web app cannot answer
- * one. No `cache: "no-store"` either — that is a header in disguise. The
- * freshness comes from Apps Script, which sends `no-store` itself.
- *
- * One row per person rather than per run, and the folding happens in the
- * script rather than here — see `topScores` in `docs/rsvp-setup.md`. Doing it
- * on this side would mean downloading every run anybody has ever had in order
- * to throw almost all of them away.
- */
-export async function fetchTopScores(): Promise<BoardResult> {
-  if (!GAME_ENDPOINT) return { ok: false, error: "No leaderboard is set up yet." };
-
-  try {
-    const res = await fetch(`${GAME_ENDPOINT}?board=game&limit=${BOARD_MAX}`);
-    const data = (await res.json().catch(() => null)) as
-      | { ok?: boolean; error?: string; top?: unknown }
-      | null;
-
-    if (!data?.ok || !Array.isArray(data.top)) {
-      return {
-        ok: false,
-        error: data?.error || "The scoreboard didn't answer with a board.",
-      };
-    }
-
-    /* Rows come from a public endpoint and a spreadsheet anybody at the party
-       can type into, so nothing is trusted: each is rebuilt from scratch and
-       anything that isn't a name and a number is dropped. */
-    const top: TopScore[] = [];
-    for (const row of data.top) {
-      if (!row || typeof row !== "object") continue;
-      const { name, score } = row as { name?: unknown; score?: unknown };
-      if (typeof name !== "string" || typeof score !== "number") continue;
-      if (!Number.isFinite(score)) continue;
-      top.push({ name: name.trim().slice(0, NAME_MAX), score: Math.floor(score) });
-    }
-
-    board = top;
-    adoptBoard(top);
-    return { ok: true, top };
-  } catch {
-    return {
-      ok: false,
-      error: "We couldn't reach the scoreboard — your connection may have dropped.",
-    };
-  }
 }

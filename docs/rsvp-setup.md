@@ -106,6 +106,39 @@ A tick can be a checkbox, the word Yes, an x, or a tick mark. An *unchecked*
 checkbox is the boolean `false`, which is why `ticked()` exists rather than a
 test for "not empty".
 
+### Putting the scoreboard on the wall
+
+`/mikhayla/guestbook?scores=<the seal word>` deals the **Royal Scoreboard** into
+the rotation — the same word that opens `/royal-ledger`, so there is one secret
+rather than two.
+
+**It is off by default on purpose, and that is the setting to leave alone until
+the announcement is over.** This screen is the most public surface at the party;
+switching the board on puts the standings in front of everybody, which is the
+exact opposite of what the sealed board in the game is for. The right moment is
+*after* the host has read the top ten out, and whoever holds the link is the one
+who decides when. Without the word the page never shows the board and never once
+asks the sheet for a score — measured, zero requests.
+
+When it is on, the board appears **every eighth message**, so roughly every two
+minutes. Once per full cycle would have been simpler, but with fifty messages on
+the wall that is once every twelve minutes, which nobody waiting to see it would
+sit through.
+
+It is dressed as a page of the guestbook rather than as the ledger bolted on:
+the title sits in the slot a sender's name uses, in the same hand, and the rows
+fade in one after another the way the words of a message do — **in rank order
+across both columns**, since the delay comes off the rank rather than the row's
+place in its own column. On a board being read out, the order is the drama.
+
+Two columns, one to ten and eleven to twenty, the second quieter. Measured with
+the real board loaded, it fits with nothing scrolling and clears the portrait at
+1920x1080, 1366x768 and 1024x768 — the last of which caught a bug worth
+remembering: a flex column defaults to `min-width: auto` and refuses to shrink
+below its content, so one long name pushed the whole board 153px off the right
+of a 4:3 screen while every `truncate` inside it sat there with nothing to do.
+`min-w-0` is as load-bearing as `min-h-0`.
+
 > **Two changes since this was first deployed**, and both need the script
 > pasted in again and redeployed before they do anything: `doGet` now honours
 > `&limit=` (the ledger asks for twenty), and `doPost` now routes

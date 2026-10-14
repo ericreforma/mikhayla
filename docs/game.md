@@ -815,8 +815,8 @@ address, kept vague on purpose.
 
 Built for that job rather than for a guest — **all twenty names at once** with
 no *show more* button, crowns on the first three, and rows eleven to twenty
-quieter beneath a wash of ink so the ten being announced are the ten the eye
-lands on. It refreshes itself every minute and has a *Refresh* button besides,
+set quieter under a wash of ink — in a second column on a laptop, stacked
+beneath on a phone — so the ten being announced are the ten the eye lands on. It refreshes itself every minute and has a *Refresh* button besides,
 because runs will still be arriving while the host is walking to the
 microphone, and it stamps the time it last read so a stale screen says so.
 
@@ -833,34 +833,76 @@ rebuild. Every old link stops working.
 `layout.tsx` beside it sets `noindex`, as `/escaped` does. This page is handed
 round as a link, nothing points at it, and a search result would undo both.
 
-**It is the first route on this site that has to scroll, and that took a fix.**
-`globals.css` locks `html, body` to `height: 100%; overflow: hidden` — the
-invitation is a deck with one moving track rather than a document, and that
-lock is what stops iOS rubber-banding the page behind it. Every other route
-either fits the screen exactly (the game, the guestbook) or scrolls inside a
-box of its own. Twenty names do not fit a phone, so written as an ordinary tall
-`<main>` the list was simply clipped at the bottom with no way to reach it.
+**Two layouts with one breakpoint between them**, because the host might read
+this off a laptop on a table or a phone in their hand, and those want opposite
+things.
 
-The fix is `fixed inset-0 overflow-y-auto overscroll-contain` on the `<main>`:
-it takes the viewport directly and becomes the scrolling element itself, which
-the body lock cannot reach. The parchment grain inside it is `fixed` rather
-than `absolute` for the same reason — an absolutely-positioned child of a
-scroll container scrolls away with the content and would leave the grain
-covering only the first screenful. Measured after the fix, with the real board
-loaded:
+**From `sm` (640px) up: one screen, and nothing moves.** The host reads this
+standing up, out loud, with a microphone in one hand — losing your place in a
+scrolling list is the failure to design out. It fits by splitting: **one to ten
+down the left, eleven to twenty down the right**, which is also how the list is
+used, since the left column is the announcement and the right is everyone else.
 
-| viewport | page height | scrolls | row 20 reachable |
-|---|---|---|---|
-| 390x844 (phone) | 1162px in 844 | 318px | yes |
-| 844x390 (phone, sideways) | 1216px in 390 | 826px | yes |
-| 768x1024 (tablet) | 1512px in 1024 | 488px | yes |
-| 1280x800 (laptop) | 1058px in 800 | 258px | yes |
+**Below `sm`: one column, scrolling.** Two columns on a phone held upright
+leaves each about 180px wide — enough for the rank and the score and almost
+none of the name — and a board of truncated names is no use to somebody reading
+them out. A phone has height to spare instead, so it spends it: the two tens
+stack and the page scrolls.
 
-The sealed card centres with `min-h-full` on an inner box rather than
-`items-center` on a fixed-height one. Flex centring inside a scroll container
-puts the overflow *above* the top of the scrollable area, where nothing can
-reach it — on a landscape phone that would have cut the card's heading off with
-no way to scroll up to it.
+**The breakpoint is on width, deliberately.** A phone turned sideways gets the
+two-column board: 844x390 has no height to stack in and plenty of width to
+split, so width is the question actually being asked.
+
+The mechanism is plain flexbox rather than any measuring. The page is a
+`fixed inset-0` column; from `sm` up the board is `flex-1 min-h-0` and every
+row is `flex-1` of its own column, so ten rows divide whatever height is left
+between them and the board cannot outgrow the window however short it gets.
+`min-h-0` is the load-bearing part: a flex child defaults to
+`min-height: auto` and refuses to shrink below its content, so without it a
+tall board pushes the footer off the bottom instead of the rows getting
+shorter. **Every one of those `flex-1`s is `sm:`-prefixed** — unprefixed they
+would squash ten rows into whatever height the content happened to have, and
+the phone's list would collapse into a stripe.
+
+Scrolling needs its own container because `globals.css` locks `html, body` to
+`overflow: hidden` — the invitation is a deck, not a document. `fixed inset-0`
+plus `overflow-y-auto` makes the `<main>` the scroller itself, which the body
+lock cannot reach; `sm:overflow-hidden` takes that away again once the board
+fits.
+
+The type is sized `clamp(0.62rem, min(4vh, 4.4vw), 2.4rem)` on the fitted
+layout — **both** axes, because a different one binds on each screen. Height
+decides it on a laptop, where ten rows share a tall column; width decides it on
+a narrow window, where sizing by height alone truncates every name. `min()`
+takes whichever constraint would have broken first. The scrolling layout has no
+such problem and just uses `text-base` / `text-sm`.
+
+Measured against the real board, twenty names loaded:
+
+| viewport | layout | scrolls | end reachable | type |
+|---|---|---|---|---|
+| 1920x1080 | side by side | no | — | 43.2 / 35.6 px |
+| 1280x600 (short window) | side by side | no | — | 24.0 / 19.8 px |
+| 640x900 (the breakpoint) | side by side | no | — | 28.2 / 23.0 px |
+| 844x390 (phone sideways) | side by side | no | — | 15.6 / 12.9 px |
+| 430x932 | stacked | 36px | yes | 16 / 14 px |
+| 390x844 | stacked | 113px | yes | 16 / 14 px |
+| 360x640 | stacked | 287px | yes | 16 / 14 px |
+
+On the fitted layout every row sits inside the window and no row's text
+overflows the row it was given. On the scrolling layout the last row *and* the
+Refresh button are both reachable at the end of the scroll — which is the check
+that matters there, since "all rows on screen" is deliberately false. Nothing
+scrolls horizontally at any size.
+
+A board of ten or fewer renders as **one centred column** rather than a full
+one beside an empty one, which would read as something that failed to load.
+
+The sealed card scrolls at every size, and it centres with `min-h-full` on an
+inner box rather than `items-center` on a fixed-height one. Flex centring
+inside a scroll container puts the overflow *above* the top of the scrollable
+area, where nothing can reach it — on a landscape phone that would cut the
+card's heading off with no way to scroll up to it.
 
 **It is a latch, not a lock.** The rows come from the same public Apps Script
 URL the game posts scores to, so somebody willing to open a network tab and

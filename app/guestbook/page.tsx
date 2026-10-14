@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BABY_NAME, GUESTBOOK_PORTRAIT } from "@/app/config";
+import { BABY_NAME, GUESTBOOK_PORTRAIT, LEDGER_KEY } from "@/app/config";
 import { Crown, Sparkle, Spinner } from "@/app/components/Ornaments";
 import { useIsLandscape } from "@/app/game/orientation";
+import { BOARD_TOP, fetchTopScores, type TopScore } from "@/app/game/ledger";
 import { Flourishes } from "./Flourishes";
 import { fetchMessages, type Message } from "./messages";
 
@@ -19,7 +20,7 @@ import { fetchMessages, type Message } from "./messages";
  * that and not from the rest of the site:
  *
  *   * **It never scrolls.** A message is one screenful or it is set smaller
- *     until it is — see `sizeFor`. Nobody is going to walk over and scroll a
+ *     until it is — see `fit`. Nobody is going to walk over and scroll a
  *     television.
  *   * **It turns itself.** Fifteen seconds a message, and the arrow keys or a
  *     click take it anywhere sooner.
@@ -28,6 +29,11 @@ import { fetchMessages, type Message } from "./messages";
  *     whenever somebody opened the tab.
  *   * **It is landscape.** A phone held upright is told so rather than being
  *     given a squashed version of a thing designed for a 16:9 screen.
+ *
+ * It can also deal the **scoreboard** into the rotation, which it does not do
+ * unless the URL asks with the seal word — see `showScores`. The standings are
+ * the host's to announce, and this screen is the most public surface at the
+ * party; switching it on is a thing to do after the announcement, not before.
  */
 
 /** How long a message holds before the next one, in milliseconds. */
@@ -67,6 +73,26 @@ const FIT_MIN_VMIN = 2.4;
 const FIT_MAX_VMIN = 13;
 
 /**
+ * How many messages pass between showings of the scoreboard.
+ *
+ * Only when it has been switched on at all — see `?scores=` below. Once per
+ * full cycle would have been simpler, but with fifty messages on the wall that
+ * is once every twelve minutes, which is not a thing anybody waiting to see
+ * the board would sit through. Every eighth puts it on screen about every two
+ * minutes without it becoming the thing the screen is mostly showing.
+ */
+const SCORES_EVERY = 8;
+
+/**
+ * What the wall is showing at any moment: somebody's message, or the board.
+ *
+ * A union rather than a flag, so the rotation is one list of slides and
+ * everything that walks it — the dwell, the arrow keys, the counter in the
+ * corner — carries on knowing nothing about what a slide contains.
+ */
+type Slide = { kind: "message"; message: Message } | { kind: "scores" };
+
+/**
  * The largest type that still fits the box, found by halving.
  *
  * Binary search rather than a formula, because the thing being solved for —
@@ -102,6 +128,28 @@ export default function Guestbook() {
   const [error, setError] = useState("");
   const [at, setAt] = useState(0);
 
+  /*
+   * The scoreboard, which this screen does not show unless asked.
+   *
+   * It is **off by default and gated on the same word as `/royal-ledger`**,
+   * because this screen is a television in a room full of guests: turning it
+   * on puts the standings in front of everybody, which is the opposite of what
+   * the sealed board in the game is for. That is a thing to do *after* the
+   * host has read the top ten out, and the person who has that link is the
+   * person who decides when.
+   *
+   * One secret rather than two, deliberately. `?scores=<the seal word>`.
+   *
+   * Nothing is fetched while it is off, so a guestbook left running all
+   * afternoon never so much as asks the sheet for a score.
+   */
+  const [showScores, setShowScores] = useState(false);
+  const [scores, setScores] = useState<TopScore[]>([]);
+  useEffect(() => {
+    const asked = new URLSearchParams(window.location.search).get("scores");
+    setShowScores(asked === LEDGER_KEY);
+  }, []);
+
   /* Bumped on every manual move, so the dwell timer restarts rather than
      firing halfway through a message somebody just chose. */
   const [turn, setTurn] = useState(0);
@@ -128,7 +176,43 @@ export default function Guestbook() {
     return () => window.clearInterval(id);
   }, [load]);
 
-  const total = messages?.length ?? 0;
+  /* The board, on the same heartbeat — runs are still being played while this
+     is on screen, so a board fetched once at eleven o'clock would be a lie by
+     one o'clock. A failure leaves whatever is already there. */
+  useEffect(() => {
+    if (!showScores) return;
+    const read = () => {
+      fetchTopScores().then((result) => {
+        if (result.ok) setScores(result.top);
+      });
+    };
+    read();
+    const id = window.setInterval(read, REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [showScores]);
+
+  /*
+   * The rotation: every message, with the board dealt in among them.
+   *
+   * Built here rather than at the point of rendering so that `total` — which
+   * the dwell timer, the arrow keys and the counter all work off — counts
+   * slides rather than messages. The fallback at the end covers the party that
+   * has scores but no approved messages yet: without it the board would be
+   * switched on and never once appear.
+   */
+  const slides = useMemo<Slide[]>(() => {
+    const out: Slide[] = [];
+    const board: Slide = { kind: "scores" };
+    const showing = showScores && scores.length > 0;
+    (messages ?? []).forEach((message, i) => {
+      out.push({ kind: "message", message });
+      if (showing && (i + 1) % SCORES_EVERY === 0) out.push(board);
+    });
+    if (showing && !out.some((slide) => slide.kind === "scores")) out.push(board);
+    return out;
+  }, [messages, showScores, scores.length]);
+
+  const total = slides.length;
 
   const go = useCallback(
     (by: number) => {
@@ -161,7 +245,8 @@ export default function Guestbook() {
     return () => window.removeEventListener("keydown", onKey);
   }, [go]);
 
-  const current = messages && total > 0 ? messages[at % total] : null;
+  const slide = total > 0 ? slides[at % total] : null;
+  const current = slide?.kind === "message" ? slide.message : null;
 
   /* Split once per message rather than once per render: the reveal below maps
      over this, and re-splitting on every frame of an animation would rebuild
@@ -249,7 +334,7 @@ export default function Guestbook() {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${at}-${current?.name}`}
+              key={`${at}-${slide?.kind === "scores" ? "scores" : current?.name}`}
               /* `h-full` and a column, so the message below can be handed
                  everything the name does not use. The old version let the pair
                  size themselves and centred the result, which on a television
@@ -260,14 +345,17 @@ export default function Guestbook() {
               exit={{ opacity: 0, transition: { duration: 0.35 } }}
               transition={{ duration: 0.4 }}
             >
-              {/* Who it is from, above. Named first on purpose: at a party the
-                  name is the thing somebody across the room looks for — so it
-                  is set large enough to be read from where they are standing,
-                  which is the whole brief for this screen. */}
+              {/* Who it is from, above — or what this slide is, when it is
+                  the board. Named first on purpose: at a party the name is the
+                  thing somebody across the room looks for, so it is set large
+                  enough to be read from where they are standing, which is the
+                  whole brief for this screen. The board borrows the same slot
+                  and the same type, so it reads as another page of the same
+                  book rather than as a different screen. */}
               <header className="flex flex-none flex-col items-center">
                 <Crown className="h-[5vmin] w-auto text-gold" />
                 <p className="mt-[1.4vmin] max-w-[70vw] truncate font-hand text-[clamp(1.8rem,6.4vmin,5rem)] leading-none text-berry">
-                  {current?.name}
+                  {slide?.kind === "scores" ? "Royal Scoreboard" : current?.name}
                 </p>
                 <div aria-hidden className="gilt-rule mt-[2vmin] h-px w-[26vmin]" />
               </header>
@@ -283,6 +371,9 @@ export default function Guestbook() {
                 is the backstop for the one case the search cannot solve — a
                 message so long that even the floor size overflows.
               */}
+              {slide?.kind === "scores" ? (
+                <Board rows={scores} />
+              ) : (
               <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden pt-[3vmin]">
                 <p
                   ref={attach}
@@ -305,6 +396,7 @@ export default function Guestbook() {
                   ))}
                 </p>
               </div>
+              )}
             </motion.div>
           </AnimatePresence>
         )}
@@ -314,6 +406,111 @@ export default function Guestbook() {
     </main>
   );
 }
+
+/**
+ * The board, as a page of the guestbook.
+ *
+ * Two columns — one to ten on the left, eleven to twenty on the right — for
+ * the same reason the ledger has them: twenty rows stacked on a screen this
+ * shape would either run off the bottom or be set too small to read from the
+ * other side of the room. This screen never scrolls, so the rows are `flex-1`
+ * of a `min-h-0` column and divide the height between them however much there
+ * is.
+ *
+ * The rows arrive one after another, the way the words of a message do, and
+ * **in rank order across both columns** — the delay comes off `rank`, not off
+ * the row's position in its own column, so the board fills from first place to
+ * twentieth rather than both columns racing each other down the screen. On a
+ * board being read out, the order is the drama.
+ */
+function Board({ rows }: { rows: TopScore[] }) {
+  /* The whole board lands inside `REVEAL_S` however many rows there are, same
+     arithmetic as the words of a message. */
+  const step = rows.length > 0 ? Math.min(0.1, REVEAL_S / rows.length) : 0;
+  return (
+    <div className="flex min-h-0 w-full flex-1 gap-[3vmin] pt-[3.5vmin]">
+      <BoardColumn rows={rows.slice(0, BOARD_TOP)} from={0} step={step} />
+      {rows.length > BOARD_TOP && (
+        <BoardColumn rows={rows.slice(BOARD_TOP)} from={BOARD_TOP} step={step} quiet />
+      )}
+    </div>
+  );
+}
+
+/** One half of it. `quiet` is the second ten: a wash of ink and a size down. */
+function BoardColumn({
+  rows,
+  from,
+  step,
+  quiet = false,
+}: {
+  rows: TopScore[];
+  from: number;
+  step: number;
+  quiet?: boolean;
+}) {
+  return (
+    <ol
+      className={
+        /*
+         * `min-w-0` as well as `min-h-0`, and the width one is the subtle one:
+         * a flex item defaults to `min-width: auto` and refuses to shrink
+         * below its *content*, so a column holding one long name pushes itself
+         * — and the whole board — off the right of the screen, while every
+         * `truncate` inside it sits there with nothing to do because the span
+         * was never actually squeezed. Measured on a 1024x768 screen without
+         * it: the board ran 153px past the edge.
+         */
+        "flex min-h-0 min-w-0 flex-1 flex-col px-[2vmin] " +
+        (quiet ? "rounded-[2vmin] bg-ink/[0.05]" : "")
+      }
+    >
+      {rows.map((row, i) => {
+        const rank = from + i;
+        return (
+          <motion.li
+            key={`${row.name}-${rank}`}
+            className={
+              "flex min-h-0 flex-1 items-center gap-[1.6vmin] border-b border-gold/15 last:border-0 " +
+              /* Sized against both axes. Height binds on a 16:9 television,
+                 where ten rows share the column; width binds on a squarer
+                 screen, where the portrait has already taken 54vmin and two
+                 columns have to share what is left. `min()` takes whichever
+                 would have broken first. */
+              (quiet
+                ? "text-[clamp(0.75rem,min(3.2vmin,2.2vw),2.2rem)] text-ink/70"
+                : "text-[clamp(0.85rem,min(3.8vmin,2.6vw),2.6rem)] text-ink/85")
+            }
+            initial={{ opacity: 0, y: "0.3em" }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: rank * step, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {/* A crown for the first three, a number for the rest, both in the
+                same slot so every name starts on the same line. */}
+            <span
+              className="flex w-[1.8em] flex-none justify-center"
+              style={rank < 3 ? { color: MEDALS[rank] } : undefined}
+            >
+              {rank < 3 ? (
+                <Crown className="h-[0.95em] w-auto" />
+              ) : (
+                <span className="font-display font-semibold text-goldDeep">{rank + 1}</span>
+              )}
+            </span>
+
+            <span className="min-w-0 flex-1 truncate font-display italic">{row.name}</span>
+            <span className="flex-none pl-[1vmin] font-mono font-semibold tabular-nums text-ink">
+              {row.score}
+            </span>
+          </motion.li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Gold, silver, bronze — the same three the rest of the site crowns with. */
+const MEDALS = ["#C9A227", "#8A94A1", "#B0702B"];
 
 /**
  * Her, standing in the corner of the room.

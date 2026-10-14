@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BABY_NAME, LEDGER_KEY, PARTY_DATE } from "@/app/config";
+import { LEDGER_KEY, PARTY_DATE } from "@/app/config";
 import { Crown, Sparkle, Spinner } from "@/app/components/Ornaments";
 import { BOARD_TOP, fetchTopScores, type TopScore } from "@/app/game/ledger";
 
@@ -92,139 +92,192 @@ export default function RoyalLedger() {
 
   return (
     /*
-     * Its own scrolling viewport, and it has to be.
+     * One screenful on anything with room for it, and a scrolling list on a
+     * phone. The two are the same component with one breakpoint between them.
      *
-     * `globals.css` locks `html, body` to `height: 100%; overflow: hidden` —
-     * the invitation is a deck with one moving track, not a document, and that
-     * lock is what stops iOS rubber-banding the whole page behind it. Every
-     * other route here either fits the screen exactly (the game, the
-     * guestbook) or scrolls inside a box of its own, so this is the first page
-     * that is simply *long*: twenty names will not fit a phone, and left as an
-     * ordinary tall `<main>` the bottom of the list is clipped away with no
-     * way to reach it.
+     * **From `sm` up: it fits, and nothing moves.** The host reads this
+     * standing up, out loud, with a microphone in one hand, and losing your
+     * place in a scrolling list is the failure to design out. It fits by
+     * splitting — one to ten down the left, eleven to twenty down the right —
+     * because twenty rows stacked cannot fit a short window at a size anybody
+     * can read, and two tens can. The split is also how the list is used: the
+     * left column is the announcement, the right is everyone else.
      *
-     * `fixed inset-0` takes the viewport directly and `overflow-y-auto` makes
-     * this element the thing that scrolls, which the body lock cannot reach.
-     * `overscroll-contain` keeps a flick at the end of the list from handing
-     * the gesture back to the locked body underneath.
+     * **Below `sm`: one column, scrolling.** Two columns on a phone held
+     * upright leaves each of them about 180px wide, which is enough for the
+     * rank and the score and almost nothing of the name — and a board of
+     * truncated names is no use to somebody reading them out. A phone has the
+     * height to spare instead, so it spends it: the two tens stack and the
+     * page scrolls, the way it did before the split.
+     *
+     * The breakpoint is on **width**, deliberately, which is why a phone
+     * turned sideways gets the two-column board. 844x390 has no height to
+     * stack in and plenty of width to split, so width is the question actually
+     * being asked.
+     *
+     * `globals.css` locks `html, body` to `overflow: hidden` — the invitation
+     * is a deck, not a document — so the scrolling half cannot lean on the
+     * body. `fixed inset-0` plus `overflow-y-auto` makes this element the
+     * scroller itself, which the lock cannot reach; `sm:overflow-hidden` takes
+     * that away again once the board fits.
      */
-    <main className="royal-dawn board-scroll fixed inset-0 overflow-y-auto overscroll-contain px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-8 sm:px-6 sm:pt-12">
-      {/* `fixed` rather than `absolute`: an absolutely-positioned child of a
-          scroll container scrolls away with the content, which would leave the
-          grain covering only the first screenful. */}
+    <main className="royal-dawn board-scroll fixed inset-0 flex flex-col overflow-y-auto overscroll-contain px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:overflow-hidden sm:px-6">
       <div aria-hidden className="pointer-events-none fixed inset-0 parchment-texture" />
 
-      <div className="relative mx-auto w-full max-w-xl">
-        <header className="text-center">
-          <Crown className="mx-auto h-8 w-auto text-gold" />
-          <h1 className="mt-3 font-display text-3xl italic leading-tight text-ink sm:text-4xl">
-            The Royal Scoreboard
-          </h1>
-          <div aria-hidden className="gilt-rule mx-auto mt-3 h-px w-28" />
-          <p className="mt-3 font-body text-sm leading-relaxed text-ink/60">
-            {BABY_NAME}&apos;s Royal Dash — all the scores, highest first.
+      {/* Sized in `vh` from here down, because height is the thing in short
+          supply: this has to survive a laptop with a browser window on it as
+          well as a phone, and a header measured in `rem` eats a short screen
+          alive. */}
+      <header className="relative flex-none text-center">
+        <Crown className="mx-auto h-[clamp(1.1rem,3.4vh,1.9rem)] w-auto text-gold" />
+        <h1 className="mt-[0.6vh] font-display text-[clamp(1.1rem,3.8vh,2.2rem)] italic leading-tight text-ink">
+          The Royal Scoreboard
+        </h1>
+        <div aria-hidden className="gilt-rule mx-auto mt-[0.8vh] h-px w-[clamp(4rem,12vh,7rem)]" />
+      </header>
+
+      {/* `min-h-0` is what makes "it fits" true rather than hopeful: a flex
+          child defaults to `min-height: auto` and refuses to shrink below its
+          content, so without it a tall board pushes the footer off the bottom
+          of the screen instead of the rows getting shorter. */}
+      <section className="relative mt-3 flex flex-none items-stretch justify-center sm:mt-[1.2vh] sm:min-h-0 sm:flex-1">
+        {rows === null ? (
+          <p className="flex items-center gap-2 self-center font-body text-sm text-ink/55">
+            <Spinner className="h-4 w-4" />
+            Loading the scores…
           </p>
-          {/* Said plainly, at the top, because the person reading this is the
-              only one who can give it away. */}
-          <p className="mx-auto mt-1.5 max-w-[42ch] font-body text-xs leading-relaxed text-ink/45">
-            Only you can see this page. The players can&apos;t see their scores — the top{" "}
-            {BOARD_TOP} are announced at the party on {PARTY_DATE}.
-          </p>
-        </header>
-
-        <section className="relative mt-7 overflow-hidden rounded-3xl border border-gold/35 bg-parchment/80 shadow-[0_10px_30px_rgba(62,40,20,0.12)]">
-          <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
-
-          <div className="relative px-5 py-4 sm:px-7 sm:py-5">
-            {rows === null ? (
-              <p className="flex items-center justify-center gap-2 py-10 font-body text-sm text-ink/55">
-                <Spinner className="h-4 w-4" />
-                Loading the scores…
-              </p>
-            ) : rows.length === 0 ? (
-              <div className="py-10 text-center">
-                <Sparkle className="mx-auto h-6 w-6 animate-twinkle text-gold" />
-                <p className="mt-3 font-body text-sm leading-relaxed text-ink/60">
-                  No scores yet.
-                </p>
-              </div>
-            ) : (
-              <ol>
-                {rows.map((row, i) => (
-                  <li
-                    key={`${row.name}-${i}`}
-                    /*
-                     * Past the tenth the list carries on quieter — a wash of
-                     * ink behind it and a size down — so the ten being read
-                     * out are the ten the eye lands on, and the rest read as
-                     * the tail of the same list.
-                     *
-                     * The negative margins are what let that wash reach the
-                     * card's edges; without them it stops where the text does
-                     * and leaves a parchment margin down both sides, which
-                     * turns one shaded section into ten shaded rectangles.
-                     */
-                    className={
-                      "flex items-baseline gap-3 border-b border-gold/15 leading-snug last:border-0 " +
-                      (i < BOARD_TOP
-                        ? "py-2 text-base sm:text-lg"
-                        : "-mx-5 bg-ink/[0.055] px-5 py-1.5 text-sm sm:-mx-7 sm:px-7")
-                    }
-                  >
-                    {/* A crown for the first three, a number for the rest, both
-                        in the same slot so every name starts on the same line.
-                        Sized in `em` so the slot keeps its proportion to the
-                        type in both halves of the list. */}
-                    <span
-                      className="flex w-[1.7em] flex-none justify-center"
-                      /* On the slot rather than the crown: `Crown` draws in
-                         `currentColor` precisely so the caller can set it with
-                         ordinary inheritance. */
-                      style={i < 3 ? { color: MEDALS[i] } : undefined}
-                    >
-                      {i < 3 ? (
-                        <Crown className="h-[0.88em] w-auto translate-y-[0.1em]" />
-                      ) : (
-                        <span className="font-display font-semibold text-goldDeep">{i + 1}</span>
-                      )}
-                    </span>
-
-                    {/* A guest's own typing, from a public endpoint, so it is
-                        allowed to ellipsise rather than push the score off the
-                        edge of a phone. */}
-                    <span className="min-w-0 truncate text-ink/80">{row.name}</span>
-                    <span className="ml-auto flex-none pl-2 font-mono font-semibold tabular-nums text-ink">
-                      {row.score}
-                    </span>
-                  </li>
-                ))}
-              </ol>
+        ) : rows.length === 0 ? (
+          <div className="self-center text-center">
+            <Sparkle className="mx-auto h-6 w-6 animate-twinkle text-gold" />
+            <p className="mt-3 font-body text-sm leading-relaxed text-ink/60">No scores yet.</p>
+          </div>
+        ) : (
+          <div
+            /* Two equal halves while there is a second half to show, and one
+               centred column while there is not — an empty box beside a short
+               list reads as something that failed to load. */
+            className={
+              "mx-auto flex w-full flex-col gap-3 sm:h-full sm:flex-row sm:gap-[1.4vh] " +
+              (rows.length > BOARD_TOP ? "max-w-md sm:max-w-5xl" : "max-w-md")
+            }
+          >
+            <Column rows={rows.slice(0, BOARD_TOP)} from={0} />
+            {rows.length > BOARD_TOP && (
+              <Column rows={rows.slice(BOARD_TOP)} from={BOARD_TOP} quiet />
             )}
           </div>
-        </section>
+        )}
+      </section>
 
+      <div className="relative mt-[1vh] flex flex-none flex-wrap items-center justify-center gap-x-3 gap-y-[0.5vh]">
         {error && (
-          <p role="alert" className="mt-3 text-center font-body text-xs leading-snug text-berry">
+          <p role="alert" className="font-body text-[clamp(0.55rem,1.5vh,0.72rem)] text-berry">
             {error}
           </p>
         )}
-
-        <div className="mt-5 flex flex-col items-center gap-2">
-          <button
-            type="button"
-            onClick={load}
-            disabled={busy}
-            className="flex min-h-[2.75rem] items-center gap-2 rounded-full border border-gold/50 bg-white/60 px-6 font-display text-sm text-ink/75 transition active:scale-[0.98] hover:bg-mist hover:text-ink disabled:opacity-60"
-          >
-            {busy ? <Spinner className="h-3.5 w-3.5" /> : null}
-            {busy ? "Reading…" : "Refresh"}
-          </button>
-          <p className="font-body text-[0.68rem] uppercase tracking-[0.18em] text-ink/35">
-            {read ? `Updated ${read} · updates every minute` : "Updates every minute"}
-          </p>
-        </div>
+        <button
+          type="button"
+          onClick={load}
+          disabled={busy}
+          className="flex min-h-[clamp(1.8rem,4.4vh,2.5rem)] items-center gap-2 rounded-full border border-gold/50 bg-white/60 px-[clamp(0.9rem,2.4vh,1.5rem)] font-display text-[clamp(0.65rem,1.8vh,0.85rem)] text-ink/75 transition active:scale-[0.98] hover:bg-mist hover:text-ink disabled:opacity-60"
+        >
+          {busy ? <Spinner className="h-3.5 w-3.5" /> : null}
+          {busy ? "Reading…" : "Refresh"}
+        </button>
+        <p className="font-body text-[clamp(0.5rem,1.4vh,0.66rem)] uppercase tracking-[0.14em] text-ink/35">
+          {read ? `Updated ${read}` : "Updates every minute"}
+        </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * One half of the board.
+ *
+ * From `sm` up, every row is `flex-1` of a column that is itself
+ * `min-h-0 flex-1` of the screen, and that is the whole no-scrolling
+ * mechanism: ten rows divide whatever height is left between them, so the
+ * board cannot outgrow the window however short it gets. The type is clamped
+ * well under the smallest row that arrangement can produce, so the words never
+ * outgrow the row they are in either.
+ *
+ * On a phone none of that applies and none of it should: the rows take their
+ * natural height from their own padding, the two columns stack, and the page
+ * scrolls. Every `flex-1` here is therefore `sm:`-prefixed — left unprefixed
+ * they would squash ten rows into whatever height the content happened to have
+ * and the list would collapse into a stripe.
+ *
+ * `quiet` is the second ten — a wash of ink behind them and a size down — so
+ * the ten being read out stay the ten the eye lands on, and the rest read as
+ * the tail of the same list rather than as more of the same.
+ */
+function Column({
+  rows,
+  from,
+  quiet = false,
+}: {
+  rows: TopScore[];
+  from: number;
+  quiet?: boolean;
+}) {
+  return (
+    <ol
+      className={
+        "flex flex-col overflow-hidden rounded-2xl border border-gold/35 px-4 shadow-[0_6px_20px_rgba(62,40,20,0.1)] sm:min-h-0 sm:flex-1 sm:px-[1.5vh] " +
+        (quiet ? "bg-ink/[0.07]" : "bg-parchment/80")
+      }
+    >
+      {rows.map((row, i) => {
+        const rank = from + i;
+        return (
+          <li
+            key={`${row.name}-${rank}`}
+            className={
+              "flex items-center gap-3 border-b border-gold/15 py-2 last:border-0 " +
+              "sm:min-h-0 sm:flex-1 sm:gap-[1.1vh] sm:py-0 " +
+              /*
+               * Sized against both axes, because each of them binds on a
+               * different screen. Height decides it on a laptop, where ten
+               * rows share a tall column and a `vh` figure fills them. Width
+               * decides it on a phone held upright, where each column is a
+               * hundred-odd pixels across — size that by height alone and
+               * every name truncates to three letters. `min()` takes whichever
+               * constraint is tighter, which is the one that would have broken.
+               */
+              (quiet
+                ? "text-sm text-ink/75 sm:text-[clamp(0.55rem,min(3.3vh,3.6vw),2rem)]"
+                : "text-base sm:text-[clamp(0.62rem,min(4vh,4.4vw),2.4rem)]")
+            }
+          >
+            {/* A crown for the first three, a number for the rest, both in the
+                same slot so every name starts on the same line. Sized in `em`,
+                so the slot keeps its proportion to the type as the rows grow
+                and shrink with the window. */}
+            <span
+              className="flex w-[1.8em] flex-none justify-center"
+              /* On the slot rather than the crown: `Crown` draws in
+                 `currentColor` precisely so the caller can set it with
+                 ordinary inheritance. */
+              style={rank < 3 ? { color: MEDALS[rank] } : undefined}
+            >
+              {rank < 3 ? (
+                <Crown className="h-[0.95em] w-auto" />
+              ) : (
+                <span className="font-display font-semibold text-goldDeep">{rank + 1}</span>
+              )}
+            </span>
+
+            {/* A guest's own typing, from a public endpoint, so it is allowed
+                to ellipsise rather than push the score off the edge. */}
+            <span className="min-w-0 flex-1 truncate text-ink/85">{row.name}</span>
+            <span className="flex-none pl-[0.5vh] font-mono font-semibold tabular-nums text-ink">
+              {row.score}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

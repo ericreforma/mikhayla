@@ -195,7 +195,7 @@ app/game/         the game itself. No page.tsx, so not a route at all.
   engine.ts     the simulation. No DOM, no React, no pixels.
   render.ts     the canvas. The only file that knows what a pixel is.
   Game.tsx      canvas sizing, the loop, the HUD, the controls.
-  Cards.tsx     the panels: before, paused, after, and the sealed board.
+  Cards.tsx     the panels: before, paused, after, and the scoreboard.
   scores.ts     posting to the sheet, and the personal best on the device.
   ledger.ts     reading the board back. Imported only by /royal-ledger.
   sfx.ts        the noises. Nothing else in the game knows it makes any.
@@ -747,68 +747,91 @@ never learned to**. The game's keyboard guard caught typing *into* a field but
 not a space pressed while the focus sat on a dialog's own panel — which would
 have started a run behind the wish form somebody was halfway through writing.
 
-### The board is sealed
+### The board
 
-**The game shows no standings at all, and that is the feature.** Scores are
-recorded the whole way through the party and read out by the host at the end of
-it. A panel that printed them would spoil that twice over: the answer would be
-common knowledge before it was announced, and a guest checking half an hour
-beforehand would know whether the reading was worth listening to.
+Ten rows, and the top three wear a crown rather than a number — gold, silver,
+bronze, in the slot the rank would have used, so the name still starts on the
+same line as every other. **Twenty are fetched and ten are drawn**, with the
+rest behind a *Top 20* button beside *Refresh*; the tail continues under a wash
+of ink at a size down, so the page everybody came for stays the one the eye
+lands on.
 
-So three things came out of the game together:
+The card takes the width of its longest name rather than a width picked in
+advance — pinned narrow, a party full of full names ellipsises down to "Maria
+Cristina D…" and the board stops naming anybody. It is a column, not a
+scrolling box: the heading and the buttons are pinned either side of a list
+that scrolls on its own.
 
-* **The scoreboard panel.** *Scoreboard* still sits in the row of ways on —
-  "where do I stand" is the first thing anybody wants after a run, and a button
-  that vanished would read as something broken. What it opens is a wax seal and
-  the reason, in the plainest words available: *Scores are hidden. Don't worry
-  — your score is saved. We're just keeping the list a secret until the party.
-  The top 10 will be announced on Saturday, October 17, 2026. Keep playing —
-  someone may have beaten you already!*
+Measured against the live board after it was reopened: ten rows on the first
+page, twenty after pressing *Top 20* (the button then reads *Top 10*), the card
+280x364 inside a 390px-tall phone on its side, and no overflow.
 
-  The register is deliberate. This card is read standing up by guests of every
-  age, many of them reading English as a second language, and its first job is
-  to stop somebody concluding the game lost their score — so that is the first
-  sentence, in the shortest words there are. An earlier draft opened with
-  "Every run is written into the royal ledger"; it was prettier and it buried
-  the one thing the reader needs.
-* **The leader pill in the HUD.** The far corner used to name whoever was top
-  of the board and turn gold when you went past them. It now shows your own
-  personal best and nothing else — which was already the fallback for a guest
-  with no signal, and is the honest thing to put in front of somebody mid-run:
-  the score to beat is yours.
-* **The *you have beaten everyone* sting.** `winner-all` is still in the sound
-  folder and is no longer played. It told a guest they were top of a board
-  nobody is allowed to see, which is the announcement arriving early and
-  through the wrong mouth. `winner-self` — beating your own record — still
-  plays, and is the feedback that actually matters to the person holding the
-  phone.
+#### It was sealed for the run-up to the party
 
-**Hiding the pill would not have been enough.** The number would still have
-been fetched to every guest's phone on every run and sat in plain view in the
-network tab. So `fetchTopScores` was moved out of `scores.ts` — which the game
-imports for the personal best and for posting a score — and into
-`app/game/ledger.ts`, which only `/royal-ledger` imports. The game's bundle
-cannot name the board at all now, which is checkable rather than a claim:
+Worth recording, because the code still carries one mark of it.
 
-```
-$ grep -rl "board=game" out/
-out/_next/static/chunks/app/royal-ledger/page-*.js
-```
+For the weeks before the party the panel showed no standings at all. The top
+ten were the host's to read out, and a board anybody could open would have made
+the announcement common knowledge before it was made — so *Scoreboard* opened a
+wax seal and an explanation instead, in the plainest words available: *Scores
+are hidden. Don't worry — your score is saved.*
 
-One chunk, and it is not one the game loads. Confirmed at runtime too — loading
-`/escaped` and listing what it requested gives four sprite sheets and the menu
-music, and nothing from Google.
+Three things went out together, and all three are back now that the party has
+happened:
 
-A side effect worth knowing: `adoptBoard` went with it. The board used to hand
-a returning player their own best back — a second phone, a cleared browser —
-and nothing fetches the board for a guest any more, so it cannot. A player who
-clears their browser starts their *local* best from nothing. Their scores are
-all still in the sheet under their name, and that is what gets read out.
+* **The panel** is a board again.
+* **The leader pill** names whoever is top of the board in the far corner of a
+  live run, and the corner goes gold the moment your score passes theirs —
+  written straight onto the node from inside the frame loop, for the same
+  reason the score is. With no board to show (no signal, a sheet not set up,
+  or the very first player) it falls back to this device's own best.
+* **The `winner-all` sting** plays again when a run ends above the top score,
+  in place of the game over. Topping the board swallows topping yourself;
+  `winner-self` covers the latter.
+
+**The one mark left is where `fetchTopScores` lives.** The seal put it in
+`app/game/ledger.ts` rather than `scores.ts`, so the board's URL was not merely
+unused in the game's bundle — it was not in it. That reason is gone and the
+split is kept anyway: one module that knows how to ask for the board, read by
+the game's panel, by the HUD, and by `/royal-ledger`.
+
+Measured after reopening: the pill carries the leader's name and score with a
+crown, `data-ahead` sits at `false` against a run below them, and the board is
+fetched twice — once on mount and once at the start of a run. The gold state
+and the `winner-all` sting are the restored original code and were not
+exercised; doing so needs a run that actually beats the top score.
+
+#### Why the game fetches a board for a corner of the HUD
+
+`loadLeader` runs on mount and again at the start of every run — the second one
+is also what refreshes the board after a score has just been saved.
+
+It does second duty as the scoreboard panel's warm-up, which is worth knowing
+because it is the difference between a panel that opens on a list and one that
+opens on a spinner. Apps Script is slow to wake: measured on a cold call, the
+request was **still in flight at four seconds and answered by twelve**. Opening
+the scoreboard is the first thing most players do after a run, so that wait
+lands at exactly the wrong moment; asking on mount moves it somewhere nobody is
+looking.
+
+The answer lands in a module-level cache in `ledger.ts` which outlives both
+readers — the panel is built and thrown away on every open, so without it the
+*second* open would spin too, and the HUD seeds its corner from the same cache
+so a second run paints the leader on its first frame. The panel paints the
+cache immediately and asks again behind it, so a stale board is on screen for
+one fetch at most and never instead of a fresh one.
+
+That latency is also why a probe reading this board twice came back empty the
+first time and full the second. If something here looks like it is not
+fetching, give it longer before believing it.
 
 ### The ledger
 
-`/royal-ledger?seal=…` is the one page that still prints the scores, and it
-exists for exactly one person: whoever is reading the names out.
+`/royal-ledger?seal=…` is the host's own board, built for one job: reading the
+names out. While the game's panel was sealed it was the only page that printed
+a standing at all; now that the panel is open again it keeps the job it was
+actually shaped for, which is the whole list at once rather than a top ten with
+a button.
 
 It is titled **The Royal Scoreboard** on screen; `royal-ledger` is only the
 address, kept vague on purpose.
@@ -822,9 +845,9 @@ microphone, and it stamps the time it last read so a stale screen says so.
 
 **`?seal=` has to match `LEDGER_KEY` in `app/config.ts`.** The address alone is
 not enough; the link that was handed over is. Without the right word the page
-shows exactly what the game shows — the sealed card, not "wrong key", because
-one of those ends the matter and the other is an invitation. Measured: with no
-seal and with a wrong seal the page makes **no request to the endpoint at
+says whose page it is and stops there — not "wrong key", because one of those
+ends the matter and the other tells a stranger there is a door. Measured: with
+no seal and with a wrong seal the page makes **no request to the endpoint at
 all**, so the gate stops the fetch rather than just the rendering.
 
 To withdraw a link that has been forwarded too far, change `LEDGER_KEY` and
@@ -898,7 +921,7 @@ scrolls horizontally at any size.
 A board of ten or fewer renders as **one centred column** rather than a full
 one beside an empty one, which would read as something that failed to load.
 
-The sealed card scrolls at every size, and it centres with `min-h-full` on an
+The no-key card scrolls at every size, and it centres with `min-h-full` on an
 inner box rather than `items-center` on a fixed-height one. Flex centring
 inside a scroll container puts the overflow *above* the top of the scrollable
 area, where nothing can reach it — on a landscape phone that would cut the

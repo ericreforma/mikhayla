@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { BABY_NAME, GUESTBOOK_PORTRAIT, LEDGER_KEY } from "@/app/config";
+import {
+  BABY_NAME,
+  GUESTBOOK_PORTRAIT,
+  GUESTBOOK_SLIDESHOW,
+  LEDGER_KEY,
+} from "@/app/config";
 import { Crown, Sparkle, Spinner } from "@/app/components/Ornaments";
 import { useIsLandscape } from "@/app/game/orientation";
 import { BOARD_TOP, fetchTopScores, type TopScore } from "@/app/game/ledger";
@@ -312,18 +317,26 @@ export default function Guestbook() {
     >
       <div aria-hidden className="pointer-events-none absolute inset-0 parchment-texture" />
       <Flourishes />
+      <Polaroids />
       <Portrait />
 
       {/*
-        The text column, held off the portrait's corner.
+        The text column, held clear of the photographs on the left and of her
+        on the right. Both numbers are measured rather than chosen:
 
-        `pl-[54vmin]` is measured rather than chosen: she is `h-[64vmin]` and
-        fills her frame at about 0.78 as wide as she is tall, so she occupies
-        50vmin across — this is that plus four of air. Everything else is
-        centred in what is left, so the message sits in the middle of the room
-        rather than the middle of the screen.
+        * `pl-[50vmin]` — a print is `PRINT_W` (42vmin) wide, the stack sits
+          2.5vmin off the edge, the lower one is offset 3vmin further, and the
+          tilt throws about 1vmin past that: 48.5vmin, plus air. Measured at
+          1080p, the widest print edge lands at 521px against a 540px gutter.
+        * `pr-[34vmin]` — she is `PORTRAIT_H` (38vmin) tall and about 0.78 as
+          wide as she is tall, so 29.6vmin, offset 1vmin, plus air.
+
+        Change any of those constants and these want changing with them, or the
+        message runs across the pictures. The message is centred in what is
+        left, which is no longer the centre of the screen — that is the point:
+        it sits in the middle of the *room*, between the photographs and her.
       */}
-      <div className="relative flex h-full flex-col items-center justify-center px-[6vmin] pb-[7vmin] pt-[6vmin] pl-[54vmin]">
+      <div className="relative flex h-full flex-col items-center justify-center px-[6vmin] pb-[7vmin] pt-[6vmin] pl-[50vmin] pr-[34vmin]">
         {messages === null ? (
           <p className="flex items-center gap-3 font-hand text-[3vmin] text-ink/50">
             <Spinner className="h-[3vmin] w-[3vmin]" />
@@ -513,31 +526,234 @@ function BoardColumn({
 const MEDALS = ["#C9A227", "#8A94A1", "#B0702B"];
 
 /**
- * Her, standing in the corner of the room.
+ * Two polaroid prints down the left, each turning over on its own.
  *
- * A cut-out, so there is no background to deal with and none of the tricks a
- * rectangle needed. The earlier version was a studio photograph masked by a
- * radial gradient anchored on this corner — opaque at her, gone before it
- * reached the text — which worked, but a fade that hides a background dims the
- * subject with it. She is simply there now.
+ * ---------------------------------------------------------------------------
+ * Why two, and why they are never in step
+ * ---------------------------------------------------------------------------
+ * One frame would be a slideshow; two make a wall. They are deliberately out
+ * of phase — the lower one changes `PHOTO_MS / 2` after the upper — because
+ * two pictures fading at the same instant reads as the screen refreshing
+ * rather than as photographs being looked through, and it leaves a moment
+ * where the whole left-hand side is blank.
+ *
+ * ---------------------------------------------------------------------------
+ * No photograph is ever in both frames at once
+ * ---------------------------------------------------------------------------
+ * Both frames draw from one shuffled order through one shared cursor, taking
+ * turns, so they are always at different positions in it. Picking at random
+ * per frame would have been one line shorter and would show the same picture
+ * twice, side by side, about once every ten changes — which is the one thing
+ * on a wall of photographs that looks like a bug.
+ *
+ * The order is shuffled once per visit rather than per change, so a long
+ * afternoon shows every photograph before it shows any of them twice. Random
+ * picking cannot promise that: it would show some four times and others not at
+ * all.
+ */
+
+/** How long a print holds before it turns over. */
+const PHOTO_MS = 7000;
+
+/**
+ * The width of a print, as a share of the smaller side of the screen.
+ *
+ * A print ends up `PRINT_W + 4.1vmin` tall — the square window plus the lip
+ * and the border — so two of them at this size come to more height than the
+ * screen has. That is deliberate: see `PRINT_LAP`.
+ */
+const PRINT_W = "42vmin";
+
+/**
+ * How far the upper print lies over the lower one.
+ *
+ * Two prints sized to sit neatly one above the other leave a tidy gap down the
+ * middle, and a tidy gap is what makes them read as a layout. Overlapping them
+ * slightly makes them read as two photographs *put down* — which is what a
+ * polaroid is for. It also buys the size: at 42vmin the pair is 92.2vmin tall
+ * against a 100vmin screen, and the overlap is what pulls that back to
+ * something with air above and below it.
+ */
+const PRINT_LAP = "6vmin";
+
+function Polaroids() {
+  /*
+   * Shuffled in state's initialiser rather than in an effect, so it happens
+   * once per mount and never during a render. A `useMemo` would be wrong here:
+   * React is explicitly allowed to throw a memo away and recompute it, which
+   * would reshuffle the deck mid-afternoon and undo the no-repeats promise.
+   */
+  const [order] = useState(() => {
+    const list = [...GUESTBOOK_SLIDESHOW];
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return list;
+  });
+
+  /* Where the two frames have got to in that order. A ref, not state: it is
+     read and advanced inside a timer, and a stale closure over it would deal
+     the same photograph twice. */
+  const cursor = useRef(2);
+  const [top, setTop] = useState(() => order[0]);
+  const [bottom, setBottom] = useState(() => order[1 % order.length]);
+
+  useEffect(() => {
+    if (order.length < 2) return;
+    const next = () => order[cursor.current++ % order.length];
+    const a = window.setInterval(() => setTop(next()), PHOTO_MS);
+    /* The lower frame's first change comes half a beat late, which is what
+       sets the two of them permanently out of step. */
+    let b = 0;
+    const offset = window.setTimeout(() => {
+      setBottom(next());
+      b = window.setInterval(() => setBottom(next()), PHOTO_MS);
+    }, PHOTO_MS / 2);
+    return () => {
+      window.clearInterval(a);
+      window.clearTimeout(offset);
+      window.clearInterval(b);
+    };
+  }, [order]);
+
+  /*
+   * Every photograph fetched up front, once, after the first paint.
+   *
+   * All nineteen come to about a megabyte at the desktop tier, which is
+   * nothing against an afternoon — and the alternative is visibly worse: a
+   * fade that begins before its picture has arrived spends its first second
+   * showing an empty white frame. This is a screen nobody is tending, so the
+   * cost is paid once at the start rather than gambled on every change.
+   */
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      order.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+      });
+    }, 1200);
+    return () => window.clearTimeout(id);
+  }, [order]);
+
+  if (order.length === 0) return null;
+
+  return (
+    /*
+     * A centred stack rather than two absolute corners.
+     *
+     * Anchoring one print to the top and the other to the bottom looked the
+     * same at 35vmin and falls apart the moment they are big enough to meet:
+     * the gap between them becomes whatever the screen's height happens to
+     * leave, so it closes on a short window and yawns open on a tall one. A
+     * flex column centres the pair and `-mt` sets the overlap directly, so the
+     * two of them keep the same relationship to each other at every size and
+     * the leftover air is split evenly above and below.
+     *
+     * `z-10` on the upper one is what puts it *over* the lower: later siblings
+     * paint on top by default, which would have tucked the top print behind.
+     */
+    <div
+      aria-hidden
+      /* `left-[2.5vmin]` rather than the 1vmin it looks like it wants: the
+         tilt swings the upper print's corner outwards, and its *bounding box*
+         then starts about 1vmin left of the element. Measured at 1080p with
+         1vmin, the print's visible edge sat at exactly 0 — touching the screen
+         — which reads as a picture cut off rather than one laid down. */
+      className="pointer-events-none absolute inset-y-0 left-[2.5vmin] flex flex-col justify-center"
+    >
+      <Print src={top} className="z-10 -rotate-[2.5deg]" />
+      <Print src={bottom} className="ml-[3vmin] rotate-[2deg]" style={{ marginTop: `-${PRINT_LAP}` }} />
+    </div>
+  );
+}
+
+/**
+ * One print.
+ *
+ * A polaroid is a white card with a square window and a deep blank lip along
+ * the bottom, and the lip is the whole of what makes it read as a print rather
+ * than as a photograph with a border — so it is `pb-[5.5vmin]` against
+ * `p-[1.4vmin]` everywhere else, and it is left empty. The temptation is to
+ * write her name on it; a real one is blank until somebody does.
+ *
+ * The window is square because these are ten landscape and nine portrait
+ * shots, and square is the one shape that takes both without the frame
+ * changing size between pictures — a frame that reshaped itself every seven
+ * seconds would pull the eye far harder than the photographs do.
+ */
+function Print({
+  src,
+  className,
+  style,
+}: {
+  src: string;
+  className: string;
+  style?: React.CSSProperties;
+}) {
+  return (
+    <div
+      /* `flex-none`: these are flex children now, and a pair that together
+         come to more than the screen's height would otherwise be squashed to
+         fit — which would crush the square window into a letterbox. */
+      className={`flex-none rounded-[0.5vmin] bg-[#FDFCF8] p-[1.4vmin] pb-[5.5vmin] shadow-[0_1.2vmin_3vmin_rgba(62,40,20,0.28)] ${className}`}
+      style={{ width: PRINT_W, ...style }}
+    >
+      <div className="relative aspect-square w-full overflow-hidden bg-mist">
+        {/*
+          `mode="wait"` is wrong here and `mode` is left out on purpose: the
+          outgoing picture has to still be there, underneath, while the new one
+          fades up over it. Waiting would fade to the empty frame first and
+          back out again, which is a blink rather than a dissolve. Both are
+          absolutely positioned so they occupy the same square while they
+          overlap.
+        */}
+        <AnimatePresence initial={false}>
+          <motion.img
+            key={src}
+            src={src}
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.1, ease: "easeInOut" }}
+          />
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Her, at the right-hand edge.
+ *
+ * Smaller than she was when she had the screen's left corner to herself — the
+ * photographs have that now, and two of them plus a full-height cut-out would
+ * have left the messages a corridor to live in. At `PORTRAIT_H` she still
+ * anchors her side without competing with the prints for attention.
  *
  * **Sized by height, with the width left to follow.** `w-auto` plus
  * `object-contain` is what keeps her in proportion at every shape of screen;
  * giving the box both dimensions is how a cut-out ends up subtly stretched,
  * and a stretched person is the one thing on this screen everybody would
- * notice. See `GUESTBOOK_PORTRAIT` for where the message's left padding comes
- * from — it is this height times her proportions, and the two move together.
+ * notice.
  *
  * The drop shadow is the only thing added back. A cut-out with no shadow does
  * not stand on the floor, it hovers slightly above it; this is small enough to
  * read as the room's own light rather than as an effect.
  */
+
+/** How tall she stands, as a share of the smaller side of the screen. */
+const PORTRAIT_H = "38vmin";
+
 function Portrait() {
   if (!GUESTBOOK_PORTRAIT) return null;
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute bottom-0 left-0 h-[64vmin] w-auto"
+      className="pointer-events-none absolute bottom-0 right-[1vmin] w-auto"
+      style={{ height: PORTRAIT_H }}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img

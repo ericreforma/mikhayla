@@ -80,6 +80,46 @@ the sender's name above, fifteen seconds each, arrow keys or a click to move.
 It asks the script again every two minutes, so messages sent *during* the party
 appear on it without anybody touching the laptop.
 
+Around the words: **two polaroid prints** stacked down the left, each turning
+over its own photograph every seven seconds, and **her cut-out** standing at the
+right-hand edge. The message is centred in what is left, which is deliberately
+not the centre of the screen — it sits in the middle of the *room*, between the
+photographs and her.
+
+### Adding or changing the photographs
+
+Three steps, and all three are needed or the photograph will not appear:
+
+1. Put the original in `assets-src/slideshow/`.
+2. Run `python scripts/optimize-images.py`.
+3. Add its filename to `GUESTBOOK_SLIDESHOW` in `app/config.ts`.
+
+The list is hand-written because this is a static export — there is no server
+to ask what is in a folder, so the source is the only place the page can learn
+what exists. The names there are the *originals'*, `.jpg` and all; `picture()`
+rewrites them to the tier and the `.webp` the browser is actually served.
+
+The nineteen that came off the camera were **154MB** of full-resolution JPEGs,
+and they had been dropped straight into `public/`, which deploys every byte of
+them. Through the pipeline the whole set is **1.1MB** at the desktop tier, and
+the originals stay outside `public/` where nothing can ship them.
+
+**A polaroid's window is square, and these are ten landscape shots and nine
+portrait ones**, so every one of them is centre-cropped to fit — a landscape
+shot loses its sides, a portrait one its top and bottom. Worth knowing when
+choosing what to add: anything that matters belongs near the middle of the
+frame. A face in the far corner of a wide shot will be cropped out.
+
+Two details that took measuring. The prints are **centred as a stack with a
+deliberate overlap** rather than anchored one to the top and one to the bottom:
+anchored, the gap between them is whatever the screen's height happens to
+leave, so it closes on a short window and yawns open on a tall one. And the two
+frames **never show the same photograph at once** — both draw from one shuffled
+order through one shared cursor, taking turns, so they are always at different
+positions in it. Picking at random per frame would have been shorter and would
+have shown the same picture twice side by side about once every ten changes,
+which is the one thing on a wall of photographs that looks like a bug.
+
 It reads **two tabs**, not one: `RSVPs` and `Wishes`, so a message left with an
 RSVP and a birthday wish sent from the pop-up stand side by side on the same
 wall. If one of the two is missing from the screen, that is the first thing to
@@ -276,11 +316,8 @@ function saveScore(data) {
 }
 
 /**
- * The leaderboard, which only `/royal-ledger` reads.
- *
- * The game's own "Scoreboard" button shows a sealed card instead — the
- * standings are announced by the host rather than looked up. See
- * `docs/game.md`.
+ * The leaderboard, read by the game's "Scoreboard" button and by the host's
+ * page at `/royal-ledger`.
  *
  * One row per *person*, not per run — their best. A leaderboard is a list of
  * who is good at this, and without the fold one determined ten-year-old fills

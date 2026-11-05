@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { LEDGER_KEY, PARTY_DATE } from "@/app/config";
+import { LEDGER_KEY } from "@/app/config";
 import { Crown, Sparkle, Spinner } from "@/app/components/Ornaments";
 import { BOARD_TOP, fetchTopScores, type TopScore } from "@/app/game/ledger";
 
@@ -9,26 +9,30 @@ import { BOARD_TOP, fetchTopScores, type TopScore } from "@/app/game/ledger";
  * The royal ledger, at `/royal-ledger?seal=…`.
  *
  * ---------------------------------------------------------------------------
- * The one page that still prints the scores
+ * The host's own board
  * ---------------------------------------------------------------------------
- * The game's own scoreboard is sealed — see `SealedBoard` in
- * `app/game/Cards.tsx`. Scores are recorded the whole time and shown to
- * nobody, because the standings are the host's to announce at the party rather
- * than something a guest can look up between runs.
+ * Built for one job — reading the names out — and not for a guest: twenty
+ * names at once rather than ten with a button, no interest in hiding the ones
+ * below the top three, and a refresh, because runs were still arriving while
+ * the host walked to the microphone.
  *
- * This is the exception, and it exists for exactly one person: whoever is
- * reading the names out. So it is built for that job and not for a guest —
- * twenty names rather than ten, no interest in hiding the ones below the top
- * three, and a refresh button, because runs will still be arriving while the
- * host is walking to the microphone.
+ * For the run-up to the party this was the only page anywhere that printed a
+ * standing; the game's own panel showed a sealed card instead. That is over —
+ * the panel is a board again — and this page keeps the shape it was built
+ * for, which is still the better one for reading aloud.
  *
  * ---------------------------------------------------------------------------
  * The latch
  * ---------------------------------------------------------------------------
  * `?seal=` has to match `LEDGER_KEY`, so the address alone is not enough and
- * the link that was handed over is. Without it this page says precisely what
- * the game says, which is also the right answer for anybody who finds the URL
- * by accident: there is nothing here to see yet.
+ * the link that was handed over is. Without it the page says whose page it is
+ * and stops there — not "wrong key", which tells a stranger there is a door
+ * and they have the wrong word for it.
+ *
+ * It used to say *scores are hidden* and promise the top ten at the party,
+ * which was true then and is a lie now: the party has happened and the game's
+ * own panel shows the board. A card that goes stale on a date is a card to
+ * check after that date.
  *
  * It is a latch and not a lock. The rows come from the same public Apps Script
  * URL the game posts to, so somebody determined enough to open a network tab
@@ -304,17 +308,15 @@ function Sealed() {
             <Crown className="h-6 w-auto text-goldDeep" />
           </span>
           <h1 className="mt-4 font-display text-2xl italic leading-snug text-ink">
-            Scores are hidden
+            This page is the host&apos;s
           </h1>
           <div aria-hidden className="gilt-rule mx-auto mt-3 h-px w-20" />
           <p className="mt-4 font-body text-sm leading-relaxed text-ink/70">
-            Don&apos;t worry — your score is saved. We&apos;re just keeping the list a secret
-            until the party.
+            It is the long version of the royal scoreboard, kept for whoever is
+            reading the names out.
           </p>
           <p className="mt-2 font-body text-sm leading-relaxed text-ink/55">
-            The top 10 will be announced on{" "}
-            <span className="whitespace-nowrap font-semibold text-ink">{PARTY_DATE}</span>. Keep
-            playing — someone may have beaten you already!
+            The scoreboard itself is in the game, where everybody can see it.
           </p>
         </div>
       </div>

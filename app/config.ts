@@ -253,7 +253,35 @@ export const COLUMN_SEPARATOR = asset("/frames/column-separator.svg");
  * over and the bottom runs off the screen.
  */
 /**
- * The portrait that stands in the corner of the guestbook screen.
+ * The photographs that cycle in the guestbook's polaroid frames.
+ *
+ * Nineteen of them, shuffled on the client and dealt to two frames that fade
+ * one picture into the next — see `Polaroids` in `app/guestbook/page.tsx`.
+ *
+ * ---------------------------------------------------------------------------
+ * Why a hand-written list
+ * ---------------------------------------------------------------------------
+ * The site is a static export: there is no server to ask what is in a folder,
+ * so a list in the source is the only way the page can know. Add a photograph
+ * to `assets-src/slideshow/`, run `python scripts/optimize-images.py`, and add
+ * its filename here — all three steps, or it will not appear.
+ *
+ * The names are the *originals'*, `.jpg` and all. `picture()` rewrites them to
+ * the tier and the `.webp` the browser is actually served, which is what keeps
+ * this reading as a list of the photographs on disk rather than of build
+ * artefacts.
+ *
+ * ---------------------------------------------------------------------------
+ * They are cropped square
+ * ---------------------------------------------------------------------------
+ * A polaroid's window is square and these are a mix of ten landscape and nine
+ * portrait shots, so every one of them is centre-cropped to fit — a landscape
+ * shot loses the sides, a portrait one the top and bottom. Worth knowing when
+ * choosing what to add: **anything that matters belongs near the middle of the
+ * frame.** A face in the far corner of a wide shot will be cropped out.
+ */
+/**
+ * Her, standing at the right-hand edge of the guestbook screen.
  *
  * A **cut-out** rather than one of the rectangular studio shots, which is what
  * lets her simply stand in the room: the photographs needed a radial fade to
@@ -263,11 +291,33 @@ export const COLUMN_SEPARATOR = asset("/frames/column-separator.svg");
  *
  * She fills her own frame almost exactly (the figure runs from 4% to 100%
  * across it), so whatever height the screen gives her, she is about 0.78 of
- * that wide — which is where the guestbook's left padding comes from. Replace
+ * that wide — which is where the guestbook's right padding comes from. Replace
  * her with a differently-proportioned cut-out and that padding wants
  * re-measuring, or the message will run across her.
  */
 export const GUESTBOOK_PORTRAIT = picture("/images/khayla-cutout.png");
+
+export const GUESTBOOK_SLIDESHOW = [
+  "2.jpg",
+  "DSCF0718.jpg",
+  "DSCF0994.jpg",
+  "DSCF1026.jpg",
+  "DSCF1068.jpg",
+  "DSCF1095.jpg",
+  "DSCF1266-2.jpg",
+  "DSCF1345.jpg",
+  "DSCF1416.jpg",
+  "DSCF1452.jpg",
+  "DSCF1463.jpg",
+  "DSCF1473.jpg",
+  "DSCF2674.jpg",
+  "DSCF2675.jpg",
+  "DSCF2726.jpg",
+  "DSCF2730.jpg",
+  "DSCF2745.jpg",
+  "DSCF2936.jpg",
+  "DSCF3074-2.jpg",
+].map((name) => picture(`/slideshow/${name}`));
 
 export const FINALE_PORTRAIT = picture("/images/mikhayla-cake.png");
 

@@ -3,21 +3,19 @@
 /**
  * Reading the board back.
  *
- * Deliberately a module of its own rather than another export on `scores.ts`,
- * and the split is the point rather than tidiness.
+ * A module of its own rather than another export on `scores.ts`, which is a
+ * split worth keeping even now that it has outlived the reason it was made.
  *
- * The scoreboard is sealed: scores are recorded all through the party and read
- * out by the host at the end of it, and nothing a guest can open shows them a
- * standing. Leaving this function beside the ones the game *does* use would
- * have left the board's URL sitting in the game's own bundle — unused, but one
- * line of someone else's curiosity away, and findable by anybody who opened
- * the file. Here it is reachable only from `/royal-ledger`, which is the one
- * page allowed to ask, and the game's bundle cannot name the board at all.
+ * It was made for the seal: for the length of the party the standings were the
+ * host's to announce, nothing a guest could open showed a position, and
+ * keeping this function out of `scores.ts` meant the board's URL was not in
+ * the game's bundle at all — not merely unused in it. The party is over and
+ * the board is open again, so the game imports this now like anything else.
  *
- * Being honest about the limit: the endpoint itself is public, the same one
- * the game posts scores to, so this hides the board from everybody except
- * somebody willing to take the invitation apart. See `LEDGER_KEY` in
- * `app/config.ts`.
+ * What survives is the shape: one module that knows how to ask for the board,
+ * used by the game's own scoreboard panel and by `/royal-ledger`. That page is
+ * still the only one that shows all twenty, and is still gated — see
+ * `LEDGER_KEY` in `app/config.ts`.
  */
 
 import { GAME_ENDPOINT } from "@/app/config";
@@ -46,6 +44,36 @@ export type TopScore = { name: string; score: number };
 export type BoardResult =
   | { ok: true; top: TopScore[] }
   | { ok: false; error: string };
+
+
+/**
+ * The last board the server gave us, for as long as the tab is open.
+ *
+ * The panel is built and thrown away every time it is opened, so without this
+ * every open is a spinner — including the second one, two seconds after the
+ * first. Module-level rather than React state precisely because it has to
+ * outlive the component that reads it.
+ *
+ * It is a cache, not a source of truth: the panel paints this immediately and
+ * then asks again behind it, so a stale board is on screen for one fetch at
+ * most and never instead of a fresh one.
+ */
+let board: TopScore[] | null = null;
+
+/** Whatever we last heard, or null if we have not heard yet. */
+export function cachedTop(): TopScore[] | null {
+  return board;
+}
+
+/**
+ * The one name worth putting on screen during a run.
+ *
+ * Read by the HUD, which seeds its corner from this so a second run paints the
+ * leader on its first frame instead of popping it in once the fetch lands.
+ */
+export function cachedLeader(): TopScore | null {
+  return board && board.length > 0 ? board[0] : null;
+}
 
 /**
  * The best of them, for the ledger.
@@ -89,6 +117,7 @@ export async function fetchTopScores(): Promise<BoardResult> {
       top.push({ name: name.trim().slice(0, NAME_MAX), score: Math.floor(score) });
     }
 
+    board = top;
     return { ok: true, top };
   } catch {
     return {

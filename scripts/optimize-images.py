@@ -101,6 +101,13 @@ GROUPS = (
     Group("princesses", (300, 420, 560), quality=82, alpha=True),
     # The venue's stills: a poster behind a play button in a 16:9 window.
     Group("venue", (480, 720, 960), quality=80),
+    # The guestbook's polaroid prints. Each one is shown inside a frame about
+    # 31vmin across — roughly 335 CSS px on a 1080p television — so the desktop
+    # figure is set for a 2x panel at that size and nothing larger. These are
+    # also the only pictures on the site that are *cropped square* by the CSS
+    # rather than shown whole, so half of a landscape shot's width is thrown
+    # away at display time; there is no point carrying it at full width.
+    Group("slideshow", (480, 700, 960), quality=80),
 )
 
 #: Source files that are already small and already the right format — they are
